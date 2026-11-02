@@ -1,0 +1,26 @@
+name: Daily Shorts Publisher
+on:
+  schedule:
+    - cron: '30 0 * * *'  # 06:00 AM IST
+    - cron: '0 7 * * *'   # 12:30 PM IST
+    - cron: '0 13 * * *'  # 06:30 PM IST
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm install
+      - name: Restore YouTube Tokens
+        run: |
+          echo '${{ secrets.CLIENT_SECRET_JSON }}' > client_secret.json
+          echo '${{ secrets.TOKEN_JSON }}' > token.json
+      - name: Run Pipeline
+        run: node src/pipeline.js
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
