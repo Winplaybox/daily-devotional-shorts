@@ -1,0 +1,6 @@
+node_modules/
+out/
+.remotion/
+token.json
+client_secret.json
+.env
