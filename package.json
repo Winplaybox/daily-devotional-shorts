@@ -7,6 +7,7 @@
     "start": "node src/pipeline.js",
     "auth": "node scripts/auth_youtube.js",
     "auth:fresh": "node scripts/auth_youtube.js --fresh",
+    "show:secrets": "node scripts/show_secrets.js",
     "dev": "remotion preview src/index.ts",
     "render": "remotion render src/index.ts DailyShort out/short.mp4"
   },

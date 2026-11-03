@@ -29,14 +29,17 @@ jobs:
         run: npm install
 
       - name: Restore YouTube Tokens
+        env:
+          CLIENT_SECRET_RAW: ${{ secrets.CLIENT_SECRET_JSON }}
+          TOKEN_RAW: ${{ secrets.TOKEN_JSON }}
         run: |
-          if [ -n "${{ secrets.CLIENT_SECRET_JSON }}" ]; then
-            echo '${{ secrets.CLIENT_SECRET_JSON }}' > client_secret.json
-            echo "Restored client_secret.json"
+          if [ -n "$CLIENT_SECRET_RAW" ]; then
+            printf "%s" "$CLIENT_SECRET_RAW" > client_secret.json
+            echo "Restored client_secret.json successfully"
           fi
-          if [ -n "${{ secrets.TOKEN_JSON }}" ]; then
-            echo '${{ secrets.TOKEN_JSON }}' > token.json
-            echo "Restored token.json"
+          if [ -n "$TOKEN_RAW" ]; then
+            printf "%s" "$TOKEN_RAW" > token.json
+            echo "Restored token.json successfully"
           fi
 
       - name: Run Pipeline
