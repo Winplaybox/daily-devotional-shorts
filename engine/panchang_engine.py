@@ -116,6 +116,36 @@ def get_target_playlist(religion: str, title: str, slot: str = "morning") -> str
         return "जैन पर्व एवं तीर्थंकर कल्याणक | Jain Parv"
     return "दैनिक पंचांग व शुभ मुहूर्त 2026 | Daily Panchang"
 
+def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
+    """
+    Computes ISO 8601 UTC timestamp for YouTube scheduled publishing in IST.
+    Morning: 06:00 AM IST (00:30 UTC)
+    Afternoon: 12:30 PM IST (07:00 UTC)
+    Evening: 07:00 PM IST (13:30 UTC)
+    Guarantees the scheduled time gives YouTube at least 30 minutes of processing buffer for 4K.
+    """
+    ist_tz = timezone(timedelta(hours=5.5))
+    now_ist = datetime.now(ist_tz)
+
+    if slot == "morning":
+        slot_hour, slot_minute = 6, 0
+    elif slot == "afternoon":
+        slot_hour, slot_minute = 12, 30
+    elif slot == "evening":
+        slot_hour, slot_minute = 19, 0
+    else:
+        slot_hour, slot_minute = 6, 0
+
+    target_dt_ist = datetime(target_date.year, target_date.month, target_date.day, slot_hour, slot_minute, tzinfo=ist_tz)
+
+    # Buffer of at least 30 minutes so YouTube has time to process 4K Ultra HD
+    min_buffer = now_ist + timedelta(minutes=30)
+    if target_dt_ist < min_buffer:
+        target_dt_ist = min_buffer
+
+    target_dt_utc = target_dt_ist.astimezone(timezone.utc)
+    return target_dt_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
 def generate_daily_payload(target_date: date = None, slot: str = "morning") -> dict:
     """
     Main function: Generates full real-time panchang props payload with slots.
@@ -167,6 +197,7 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         slot=slot
     )
     playlist = get_target_playlist(primary_event["religion"], title_disp, slot=slot)
+    publish_at = compute_scheduled_publish_time(slot, target_date)
 
     payload = {
         "religion": primary_event["religion"],
@@ -182,6 +213,7 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         "theme": theme,
         "slot": slot,
         "playlist_name": playlist,
+        "publish_at": publish_at,
         "panchang_raw": panchang,
         **seo,
     }
@@ -230,6 +262,7 @@ def main():
     print(f"Card 2:   {payload['label2']} -> {payload['val2']}")
     print(f"Card 3:   {payload['label3']} -> {payload['val3']}")
     print(f"Footer:   {payload['footer']}")
+    print(f"Schedule: {payload['publish_at']}")
     print(f"Props:    Saved to {out_path}")
     print("==========================================================")
 

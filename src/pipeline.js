@@ -78,7 +78,7 @@ async function getDailyPanchangData() {
 
 // Step 2: Render Remotion Short with Native 2D Vector Animations
 async function renderRemotionVideo(data, outVideoPath) {
-  console.log('[2/3] Rendering 15s animated Short with Remotion (Native 2D Vector Motifs)...');
+  console.log('[2/3] Rendering 15s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
 
   const bundleLocation = await bundle({
     entryPoint: path.resolve('./src/index.ts'),
@@ -101,9 +101,10 @@ async function renderRemotionVideo(data, outVideoPath) {
     codec: 'h264',
     outputLocation: outVideoPath,
     inputProps,
+    scale: 2, // 4K Ultra HD (2160x3840 from 1080x1920 base)
   });
 
-  console.log(`Video render complete with Native 2D Vector Art: ${outVideoPath}`);
+  console.log(`Video render complete in 4K Ultra HD (2160x3840): ${outVideoPath}`);
 }
 
 // Step 3: YouTube API Upload
@@ -203,20 +204,22 @@ async function addVideoToPlaylist(yt, playlistId, videoId) {
 }
 
 async function uploadToYouTube(yt, videoPath, metadata) {
-  console.log('[3/3] Uploading Short to YouTube...');
+  console.log('[3/3] Uploading Short to YouTube (Scheduled Mode)...');
   try {
-    const publishAt = process.env.PUBLISH_AT || process.env.SCHEDULE_TIME || metadata.publishAt;
-    const isScheduled = Boolean(publishAt);
+    const rawPublishAt = process.env.PUBLISH_AT || process.env.SCHEDULE_TIME || metadata.publish_at || metadata.publishAt;
+    
+    // Default to at least 30 minutes in future so YouTube can process 4K Ultra HD
+    const targetPublishAt = rawPublishAt ? new Date(rawPublishAt) : new Date(Date.now() + 30 * 60 * 1000);
+    const publishAtIso = targetPublishAt.toISOString();
+
+    console.log(`[SCHEDULE] 4K Video will automatically publish at: ${publishAtIso}`);
+    console.log(`[SCHEDULE] Privacy: private (YouTube processes 4K Ultra HD & releases at scheduled time)`);
 
     const statusConfig = {
-      privacyStatus: isScheduled ? 'private' : 'public',
+      privacyStatus: 'private', // Required by YouTube API for scheduled uploads
+      publishAt: publishAtIso,
       selfDeclaredMadeForKids: false,
     };
-
-    if (isScheduled) {
-      statusConfig.publishAt = new Date(publishAt).toISOString();
-      console.log(`[SCHEDULE] Video scheduled to publish at: ${statusConfig.publishAt}`);
-    }
 
     const res = await yt.videos.insert({
       part: ['snippet', 'status'],
