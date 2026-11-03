@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node src/pipeline.js",
+    "auth": "node scripts/auth_youtube.js",
+    "auth:fresh": "node scripts/auth_youtube.js --fresh",
     "dev": "remotion preview src/index.ts",
     "render": "remotion render src/index.ts DailyShort out/short.mp4"
   },
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/genai": "^0.2.0",
     "@remotion/bundler": "^4.0.230",
     "@remotion/cli": "^4.0.230",
     "@remotion/renderer": "^4.0.230",
