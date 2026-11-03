@@ -242,7 +242,7 @@ async function uploadToYouTube(yt, videoPath, metadata) {
     console.log(`\n==========================================================`);
     console.log(`🎉 Successfully published to YouTube Shorts!`);
     console.log(`URL: https://youtube.com/shorts/${videoId}`);
-    if (isScheduled) {
+    if (statusConfig.publishAt) {
       console.log(`Status: Scheduled (Private until ${statusConfig.publishAt})`);
     }
     console.log(`==========================================================\n`);
