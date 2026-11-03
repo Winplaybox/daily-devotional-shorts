@@ -69,13 +69,21 @@ async function generateBackgroundArt(prompt, savePath) {
 
 async function renderRemotionVideo(data, bgPath, outVideoPath) {
   console.log('[3/4] Rendering 15s animated Short with Remotion...');
+
+  // Local image ko read karke valid Data URI banayein
+  const imgBuffer = fs.readFileSync(bgPath);
+  const base64Image = imgBuffer.toString('base64');
+  const bgDataUrl = `data:image/jpeg;base64,${base64Image}`;
+
   const bundleLocation = await bundle({
     entryPoint: path.resolve('./src/index.ts'),
     webpackOverride: (config) => config,
   });
 
-  const bgDataUrl = `data:image/jpeg;base64,${fs.readFileSync(bgPath).toString('base64')}`;
-  const inputProps = { ...data, bgImageUrl: bgDataUrl };
+  const inputProps = {
+    ...data,
+    bgImageUrl: bgDataUrl, // Override default Unsplash image
+  };
 
   const composition = await selectComposition({
     serveUrl: bundleLocation,
@@ -91,7 +99,7 @@ async function renderRemotionVideo(data, bgPath, outVideoPath) {
     inputProps,
   });
 
-  console.log(`Video render complete: ${outVideoPath}`);
+  console.log(`Video render complete with Divine 8K Artwork: ${outVideoPath}`);
 }
 
 async function getYouTubeClient() {
