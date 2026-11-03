@@ -4,7 +4,7 @@ import { PanchangShort, PanchangProps } from './PanchangShort';
 
 export const RemotionRoot: React.FC = () => {
   const sampleData: PanchangProps = {
-    bgImageUrl: 'https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=1080&q=80',
+    theme: 'krishna',
     religion: 'SANATANA DHARMA',
     title: 'गोवर्धन पूजा',
     dateDisplay: '10 नवंबर 2026, मंगलवार',

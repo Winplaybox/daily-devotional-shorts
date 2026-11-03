@@ -23,59 +23,6 @@ if sys.stdout.encoding != 'utf-8':
 from engine.panchang_calculator import get_complete_panchang
 from engine.festival_detector import detect_todays_festivals
 
-# Curated High-Definition Spiritual Visuals (9:16 vertical crop ready)
-# Royalty-free curated temple, deity, and sacred aura images
-THEME_WALLPAPERS = {
-    "krishna": [
-        "https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?auto=format&fit=crop&w=1080&q=80", # Krishna flute / Vrindavan
-        "https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=1080&q=80", # Sacred Diya
-    ],
-    "shiva": [
-        "https://images.unsplash.com/photo-1608889175123-8ee362201f81?auto=format&fit=crop&w=1080&q=80", # Mahadev / Himalayan Temple
-        "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=1080&q=80", # Sacred flame
-    ],
-    "devi": [
-        "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1080&q=80", # Golden temple aura
-        "https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=1080&q=80", # Diya deepavali
-    ],
-    "ganesh": [
-        "https://images.unsplash.com/photo-1567591414240-e175924d5b24?auto=format&fit=crop&w=1080&q=80", # Ganesha idol / flowers
-    ],
-    "temple": [
-        "https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=1080&q=80", # Sacred Indian diya
-        "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1080&q=80", # Golden temple
-        "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=1080&q=80", # Aarti
-    ],
-    "islam": [
-        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1080&q=80", # (replaced with architecture below)
-        "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=1080&q=80", # Grand Mosque architecture
-        "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=1080&q=80", # Crescent moon night
-    ],
-    "sikh": [
-        "https://images.unsplash.com/photo-1609137144822-09470c1737be?auto=format&fit=crop&w=1080&q=80", # Golden Temple Amritsar
-        "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1080&q=80",
-    ],
-    "christian": [
-        "https://images.unsplash.com/photo-1548625361-19597793c393?auto=format&fit=crop&w=1080&q=80", # Cathedral stained glass / light
-        "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=1080&q=80", # Sacred candles
-    ],
-    "jain": [
-        "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1080&q=80", # Jain carved marble temple
-        "https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=1080&q=80",
-    ],
-}
-
-def pick_wallpaper(theme: str, target_date: date) -> str:
-    """Picks a wallpaper matching the festival theme and rotates based on day."""
-    wallpapers = THEME_WALLPAPERS.get(theme, THEME_WALLPAPERS["temple"])
-    # Filter out any non-sacred fallbacks
-    valid_wallpapers = [w for w in wallpapers if not w.endswith("542838132-92c53300491e")]
-    if not valid_wallpapers:
-        valid_wallpapers = THEME_WALLPAPERS["temple"]
-    # Deterministic rotation based on day number
-    idx = target_date.day % len(valid_wallpapers)
-    return valid_wallpapers[idx]
-
 def generate_seo_metadata(event: dict, panchang: dict) -> dict:
     """Generates rich, high-CTR YouTube Shorts title, description, and hashtags."""
     title_raw = event.get("yt_title")
@@ -129,7 +76,6 @@ def generate_daily_payload(target_date: date = None) -> dict:
     primary_event = festivals[0] # Highest priority event
 
     theme = primary_event.get("theme", "temple")
-    bg_url = pick_wallpaper(theme, target_date)
     seo = generate_seo_metadata(primary_event, panchang)
 
     payload = {
@@ -144,7 +90,6 @@ def generate_daily_payload(target_date: date = None) -> dict:
         "val3": primary_event["val3"],
         "footer": primary_event["footer"],
         "theme": theme,
-        "bgImageUrl": bg_url,
         "panchang_raw": panchang,
         **seo,
     }
