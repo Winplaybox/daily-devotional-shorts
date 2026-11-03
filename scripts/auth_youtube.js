@@ -7,8 +7,10 @@ import { google } from 'googleapis';
 import readline from 'readline';
 
 const SCOPES = [
+  'https://www.googleapis.com/auth/youtube',
   'https://www.googleapis.com/auth/youtube.upload',
   'https://www.googleapis.com/auth/youtube.readonly',
+  'https://www.googleapis.com/auth/youtube.force-ssl',
 ];
 
 const CLIENT_SECRET_FILE = path.resolve('./client_secret.json');

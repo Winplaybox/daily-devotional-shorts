@@ -7,6 +7,17 @@ on:
     - cron: '0 7 * * *'   # 12:30 PM IST
     - cron: '0 13 * * *'  # 06:30 PM IST
   workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Publishing slot (morning, afternoon, evening, auto)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - morning
+          - afternoon
+          - evening
 
 jobs:
   publish:
@@ -28,6 +39,9 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Generate Devotional Ambient Audio
+        run: python scripts/generate_audio.py
+
       - name: Restore YouTube Tokens
         env:
           CLIENT_SECRET_RAW: ${{ secrets.CLIENT_SECRET_JSON }}
@@ -45,4 +59,5 @@ jobs:
       - name: Run Pipeline
         run: node src/pipeline.js
         env:
+          SLOT: ${{ github.event.inputs.slot || 'auto' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

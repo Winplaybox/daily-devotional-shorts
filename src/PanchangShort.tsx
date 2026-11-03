@@ -5,6 +5,8 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
+  staticFile,
+  Audio,
 } from 'remotion';
 import { SacredVectorBackground } from './components/SacredVectorBackground';
 
@@ -57,6 +59,8 @@ export const PanchangShort: React.FC<PanchangProps> = ({
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800;900&display=swap');
       `}</style>
+      {/* Devotional Ambient Audio */}
+      <Audio src={staticFile('devotional_ambient.wav')} volume={0.6} />
       {/* Dynamic Animated Vector Sacred Visual Background */}
       <SacredVectorBackground theme={theme} bgImageUrl={bgImageUrl} />
       <AbsoluteFill style={{

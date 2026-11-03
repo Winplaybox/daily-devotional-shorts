@@ -239,11 +239,57 @@ def calculate_muhurats(sun_times: dict, weekday: int):
     godhuli_start = sunset - timedelta(minutes=12)
     godhuli_end = sunset + timedelta(minutes=12)
 
+    # Disha Shool by weekday (Monday=0 ... Sunday=6)
+    disha_map = {
+        0: "पूर्व दिशा (East)",
+        1: "उत्तर दिशा (North)",
+        2: "उत्तर दिशा (North)",
+        3: "दक्षिण दिशा (South)",
+        4: "पश्चिम दिशा (West)",
+        5: "पूर्व दिशा (East)",
+        6: "पश्चिम दिशा (West)",
+    }
+    disha_shool = disha_map.get(weekday, "पश्चिम दिशा")
+
+    # Daytime Choghadiya (8 segments from sunrise to sunset)
+    choghadiya_patterns = {
+        0: ["अमृत", "काल", "शुभ", "रोग", "उद्वेग", "चर", "लाभ", "अमृत"],  # Mon
+        1: ["रोग", "उद्वेग", "चर", "लाभ", "अमृत", "काल", "शुभ", "रोग"],   # Tue
+        2: ["लाभ", "अमृत", "काल", "शुभ", "रोग", "उद्वेग", "चर", "लाभ"],   # Wed
+        3: ["शुभ", "रोग", "उद्वेग", "चर", "लाभ", "अमृत", "काल", "शुभ"],   # Thu
+        4: ["चर", "लाभ", "अमृत", "काल", "शुभ", "रोग", "उद्वेग", "चर"],   # Fri
+        5: ["काल", "शुभ", "रोग", "उद्वेग", "चर", "लाभ", "अमृत", "काल"],   # Sat
+        6: ["उद्वेग", "चर", "लाभ", "अमृत", "काल", "शुभ", "रोग", "उद्वेग"],  # Sun
+    }
+    pattern = choghadiya_patterns.get(weekday, choghadiya_patterns[0])
+    chog_part = timedelta(minutes=day_duration / 8.0)
+
+    choghadiyas = []
+    shubh_times = []
+    amrit_times = []
+    labh_times = []
+
+    for idx, name in enumerate(pattern):
+        c_start = sunrise + (chog_part * idx)
+        c_end = c_start + chog_part
+        time_str = f"{format_time_12h(c_start)} से {format_time_12h(c_end)}"
+        choghadiyas.append({"name": name, "time": time_str})
+        if name == "शुभ":
+            shubh_times.append(time_str)
+        elif name == "अमृत":
+            amrit_times.append(time_str)
+        elif name == "लाभ":
+            labh_times.append(time_str)
+
     return {
         "rahu_kaal": f"{format_time_12h(rahu_start)} से {format_time_12h(rahu_end)}",
         "abhijit": f"{format_time_12h(abhijit_start)} से {format_time_12h(abhijit_end)}",
         "brahma": f"{format_time_12h(brahma_start)} से {format_time_12h(brahma_end)}",
         "godhuli": f"{format_time_12h(godhuli_start)} से {format_time_12h(godhuli_end)}",
+        "disha_shool": disha_shool,
+        "shubh_choghadiya": ", ".join(shubh_times) if shubh_times else "दोपहर बाद",
+        "amrit_choghadiya": ", ".join(amrit_times) if amrit_times else "प्रातःकाल",
+        "labh_choghadiya": ", ".join(labh_times) if labh_times else "अपराह्न",
     }
 
 # ----------------- Tithi, Nakshatra, Yoga, Karana -----------------

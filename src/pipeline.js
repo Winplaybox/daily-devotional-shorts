@@ -16,9 +16,11 @@ async function getDailyPanchangData() {
   const pythonCmds = process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python'];
   let engineSuccess = false;
 
+  const slotArg = process.env.SLOT || (process.argv.includes('--slot') ? process.argv[process.argv.indexOf('--slot') + 1] : 'auto');
+
   for (const cmd of pythonCmds) {
     try {
-      execSync(`${cmd} engine/panchang_engine.py`, { stdio: 'inherit' });
+      execSync(`${cmd} engine/panchang_engine.py --slot ${slotArg}`, { stdio: 'inherit' });
       if (fs.existsSync(propsPath)) {
         engineSuccess = true;
         break;
@@ -135,9 +137,87 @@ async function getYouTubeClient() {
   return google.youtube({ version: 'v3', auth: oauth2Client });
 }
 
+// Step 3: Playlist Automation & YouTube API Upload
+async function ensurePlaylist(yt, title, description) {
+  if (!title) return null;
+  try {
+    const listRes = await yt.playlists.list({
+      part: ['snippet'],
+      mine: true,
+      maxResults: 50,
+    });
+
+    const items = listRes.data.items || [];
+    const targetTitle = title.trim().toLowerCase();
+    const existing = items.find(
+      (p) => p.snippet && p.snippet.title && p.snippet.title.trim().toLowerCase() === targetTitle
+    );
+
+    if (existing) {
+      console.log(`[PLAYLIST] Found existing playlist: "${title}" (ID: ${existing.id})`);
+      return existing.id;
+    }
+
+    console.log(`[PLAYLIST] Creating new playlist: "${title}"...`);
+    const createRes = await yt.playlists.insert({
+      part: ['snippet', 'status'],
+      requestBody: {
+        snippet: {
+          title,
+          description: description || `दैनिक वैदिक पंचांग, शुभ मुहूर्त, राहुकाल और धार्मिक पर्वों के विशेष वीडियो। @PavitraPanchang365`,
+          defaultLanguage: 'hi',
+        },
+        status: {
+          privacyStatus: 'public',
+        },
+      },
+    });
+
+    console.log(`[PLAYLIST] Created playlist: "${title}" (ID: ${createRes.data.id})`);
+    return createRes.data.id;
+  } catch (err) {
+    console.warn(`[WARN] Playlist operation skipped: ${err.message}`);
+    return null;
+  }
+}
+
+async function addVideoToPlaylist(yt, playlistId, videoId) {
+  if (!playlistId || !videoId) return;
+  try {
+    await yt.playlistItems.insert({
+      part: ['snippet'],
+      requestBody: {
+        snippet: {
+          playlistId,
+          resourceId: {
+            kind: 'youtube#video',
+            videoId,
+          },
+        },
+      },
+    });
+    console.log(`[PLAYLIST] Successfully added video ${videoId} to playlist ${playlistId}`);
+  } catch (err) {
+    console.warn(`[WARN] Could not add video to playlist: ${err.message}`);
+  }
+}
+
 async function uploadToYouTube(yt, videoPath, metadata) {
   console.log('[3/3] Uploading Short to YouTube...');
   try {
+    const publishAt = process.env.PUBLISH_AT || process.env.SCHEDULE_TIME || metadata.publishAt;
+    const isScheduled = Boolean(publishAt);
+
+    const statusConfig = {
+      privacyStatus: isScheduled ? 'private' : 'public',
+      selfDeclaredMadeForKids: false,
+    };
+
+    if (isScheduled) {
+      statusConfig.publishAt = new Date(publishAt).toISOString();
+      console.log(`[SCHEDULE] Video scheduled to publish at: ${statusConfig.publishAt}`);
+    }
+
     const res = await yt.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
@@ -148,20 +228,29 @@ async function uploadToYouTube(yt, videoPath, metadata) {
           categoryId: '22',
           defaultLanguage: 'hi',
         },
-        status: {
-          privacyStatus: 'public',
-          selfDeclaredMadeForKids: false,
-        },
+        status: statusConfig,
       },
       media: {
         body: fs.createReadStream(videoPath),
       },
     });
 
+    const videoId = res.data.id;
     console.log(`\n==========================================================`);
     console.log(`🎉 Successfully published to YouTube Shorts!`);
-    console.log(`URL: https://youtube.com/shorts/${res.data.id}`);
+    console.log(`URL: https://youtube.com/shorts/${videoId}`);
+    if (isScheduled) {
+      console.log(`Status: Scheduled (Private until ${statusConfig.publishAt})`);
+    }
     console.log(`==========================================================\n`);
+
+    // Playlist Automation: Add video to its respective themed playlist
+    if (metadata.playlist_name) {
+      const playlistId = await ensurePlaylist(yt, metadata.playlist_name);
+      if (playlistId) {
+        await addVideoToPlaylist(yt, playlistId, videoId);
+      }
+    }
   } catch (uploadErr) {
     console.error('[ERROR] YouTube upload request failed:', uploadErr.message);
     if (uploadErr.response && uploadErr.response.data) {
