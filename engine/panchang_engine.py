@@ -143,6 +143,7 @@ def generate_daily_payload(target_date: date = None) -> dict:
         "label3": primary_event["label3"],
         "val3": primary_event["val3"],
         "footer": primary_event["footer"],
+        "theme": theme,
         "bgImageUrl": bg_url,
         "panchang_raw": panchang,
         **seo,

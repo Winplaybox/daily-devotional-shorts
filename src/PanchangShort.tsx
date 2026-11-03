@@ -5,11 +5,12 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
-  Img,
 } from 'remotion';
+import { SacredVectorBackground } from './components/SacredVectorBackground';
 
 export interface PanchangProps {
-  bgImageUrl: string;
+  theme?: string;
+  bgImageUrl?: string;
   religion: string;
   title: string;
   dateDisplay: string;
@@ -23,14 +24,12 @@ export interface PanchangProps {
 }
 
 export const PanchangShort: React.FC<PanchangProps> = ({
+  theme = 'temple',
   bgImageUrl, religion, title, dateDisplay, label1, val1,
   label2, val2, label3, val3, footer,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  const bgScale = interpolate(frame, [0, durationInFrames], [1, 1.15], {
-    extrapolateRight: 'clamp',
-  });
   const titleSpring = spring({ frame, fps, config: { damping: 12, stiffness: 100 } });
   const titleY = interpolate(titleSpring, [0, 1], [-80, 0]);
   const card1Spring = spring({ frame: frame - 12, fps, config: { damping: 14 } });
@@ -41,7 +40,7 @@ export const PanchangShort: React.FC<PanchangProps> = ({
   });
 
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(22, 18, 24, 0.82)',
+    background: 'rgba(15, 12, 18, 0.86)',
     border: '2px solid rgba(255, 215, 0, 0.45)',
     backdropFilter: 'blur(16px)',
     borderRadius: '26px',
@@ -55,15 +54,8 @@ export const PanchangShort: React.FC<PanchangProps> = ({
       backgroundColor: '#0a0806', overflow: 'hidden',
       fontFamily: "'Noto Sans Devanagari', 'Segoe UI', sans-serif",
     }}>
-      <AbsoluteFill style={{ transform: `scale(${bgScale})`, transformOrigin: 'center center' }}>
-        <Img src={bgImageUrl} style={{
-          width: '100%', height: '100%', objectFit: 'cover',
-          filter: 'brightness(0.62) contrast(1.15)',
-        }} />
-      </AbsoluteFill>
-      <AbsoluteFill style={{
-        background: 'radial-gradient(circle at 50% 30%, rgba(255, 183, 3, 0.22) 0%, rgba(0, 0, 0, 0.88) 80%)',
-      }} />
+      {/* Dynamic Animated Vector Sacred Visual Background */}
+      <SacredVectorBackground theme={theme} bgImageUrl={bgImageUrl} />
       <AbsoluteFill style={{
         padding: '70px 45px', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'space-between',
