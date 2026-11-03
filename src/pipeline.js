@@ -158,49 +158,84 @@ async function renderRemotionVideo(data, bgPath, outVideoPath) {
 // Step 4: YouTube API Upload
 async function getYouTubeClient() {
   const credentials = JSON.parse(fs.readFileSync('./client_secret.json', 'utf8'));
-  const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
-  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  const conf = credentials.installed || credentials.web || credentials;
+  const client_id = conf.client_id;
+  const client_secret = conf.client_secret;
+  const redirect_uri = (Array.isArray(conf.redirect_uris) && conf.redirect_uris[0]) || 'http://localhost';
+
+  if (!client_id || !client_secret) {
+    throw new Error('client_secret.json missing client_id or client_secret');
+  }
+
+  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uri);
 
   const TOKEN_PATH = './token.json';
   if (!fs.existsSync(TOKEN_PATH)) {
     throw new Error('token.json missing! Run "npm run auth" to authenticate.');
   }
 
-  oauth2Client.setCredentials(JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8')));
+  const tokenData = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  oauth2Client.setCredentials({
+    access_token: tokenData.access_token || tokenData.token,
+    refresh_token: tokenData.refresh_token,
+    scope: tokenData.scope || (Array.isArray(tokenData.scopes) ? tokenData.scopes.join(' ') : undefined),
+    token_type: tokenData.token_type || 'Bearer',
+    expiry_date: tokenData.expiry_date,
+  });
+
   return google.youtube({ version: 'v3', auth: oauth2Client });
 }
 
 async function uploadToYouTube(yt, videoPath, metadata) {
   console.log('[4/4] Uploading Short to YouTube...');
-  const res = await yt.videos.insert({
-    part: ['snippet', 'status'],
-    requestBody: {
-      snippet: {
-        title: metadata.yt_title,
-        description: metadata.yt_description,
-        tags: metadata.yt_tags,
-        categoryId: '22',
-        defaultLanguage: 'hi',
+  try {
+    const res = await yt.videos.insert({
+      part: ['snippet', 'status'],
+      requestBody: {
+        snippet: {
+          title: metadata.yt_title,
+          description: metadata.yt_description,
+          tags: metadata.yt_tags,
+          categoryId: '22',
+          defaultLanguage: 'hi',
+        },
+        status: {
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: false,
+        },
       },
-      status: {
-        privacyStatus: 'public',
-        selfDeclaredMadeForKids: false,
+      media: {
+        body: fs.createReadStream(videoPath),
       },
-    },
-    media: {
-      body: fs.createReadStream(videoPath),
-    },
-  });
+    });
 
-  console.log(`Successfully published! URL: https://youtube.com/shorts/${res.data.id}`);
+    console.log(`\n==========================================================`);
+    console.log(`🎉 Successfully published to YouTube Shorts!`);
+    console.log(`URL: https://youtube.com/shorts/${res.data.id}`);
+    console.log(`==========================================================\n`);
+  } catch (uploadErr) {
+    console.error('[ERROR] YouTube upload request failed:', uploadErr.message);
+    if (uploadErr.response && uploadErr.response.data) {
+      console.error('Details:', JSON.stringify(uploadErr.response.data, null, 2));
+    }
+    throw uploadErr;
+  }
 }
 
 function hasValidCredentials() {
   if (!fs.existsSync('./client_secret.json') || !fs.existsSync('./token.json')) return false;
   try {
-    const secret = JSON.parse(fs.readFileSync('./client_secret.json', 'utf8'));
-    const token = JSON.parse(fs.readFileSync('./token.json', 'utf8'));
-    return Boolean((secret.installed || secret.web) && (token.access_token || token.refresh_token));
+    const rawSecret = fs.readFileSync('./client_secret.json', 'utf8').trim();
+    const rawToken = fs.readFileSync('./token.json', 'utf8').trim();
+    if (!rawSecret || !rawToken) return false;
+
+    const secret = JSON.parse(rawSecret);
+    const token = JSON.parse(rawToken);
+    const conf = secret.installed || secret.web || secret;
+
+    const hasClient = Boolean(conf && conf.client_id && conf.client_secret);
+    const hasToken = Boolean(token && (token.access_token || token.refresh_token || token.token));
+    return hasClient && hasToken;
   } catch (e) {
     return false;
   }
