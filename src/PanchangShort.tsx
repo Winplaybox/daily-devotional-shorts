@@ -54,6 +54,9 @@ export const PanchangShort: React.FC<PanchangProps> = ({
       backgroundColor: '#0a0806', overflow: 'hidden',
       fontFamily: "'Noto Sans Devanagari', 'Segoe UI', sans-serif",
     }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800;900&display=swap');
+      `}</style>
       {/* Dynamic Animated Vector Sacred Visual Background */}
       <SacredVectorBackground theme={theme} bgImageUrl={bgImageUrl} />
       <AbsoluteFill style={{
