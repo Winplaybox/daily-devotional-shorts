@@ -36,17 +36,26 @@ async function getDailyPanchangData() {
   console.log('[1/4] Running Real-Time Astronomical Panchang Engine (Python)...');
   const propsPath = path.join(OUT_DIR, 'daily_props.json');
 
-  try {
-    // Run the deterministic astronomical python engine
-    execSync('python engine/panchang_engine.py', { stdio: 'inherit' });
-    if (fs.existsSync(propsPath)) {
-      const content = fs.readFileSync(propsPath, 'utf8');
-      const data = JSON.parse(content);
-      console.log(`[SUCCESS] Real-Time Engine Active: [${data.religion}] ${data.title}`);
-      return data;
+  const pythonCmds = process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python'];
+  let engineSuccess = false;
+
+  for (const cmd of pythonCmds) {
+    try {
+      execSync(`${cmd} engine/panchang_engine.py`, { stdio: 'inherit' });
+      if (fs.existsSync(propsPath)) {
+        engineSuccess = true;
+        break;
+      }
+    } catch (e) {
+      // try next command
     }
-  } catch (err) {
-    console.warn('[WARN] Python astronomical engine encountered an issue:', err.message);
+  }
+
+  if (engineSuccess && fs.existsSync(propsPath)) {
+    const content = fs.readFileSync(propsPath, 'utf8');
+    const data = JSON.parse(content);
+    console.log(`[SUCCESS] Real-Time Engine Active: [${data.religion}] ${data.title}`);
+    return data;
   }
 
   // Fallback to Gemini if API key is provided and python engine failed
@@ -186,6 +195,17 @@ async function uploadToYouTube(yt, videoPath, metadata) {
   console.log(`Successfully published! URL: https://youtube.com/shorts/${res.data.id}`);
 }
 
+function hasValidCredentials() {
+  if (!fs.existsSync('./client_secret.json') || !fs.existsSync('./token.json')) return false;
+  try {
+    const secret = JSON.parse(fs.readFileSync('./client_secret.json', 'utf8'));
+    const token = JSON.parse(fs.readFileSync('./token.json', 'utf8'));
+    return Boolean((secret.installed || secret.web) && (token.access_token || token.refresh_token));
+  } catch (e) {
+    return false;
+  }
+}
+
 async function run() {
   try {
     const data = await getDailyPanchangData();
@@ -197,11 +217,13 @@ async function run() {
     await prepareBackgroundArt(data, bgPath);
     await renderRemotionVideo(data, bgPath, videoPath);
 
-    if (fs.existsSync('./client_secret.json') && fs.existsSync('./token.json')) {
+    if (hasValidCredentials()) {
       const yt = await getYouTubeClient();
       await uploadToYouTube(yt, videoPath, data);
     } else {
-      console.log('[INFO] YouTube credentials not found in local dir. Video rendered at out/final_short.mp4');
+      console.log('\n[INFO] Valid YouTube credentials not detected.');
+      console.log('[INFO] Video successfully rendered to: out/final_short.mp4');
+      console.log('[INFO] To publish automatically via GitHub Actions, add CLIENT_SECRET_JSON and TOKEN_JSON to GitHub Repository Secrets.\n');
     }
 
     console.log('Daily automation workflow finished successfully.');
