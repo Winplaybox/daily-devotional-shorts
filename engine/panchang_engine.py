@@ -252,7 +252,7 @@ def main():
         parts = [int(p) for p in args.date.split("-")]
         target_date = date(parts[0], parts[1], parts[2])
     else:
-        target_date = (datetime.now(timezone.utc) + timedelta(hours=5.5)).date()
+        target_date = (datetime.now(timezone.utc) + timedelta(hours=float(os.getenv("PANCHANG_TZ", "5.5")))).date()
 
     payload = generate_daily_payload(target_date, slot=slot)
 
