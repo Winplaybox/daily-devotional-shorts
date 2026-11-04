@@ -138,10 +138,12 @@ def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
 
     target_dt_ist = datetime(target_date.year, target_date.month, target_date.day, slot_hour, slot_minute, tzinfo=ist_tz)
 
-    # Buffer of at least 30 minutes so YouTube has time to process 4K Ultra HD
+    # If the selected slot has passed, retain that slot on the next calendar day.
     min_buffer = now_ist + timedelta(minutes=30)
     if target_dt_ist < min_buffer:
-        target_dt_ist = min_buffer
+        target_dt_ist += timedelta(days=1)
+    while target_dt_ist < min_buffer:
+        target_dt_ist += timedelta(days=1)
 
     target_dt_utc = target_dt_ist.astimezone(timezone.utc)
     return target_dt_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -232,21 +234,12 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
 def main():
     parser = argparse.ArgumentParser(description="PavitraPanchang365 Real-Time Engine")
     parser.add_argument("--date", help="Target date in YYYY-MM-DD format (defaults to today in IST)")
-    parser.add_argument("--slot", default="morning", choices=["morning", "afternoon", "evening", "auto"],
-                        help="Publishing slot: morning, afternoon, evening, or auto")
+    parser.add_argument("--slot", default="morning", choices=["morning", "afternoon", "evening"],
+                        help="Publishing slot: morning, afternoon, or evening")
     parser.add_argument("--out", default="out/daily_props.json", help="Path to write JSON output")
     args = parser.parse_args()
 
-    # Auto-detect slot based on current IST hour
     slot = args.slot
-    if slot == "auto":
-        ist_hour = (datetime.now(timezone.utc) + timedelta(hours=5.5)).hour
-        if ist_hour < 10:
-            slot = "morning"
-        elif ist_hour < 16:
-            slot = "afternoon"
-        else:
-            slot = "evening"
 
     if args.date:
         parts = [int(p) for p in args.date.split("-")]

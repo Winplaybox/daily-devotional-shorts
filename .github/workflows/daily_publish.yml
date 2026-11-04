@@ -1,63 +1,64 @@
 name: Daily Shorts Publisher
 on:
-  push:
-    branches: [ main ]
   schedule:
-    - cron: '30 0 * * *'  # 06:00 AM IST
+    - cron: '30 0 * * *' # 06:00 IST: daily review batch
   workflow_dispatch:
     inputs:
       slot:
-        description: 'Publishing slot (morning, afternoon, evening, auto)'
-        required: false
-        default: 'auto'
+        description: 'Panchang publishing slot'
+        required: true
+        default: 'morning'
         type: choice
-        options:
-          - auto
-          - morning
-          - afternoon
-          - evening
+        options: [morning, afternoon, evening]
+      publish:
+        description: 'Upload and schedule on YouTube (requires AUTO_PUBLISH repository variable true)'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-panchang-publisher
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
+          cache: npm
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install FFmpeg and Devanagari Fonts
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-indic
-
       - name: Install Dependencies
-        run: npm install
-
+        run: npm ci
       - name: Generate Devotional Ambient Audio
         run: python scripts/generate_audio.py
-
       - name: Restore YouTube Tokens
+        if: vars.AUTO_PUBLISH == 'true' && (github.event_name == 'schedule' || inputs.publish)
         env:
           CLIENT_SECRET_RAW: ${{ secrets.CLIENT_SECRET_JSON }}
           TOKEN_RAW: ${{ secrets.TOKEN_JSON }}
         run: |
-          if [ -n "$CLIENT_SECRET_RAW" ]; then
-            printf "%s" "$CLIENT_SECRET_RAW" > client_secret.json
-            echo "Restored client_secret.json successfully"
-          fi
-          if [ -n "$TOKEN_RAW" ]; then
-            printf "%s" "$TOKEN_RAW" > token.json
-            echo "Restored token.json successfully"
-          fi
-
+          test -n "$CLIENT_SECRET_RAW" || { echo "::error::Missing CLIENT_SECRET_JSON secret"; exit 1; }
+          test -n "$TOKEN_RAW" || { echo "::error::Missing TOKEN_JSON secret"; exit 1; }
+          printf "%s" "$CLIENT_SECRET_RAW" > client_secret.json
+          printf "%s" "$TOKEN_RAW" > token.json
+          node -e "JSON.parse(require('fs').readFileSync('client_secret.json')); JSON.parse(require('fs').readFileSync('token.json'));"
+          echo "YouTube OAuth JSON files restored and parsed."
       - name: Run Pipeline
         run: node src/pipeline.js
         env:
-          SLOT: ${{ github.event.inputs.slot || 'auto' }}
+          SLOT: ${{ inputs.slot || 'morning' }}
+          AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
+          REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
           PANCHANG_LON: ${{ vars.PANCHANG_LON || '75.7885' }}
