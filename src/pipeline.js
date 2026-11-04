@@ -52,28 +52,28 @@ function buildHindiNarration(data, durationSeconds = 60) {
   const title = formatForVoice(data.title, 'आज का पंचांग');
   if (durationSeconds === 40) {
     return [
-      'नमस्कार। आप देख रहे हैं पवित्र पंचांग तीन सौ पैंसठ।',
+      'आज के पंचांग की सबसे जरूरी जानकारी जानिए।',
       date, 'का', title, '.',
       'आज की तिथि है', formatForVoice(p.tithi_name), 'और पक्ष है', formatForVoice(p.paksha), '.',
       'नक्षत्र है', formatForVoice(p.nakshatra_name), 'तथा योग है', formatForVoice(p.yoga_name), '.',
-      'सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'पर होगा।',
+      'सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'का समय है।',
       'राहुकाल', formatForVoice(p.rahu_kaal), 'है।',
-      'समय गणना स्थान के अनुसार बदल सकता है। स्थानीय पंचांग से पुष्टि करें।',
-      'आपका दिन मंगलमय हो। जय श्री राम।'
+      'समय गणना स्थान के अनुसार बदल सकता है। अपने शहर के स्थानीय पंचांग से पुष्टि करें।',
+      'ऐसी दैनिक जानकारी के लिए पवित्र पंचांग तीन सौ पैंसठ से जुड़ें। आपका दिन मंगलमय हो। जय श्री राम।'
     ].join(' ');
   }
   return [
-    'नमस्कार। आप देख रहे हैं पवित्र पंचांग तीन सौ पैंसठ।',
-    'आइए जानते हैं', date, 'का', title, '.',
+    'आज के पंचांग में कौन-सी तिथि है और राहुकाल कब रहेगा? आइए जानते हैं।',
+    date, 'का', title, '.',
     'हिंदू मास', formatForVoice(p.hindu_month), 'और पक्ष', formatForVoice(p.paksha), 'है।',
     'आज की तिथि है', formatForVoice(p.tithi_name), '.',
     'नक्षत्र है', formatForVoice(p.nakshatra_name), ', योग है', formatForVoice(p.yoga_name), 'और करण है', formatForVoice(p.karana_name), '.',
     'सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'का समय है।',
-    'ब्रह्म मुहूर्त', formatForVoice(p.brahma), 'और अभिजीत मुहूर्त', formatForVoice(p.abhijit), 'है।',
-    'राहुकाल', formatForVoice(p.rahu_kaal), 'तथा यमगण्ड', formatForVoice(p.yamaganda), 'का ध्यान रखें।',
-    'अमृत चौघड़िया', formatForVoice(p.amrit_choghadiya), 'और शुभ चौघड़िया', formatForVoice(p.shubh_choghadiya), 'है।',
-    'ये समय निर्धारित गणना स्थान और समयक्षेत्र के अनुसार हैं। अपने स्थान के लिए स्थानीय पंचांग से पुष्टि अवश्य करें।',
-    'आपका दिन मंगलमय हो। जय श्री राम।'
+    'ब्रह्म मुहूर्त', formatForVoice(p.brahma), 'और अभिजीत मुहूर्त', formatForVoice(p.abhijit), 'का समय है।',
+    'राहुकाल', formatForVoice(p.rahu_kaal), 'तथा यमगण्ड', formatForVoice(p.yamaganda), 'का समय ध्यान रखें।',
+    'अमृत चौघड़िया', formatForVoice(p.amrit_choghadiya), 'और शुभ चौघड़िया', formatForVoice(p.shubh_choghadiya), 'का समय है।',
+    'ये समय निर्धारित गणना स्थान और समयक्षेत्र के अनुसार हैं। अपने शहर के स्थानीय पंचांग से पुष्टि करें।',
+    'ऐसी दैनिक जानकारी के लिए पवित्र पंचांग तीन सौ पैंसठ से जुड़ें। आपका दिन मंगलमय हो। जय श्री राम।'
   ].join(' ');
 }
 async function generateHindiNarration(data, durationSeconds = 60) {

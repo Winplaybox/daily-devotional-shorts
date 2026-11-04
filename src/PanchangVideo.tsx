@@ -23,6 +23,7 @@ type Scene = {
   eyebrow: string;
   title: string;
   subtitle?: string;
+  hook?: boolean;
   metrics?: Metric[];
   hero?: boolean;
 };
@@ -74,7 +75,7 @@ const MetricCard: React.FC<{ metric: Metric; index: number; frame: number }> = (
       <div
         style={{
           color: IVORY,
-          fontSize: metric.value.length > 25 ? 31 : metric.value.length > 17 ? 35 : 43,
+          fontSize: metric.value.length > 25 ? 29 : metric.value.length > 17 ? 34 : 42,
           fontWeight: 900,
           lineHeight: 1.25,
           textShadow: '0 3px 18px rgba(0,0,0,.5)',
@@ -162,7 +163,7 @@ const SceneView: React.FC<{
         <div
           style={{
             color: IVORY,
-            fontSize: scene.hero ? 76 : 66,
+            fontSize: scene.hero ? (scene.hook ? 64 : 70) : 62,
             fontWeight: 900,
             lineHeight: 1.2,
             marginTop: 18,
@@ -240,13 +241,16 @@ export const PanchangVideo: React.FC<Props> = (props) => {
   const location = value(p.location_name, 'उज्जैन');
   const timezone = value(p.timezone_label, 'IST');
   const footer = `गणना स्थान: ${location} • ${timezone} • स्थानीय समय में अंतर संभव`;
+  const tithi = value(p.tithi_name, 'आज की तिथि');
+  const nakshatra = value(p.nakshatra_name, 'आज का नक्षत्र');
 
   const scenes: Scene[] = [
     {
-      eyebrow: 'दैनिक वैदिक पंचांग',
-      title,
-      subtitle: 'परंपरा • कालगणना • शुभ विचार',
+      eyebrow: 'आज का पंचांग • ${date}',
+      title: `${tithi}`,
+      subtitle: `आज का नक्षत्र: ${nakshatra}`,
       hero: true,
+      hook: true,
     },
     {
       eyebrow: 'आज की तिथि',
@@ -292,7 +296,7 @@ export const PanchangVideo: React.FC<Props> = (props) => {
     {
       eyebrow: 'पवित्र पंचांग 365',
       title: 'आपका दिन मंगलमय हो',
-      subtitle: 'सकारात्मकता, शांति और सद्भाव के साथ दिन की शुरुआत करें।',
+      subtitle: 'कल का पंचांग जानने के लिए चैनल से जुड़ें।',
       hero: true,
     },
   ];
