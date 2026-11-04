@@ -30,7 +30,6 @@ type Scene = {
 const GOLD = '#f4ca72';
 const IVORY = '#fff4dc';
 const MUTED = '#d9c5a0';
-const RED = '#7b1d2b';
 
 const value = (input: unknown, fallback = '—') =>
   input === undefined || input === null || input === '' ? fallback : String(input);
@@ -238,7 +237,9 @@ export const PanchangVideo: React.FC<Props> = (props) => {
   const date = props.dateDisplay || p.date_display || '';
   const brand = props.religion || 'PAVITRA PANCHANG 365';
   const title = props.title || 'आज का पंचांग';
-  const footer = 'समय संदर्भ स्थान एवं IST अनुसार • स्थानीय अंतर संभव';
+  const location = value(p.location_name, 'उज्जैन');
+  const timezone = value(p.timezone_label, 'IST');
+  const footer = `गणना स्थान: ${location} • ${timezone} • स्थानीय समय में अंतर संभव`;
 
   const scenes: Scene[] = [
     {
@@ -303,12 +304,21 @@ export const PanchangVideo: React.FC<Props> = (props) => {
       ? durationInFrames
       : Math.round(durationInFrames * sceneProgress[index + 1]);
     const fade = 12;
-    const opacity = interpolate(
-      frame,
-      [start, start + fade, Math.max(start + fade + 1, end - fade), end],
-      [0, 1, 1, 0],
-      { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
-    );
+    // Adjacent scenes overlap their fades to avoid exposing the empty background.
+    const opacity = index === 0
+      ? interpolate(frame, [0, end - fade, end + fade], [1, 1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        })
+      : index === scenes.length - 1
+        ? interpolate(frame, [start - fade, start + fade], [0, 1], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          })
+        : interpolate(frame, [start - fade, start + fade, end - fade, end + fade], [0, 1, 1, 0], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          });
     return { scene, start, end, opacity };
   });
 
