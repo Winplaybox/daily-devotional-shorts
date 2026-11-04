@@ -81,35 +81,40 @@ function formatForVoice(value, fallback = 'जानकारी उपलब्
   return value === undefined || value === null || value === '' ? fallback : String(value);
 }
 
-function buildHindiNarration(data) {
+function buildHindiNarration(data, durationSeconds = 60) {
   const p = data.panchang_raw || data;
   const date = formatForVoice(data.dateDisplay || p.date_display || data.date);
   const title = formatForVoice(data.title, 'आज का पंचांग');
+  if (durationSeconds === 40) {
+    return [
+      'नमस्कार। आप देख रहे हैं पवित्र पंचांग तीन सौ पैंसठ।',
+      date, 'का', title, '.',
+      'आज की तिथि है', formatForVoice(p.tithi_name), 'और पक्ष है', formatForVoice(p.paksha), '.',
+      'नक्षत्र है', formatForVoice(p.nakshatra_name), 'तथा योग है', formatForVoice(p.yoga_name), '.',
+      'सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'पर होगा।',
+      'राहुकाल', formatForVoice(p.rahu_kaal), 'है।',
+      'समय गणना स्थान के अनुसार बदल सकता है। स्थानीय पंचांग से पुष्टि करें।',
+      'आपका दिन मंगलमय हो। जय श्री राम।'
+    ].join(' ');
+  }
   return [
     'नमस्कार। आप देख रहे हैं पवित्र पंचांग तीन सौ पैंसठ।',
     'आइए जानते हैं', date, 'का', title, '.',
-    'आज विक्रम संवत', formatForVoice(p.vikram_samvat, 'दो हजार आठ सौ तिरासी'),
-    'और शक संवत', formatForVoice(p.shaka_samvat, 'उन्नीस सौ अड़तालीस'), 'है।',
     'हिंदू मास', formatForVoice(p.hindu_month), 'और पक्ष', formatForVoice(p.paksha), 'है।',
     'आज की तिथि है', formatForVoice(p.tithi_name), '.',
-    'नक्षत्र है', formatForVoice(p.nakshatra_name), ', योग है', formatForVoice(p.yoga_name),
-    'और करण है', formatForVoice(p.karana_name), '.',
-    'आज सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'पर होगा।',
-    'शुभ समय में ब्रह्म मुहूर्त', formatForVoice(p.brahma),
-    'और अभिजीत मुहूर्त', formatForVoice(p.abhijit), 'है।',
-    'राहुकाल', formatForVoice(p.rahu_kaal),
-    'और यमगण्ड', formatForVoice(p.yamaganda), 'के समय शुभ कार्य आरंभ करने से बचें।',
-    'आज का अमृत चौघड़िया', formatForVoice(p.amrit_choghadiya),
-    'और शुभ चौघड़िया', formatForVoice(p.shubh_choghadiya), 'है।',
-    'किसी भी महत्वपूर्ण कार्य से पहले अपने स्थानीय पंचांग और परंपरा के अनुसार समय की पुष्टि अवश्य करें।',
+    'नक्षत्र है', formatForVoice(p.nakshatra_name), ', योग है', formatForVoice(p.yoga_name), 'और करण है', formatForVoice(p.karana_name), '.',
+    'सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'का समय है।',
+    'ब्रह्म मुहूर्त', formatForVoice(p.brahma), 'और अभिजीत मुहूर्त', formatForVoice(p.abhijit), 'है।',
+    'राहुकाल', formatForVoice(p.rahu_kaal), 'तथा यमगण्ड', formatForVoice(p.yamaganda), 'का ध्यान रखें।',
+    'अमृत चौघड़िया', formatForVoice(p.amrit_choghadiya), 'और शुभ चौघड़िया', formatForVoice(p.shubh_choghadiya), 'है।',
+    'ये समय निर्धारित गणना स्थान और समयक्षेत्र के अनुसार हैं। अपने स्थान के लिए स्थानीय पंचांग से पुष्टि अवश्य करें।',
     'आपका दिन मंगलमय हो। जय श्री राम।'
   ].join(' ');
 }
-
-async function generateHindiNarration(data) {
+async function generateHindiNarration(data, durationSeconds = 60) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is required to generate Hindi narration.');
-  const text = buildHindiNarration(data);
+  const text = buildHindiNarration(data, durationSeconds);
   const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -143,13 +148,13 @@ async function generateHindiNarration(data) {
   wavHeader.writeUInt32LE(pcm.length, 40);
   const rawPath = path.join(OUT_DIR, 'narration_raw.wav');
   fs.writeFileSync(rawPath, Buffer.concat([wavHeader, pcm]));
-  const narrationPath = path.resolve('./public/narration.wav');
-  execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:60" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
-  console.log('[TTS] Hindi narration generated and normalized to a 60-second track.');
+  const narrationPath = path.resolve('./public/narration' + durationSeconds + '.wav');
+  execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:${durationSeconds}" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
+  console.log('[TTS] Hindi narration generated for ' + durationSeconds + ' seconds.');
 }
 
 // Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
-async function renderRemotionVideo(data, outVideoPath) {
+async function renderRemotionVideo(data, outVideoPath, durationSeconds = 60) {
   console.log('[2/3] Rendering 60s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
 
   const bundleLocation = await bundle({
@@ -159,11 +164,12 @@ async function renderRemotionVideo(data, outVideoPath) {
 
   const inputProps = {
     ...data,
+    narrationFile: 'narration' + durationSeconds + '.wav',
   };
 
   const composition = await selectComposition({
     serveUrl: bundleLocation,
-    id: 'DailyShort',
+    id: 'DailyShort' + durationSeconds,
     inputProps,
   });
 
@@ -359,19 +365,22 @@ async function run() {
     const data = await getDailyPanchangData();
     console.log(`Topic: [${data.religion}] ${data.title}`);
 
-    const videoPath = path.join(OUT_DIR, 'final_short.mp4');
-
-    // Generate the narration asset before Remotion resolves staticFile('narration.wav').
-    await generateHindiNarration(data);
-    await renderRemotionVideo(data, videoPath);
-
-    if (hasValidCredentials()) {
+    fs.mkdirSync(path.resolve('./public'), { recursive: true });
+    const outputs = [];
+    for (const durationSeconds of [40, 60]) {
+      await generateHindiNarration(data, durationSeconds);
+      const videoPath = path.join(OUT_DIR, 'pavitra-panchang-' + durationSeconds + 's.mp4');
+      await renderRemotionVideo(data, videoPath, durationSeconds);
+      outputs.push(videoPath);
+    }
+    // Review-first: publishing is never triggered just because OAuth credentials exist.
+    if (process.env.AUTO_PUBLISH === 'true' && hasValidCredentials()) {
       const yt = await getYouTubeClient();
-      await uploadToYouTube(yt, videoPath, data);
+      for (const videoPath of outputs) await uploadToYouTube(yt, videoPath, data);
     } else {
-      console.log('\n[INFO] Valid YouTube credentials not detected.');
-      console.log('[INFO] Video successfully rendered to: out/final_short.mp4');
-      console.log('[INFO] To publish automatically via GitHub Actions, add CLIENT_SECRET_JSON and TOKEN_JSON to GitHub Repository Secrets.\n');
+      console.log('\n[REVIEW] Both MP4s rendered; no YouTube upload was attempted.');
+      for (const videoPath of outputs) console.log('[REVIEW] ' + videoPath);
+      console.log('[REVIEW] Set AUTO_PUBLISH=true only after manually reviewing both MP4s.');
     }
 
     console.log('Daily automation workflow finished successfully.');
