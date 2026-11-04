@@ -81,7 +81,7 @@ export const PanchangVideo: React.FC<Props> = (props) => {
         {[['राहुकाल',rawValue(p.rahu_kaal)],['अमृत चौघड़िया',rawValue(p.amrit_choghadiya)],['शुभ चौघड़िया',rawValue(p.shubh_choghadiya)]].map(([l,v])=><div key={l} style={{textAlign:'center',borderRight:l==='गुलिक काल'?'none':'1px solid #b87924'}}><Label>{l}</Label><Value size={22}>{v}</Value></div>)}
       </Card>
       <div style={{marginTop:'auto',textAlign:'center',paddingBottom:70}}>
-        <div style={{display:'inline-block',background:'linear-gradient(#ffe7a8,#d99b2d)',border:'2px solid #fff0b8',borderRadius:30,padding:'8px 20px',color:'#46100b',fontSize:23,fontWeight:900}}>ⓘ समय पंचांग गणना पर आधारित हैं</div>
+        <div style={{display:'inline-block',background:'linear-gradient(#ffe7a8,#d99b2d)',border:'2px solid #fff0b8',borderRadius:30,padding:'8px 20px',color:'#46100b',fontSize:23,fontWeight:900}}>ⓘ समय संदर्भ स्थान एवं IST अनुसार • स्थानीय अंतर संभव</div>
         <div style={{marginTop:12,color:'#fff0b6',fontSize:32,fontWeight:1000,textShadow:'0 3px 8px #000'}}>🙏 आपका दिन मंगलमय हो 🙏</div>
       </div>
     </div>
