@@ -76,43 +76,8 @@ async function getDailyPanchangData() {
   throw new Error('Both Python real-time engine and Gemini fallback failed.');
 }
 
-// Step 2: Render Remotion Short with Native 2D Vector Animations
-async function generateNarration(data) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is required for Hindi narration.');
-  const { GoogleGenAI } = await import('@google/genai');
-  const ai = new GoogleGenAI({ apiKey });
-  const p = data.panchang_raw || {};
-  const script = [
-    'नमस्कार। प्रस्तुत है '+(data.dateDisplay || 'आज')+' का दैनिक पंचांग।',
-    'आज का मास '+(p.hindu_month || 'उपलब्ध नहीं')+' और पक्ष '+(p.paksha || 'उपलब्ध नहीं')+' है।',
-    'आज की तिथि '+(p.tithi_name || 'उपलब्ध नहीं')+' तथा नक्षत्र '+(p.nakshatra_name || 'उपलब्ध नहीं')+' है।',
-    'योग '+(p.yoga_name || 'उपलब्ध नहीं')+' और करण '+(p.karana_name || 'उपलब्ध नहीं')+' है।',
-    'सूर्योदय '+(p.sunrise || 'उपलब्ध नहीं')+' और सूर्यास्त '+(p.sunset || 'उपलब्ध नहीं')+' पर होगा।',
-    'अभिजीत मुहूर्त '+(p.abhijit || 'उपलब्ध नहीं')+' है। ब्रह्म मुहूर्त '+(p.brahma || 'उपलब्ध नहीं')+' है।',
-    'राहुकाल '+(p.rahu_kaal || 'उपलब्ध नहीं')+' है। अपने स्थानीय पंचांग और परंपरा के अनुसार समय की पुष्टि अवश्य करें।',
-    'इसी तरह के दैनिक पंचांग के लिए Pavitra Panchang 365 को सब्सक्राइब करें। आपका दिन शुभ हो।'
-  ].join(' ');
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-tts',
-    contents: [{ parts: [{ text: 'Speak naturally in clear Hindi at a measured pace. Text: '+script }] }],
-    config: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-  });
-  const audioPart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData?.data);
-  if (!audioPart) throw new Error('Gemini TTS returned no audio payload.');
-  const pcm = Buffer.from(audioPart.inlineData.data, 'base64');
-  const sampleRate = Number((audioPart.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1] || 24000);
-  const wav = Buffer.alloc(44);
-  wav.write('RIFF',0); wav.writeUInt32LE(36+pcm.length,4); wav.write('WAVE',8);
-  wav.write('fmt ',12); wav.writeUInt32LE(16,16); wav.writeUInt16LE(1,20);
-  wav.writeUInt16LE(1,22); wav.writeUInt32LE(sampleRate,24); wav.writeUInt32LE(sampleRate*2,28);
-  wav.writeUInt16LE(2,32); wav.writeUInt16LE(16,34); wav.write('data',36); wav.writeUInt32LE(pcm.length,40);
-  fs.writeFileSync(path.resolve('./public/narration.wav'), Buffer.concat([wav,pcm]));
-  console.log('[AUDIO] Hindi narration generated.');
-}
-
+// Step 2: Render a static Panchang poster with artwork-only motion and ambient music.
 async function renderRemotionVideo(data, outVideoPath) {
-  await generateNarration(data);
   console.log('[2/3] Rendering 60s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
 
   const bundleLocation = await bundle({

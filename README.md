@@ -50,3 +50,10 @@ Set these GitHub Actions repository variables under Settings → Secrets and var
 - PANCHANG_TIMEZONE_LABEL: timezone label shown in the video
 
 Defaults are Ujjain, India (23.1765, 75.7885, UTC+5:30). The calculator accepts a fixed UTC offset, not an IANA timezone database. Update PANCHANG_TZ for daylight-saving changes. Independently verify local Panchang timings before publishing.
+
+
+## Static Panchang poster video
+
+The 60-second Remotion composition holds the complete Panchang poster layout on screen for the full duration. Text, date, cards and timings are static: there is no zoom, camera movement, scene transition or voice-over. Only decorative artwork has subtle motion (diya flames, hanging bells, ambient glow and drifting light/flower particles). The only audio track is the soft generated devotional ambient music.
+
+The video does not print a city or viewer location. **Calculation caveat:** sunrise/sunset and sunrise-based muhurat timings are location-dependent. The engine still needs one configured reference coordinate/timezone to calculate those values; hiding the location label does not make the timings universally correct for every viewer. Choose a clearly documented reference Panchang or publish location-specific versions if exact local timings are required.
