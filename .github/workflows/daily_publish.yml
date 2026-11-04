@@ -61,3 +61,8 @@ jobs:
         env:
           SLOT: ${{ github.event.inputs.slot || 'auto' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
+          PANCHANG_LON: ${{ vars.PANCHANG_LON || '75.7885' }}
+          PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
+          PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, India' }}
+          PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}

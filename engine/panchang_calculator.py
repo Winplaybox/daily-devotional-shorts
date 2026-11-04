@@ -356,7 +356,7 @@ def calculate_panchang_elements(dt: datetime, tz: float = DEFAULT_TZ):
         "moon_phase_deg": diff,
     }
 
-def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON):
+def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, tz: float = DEFAULT_TZ):
     """
     Main API: Generates complete Vedic astronomical panchang for a given calendar date.
     """
@@ -364,13 +364,13 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         # Default to current date in IST
         date = (datetime.now(timezone.utc) + timedelta(hours=DEFAULT_TZ)).date()
 
-    sun_times = calculate_sun_times(date, lat, lon, DEFAULT_TZ)
+    sun_times = calculate_sun_times(date, lat, lon, tz)
     weekday = date.weekday()  # Monday=0, Sunday=6
     weekday_hi = WEEKDAY_NAMES_HI[(weekday + 1) % 7]
 
     # Evaluate panchang at Sunrise (Surya Udaya is the primary reference in Vedic Jyotish)
     sunrise_dt = sun_times["sunrise"]
-    elements = calculate_panchang_elements(sunrise_dt, DEFAULT_TZ)
+    elements = calculate_panchang_elements(sunrise_dt, tz)
     muhurats = calculate_muhurats(sun_times, weekday)
 
     return {
