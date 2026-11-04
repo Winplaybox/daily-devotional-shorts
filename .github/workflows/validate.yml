@@ -1,0 +1,28 @@
+name: Validate Panchang Shorts
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feat/**"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-indic
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Check JavaScript and TypeScript
+        run: npm run check
+      - name: Compile Python engine
+        run: python -m compileall -q engine
