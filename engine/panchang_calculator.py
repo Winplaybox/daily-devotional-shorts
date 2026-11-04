@@ -377,6 +377,10 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         "date": date.strftime("%Y-%m-%d"),
         "date_display": f"{date.day} {['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][date.month-1]} {date.year}, {weekday_hi}",
         "weekday": weekday_hi,
+        # Traditional year labels follow the Chaitradi year boundary. During
+        # Pausha–Phalguna, the next Gregorian year has not yet begun in this scheme.
+        "vikram_samvat": date.year + (56 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 57),
+        "shaka_samvat": date.year - (77 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 78),
         "sunrise": format_time_12h(sun_times["sunrise"]),
         "sunset": format_time_12h(sun_times["sunset"]),
         **elements,
