@@ -1,90 +1,383 @@
 import React from 'react';
-import {AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
+import {
+  AbsoluteFill,
+  Audio,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from 'remotion';
 
 type Props = {
-  religion?: string; title?: string; dateDisplay?: string; footer?: string;
-  panchang_raw?: Record<string, any>; narrationFile?: string; [key: string]: any;
+  religion?: string;
+  title?: string;
+  dateDisplay?: string;
+  footer?: string;
+  panchang_raw?: Record<string, any>;
+  narrationFile?: string;
+  [key: string]: any;
 };
-const gold = '#f8d36f';
-const cream = '#fff1c8';
-const rawValue = (v: any, fallback = '—') => v === undefined || v === null || v === '' ? fallback : String(v);
 
-const Bell: React.FC<{left:string; top:number; phase:number; frame:number}> = ({left,top,phase,frame}) => {
-  const angle = Math.sin((frame + phase) / 18) * 2.2;
-  return <div style={{position:'absolute',left,top,transformOrigin:'50% 0',transform:`rotate(${angle}deg)`,fontSize:58,filter:'drop-shadow(0 4px 8px #0009)'}}>🔔</div>;
+type Metric = { label: string; value: string; accent?: boolean };
+type Scene = {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  metrics?: Metric[];
+  hero?: boolean;
 };
-const Diya: React.FC<{left?:string; right?:string; bottom:number; frame:number; phase:number}> = ({left,right,bottom,frame,phase}) => {
-  const flicker = 0.82 + 0.18 * Math.sin((frame + phase) / 5);
-  const scale = 0.96 + 0.05 * Math.sin((frame + phase) / 7);
-  return <div style={{position:'absolute',left,right,bottom,width:112,textAlign:'center',filter:'drop-shadow(0 0 16px #ff9b24)'}}>
-    <div style={{fontSize:62,opacity:flicker,transform:`scale(${scale})`,transformOrigin:'bottom center'}}>🔥</div>
-    <div style={{fontSize:58,marginTop:-30}}>🪔</div>
-  </div>;
+
+const GOLD = '#f4ca72';
+const IVORY = '#fff4dc';
+const MUTED = '#d9c5a0';
+const RED = '#7b1d2b';
+
+const value = (input: unknown, fallback = '—') =>
+  input === undefined || input === null || input === '' ? fallback : String(input);
+
+const MetricCard: React.FC<{ metric: Metric; index: number; frame: number }> = ({
+  metric,
+  index,
+  frame,
+}) => {
+  const delay = index * 5;
+  const reveal = interpolate(frame - delay, [0, 14], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const lift = interpolate(reveal, [0, 1], [34, 0]);
+  return (
+    <div
+      style={{
+        opacity: reveal,
+        transform: `translateY(${lift}px) scale(${0.97 + reveal * 0.03})`,
+        minHeight: 176,
+        padding: '26px 22px',
+        borderRadius: 26,
+        border: metric.accent ? '2px solid #f4ca72' : '1.5px solid #b88a48',
+        background: metric.accent
+          ? 'linear-gradient(145deg, rgba(126,30,43,.94), rgba(54,12,24,.96))'
+          : 'linear-gradient(145deg, rgba(255,244,220,.13), rgba(40,10,20,.82))',
+        boxShadow: metric.accent
+          ? '0 14px 42px rgba(0,0,0,.28), inset 0 0 28px rgba(244,202,114,.08)'
+          : '0 12px 32px rgba(0,0,0,.22)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
+        gap: 14,
+      }}
+    >
+      <div style={{ color: GOLD, fontSize: 27, fontWeight: 700, letterSpacing: 1 }}>
+        {metric.label}
+      </div>
+      <div
+        style={{
+          color: IVORY,
+          fontSize: metric.value.length > 25 ? 31 : metric.value.length > 17 ? 35 : 43,
+          fontWeight: 900,
+          lineHeight: 1.25,
+          textShadow: '0 3px 18px rgba(0,0,0,.5)',
+        }}
+      >
+        {metric.value}
+      </div>
+    </div>
+  );
 };
-const Card: React.FC<{children:React.ReactNode; style?:React.CSSProperties}> = ({children,style}) => <div style={{background:'linear-gradient(110deg,#fff0c8,#ffe4a2 50%,#fff0c8)',border:'3px solid #d99b28',borderRadius:20,boxShadow:'0 5px 0 #5a170e, inset 0 0 0 2px #fff8d9',color:'#42100d',padding:'13px 18px',...style}}>{children}</div>;
-const Label: React.FC<{children:React.ReactNode}> = ({children}) => <div style={{fontSize:24,fontWeight:900,color:'#8b390c',textAlign:'center'}}>{children}</div>;
-const Value: React.FC<{children:React.ReactNode; size?:number}> = ({children,size=30}) => <div style={{fontSize:size,fontWeight:900,color:'#42100d',textAlign:'center',lineHeight:1.16}}>{children}</div>;
+
+const Mandala: React.FC<{ frame: number }> = ({ frame }) => (
+  <div
+    style={{
+      position: 'absolute',
+      width: 790,
+      height: 790,
+      left: '50%',
+      top: '43%',
+      marginLeft: -395,
+      marginTop: -395,
+      borderRadius: '50%',
+      border: '1px solid rgba(244,202,114,.22)',
+      opacity: 0.65,
+      transform: `rotate(${frame * 0.12}deg) scale(${1 + Math.sin(frame / 28) * 0.018})`,
+      boxShadow: '0 0 100px rgba(244,202,114,.07), inset 0 0 80px rgba(244,202,114,.05)',
+      pointerEvents: 'none',
+    }}
+  >
+    <div style={{ position: 'absolute', inset: 34, border: '1px dashed rgba(244,202,114,.35)', borderRadius: '50%' }} />
+    <div style={{ position: 'absolute', inset: 95, border: '1px solid rgba(244,202,114,.22)', borderRadius: '50%' }} />
+    {Array.from({ length: 24 }, (_, index) => (
+      <div
+        key={index}
+        style={{
+          position: 'absolute',
+          width: 78,
+          height: 180,
+          left: '50%',
+          top: '50%',
+          marginLeft: -39,
+          marginTop: -90,
+          border: '1px solid rgba(244,202,114,.24)',
+          borderRadius: '50%',
+          transform: `rotate(${index * 15}deg) translateY(-205px)`,
+          transformOrigin: 'center center',
+        }}
+      />
+    ))}
+  </div>
+);
+
+const SceneView: React.FC<{
+  scene: Scene;
+  frame: number;
+  brand: string;
+  date: string;
+  footer: string;
+}> = ({ scene, frame, brand, date, footer }) => {
+  const headingIn = interpolate(frame, [0, 16], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  return (
+    <AbsoluteFill style={{ padding: '118px 62px 112px', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', opacity: headingIn, transform: `translateY(${(1 - headingIn) * 26}px)` }}>
+        <div
+          style={{
+            display: 'inline-block',
+            padding: '10px 26px',
+            border: '1.5px solid rgba(244,202,114,.8)',
+            borderRadius: 40,
+            color: GOLD,
+            background: 'rgba(35,8,17,.68)',
+            fontSize: 23,
+            fontWeight: 800,
+            letterSpacing: 3,
+          }}
+        >
+          🕉️ {brand}
+        </div>
+        <div style={{ color: GOLD, fontSize: 25, fontWeight: 800, letterSpacing: 4, marginTop: 54 }}>
+          {scene.eyebrow}
+        </div>
+        <div
+          style={{
+            color: IVORY,
+            fontSize: scene.hero ? 76 : 66,
+            fontWeight: 900,
+            lineHeight: 1.2,
+            marginTop: 18,
+            textShadow: '0 5px 28px rgba(0,0,0,.55)',
+          }}
+        >
+          {scene.title}
+        </div>
+        {scene.subtitle && (
+          <div style={{ color: MUTED, fontSize: 31, fontWeight: 600, marginTop: 22, lineHeight: 1.45 }}>
+            {scene.subtitle}
+          </div>
+        )}
+        {scene.hero && (
+          <div
+            style={{
+              display: 'inline-block',
+              marginTop: 46,
+              padding: '17px 34px',
+              borderRadius: 50,
+              background: 'linear-gradient(110deg,#fff0c9,#d99b3c)',
+              color: '#53131d',
+              border: '2px solid #fff1c9',
+              fontSize: 34,
+              fontWeight: 900,
+              boxShadow: '0 12px 34px rgba(0,0,0,.3)',
+            }}
+          >
+            {date}
+          </div>
+        )}
+      </div>
+
+      {scene.metrics && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: scene.metrics.length === 1 ? '1fr' : '1fr 1fr',
+            gap: 20,
+            marginTop: 62,
+          }}
+        >
+          {scene.metrics.map((metric, index) => (
+            <MetricCard key={metric.label} metric={metric} index={index} frame={frame} />
+          ))}
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 42,
+          left: 48,
+          right: 48,
+          textAlign: 'center',
+          color: '#e8d6b5',
+          fontSize: 19,
+          lineHeight: 1.45,
+          opacity: 0.9,
+        }}
+      >
+        {footer}
+      </div>
+    </AbsoluteFill>
+  );
+};
 
 export const PanchangVideo: React.FC<Props> = (props) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const p = props.panchang_raw || {};
   const date = props.dateDisplay || p.date_display || '';
   const brand = props.religion || 'PAVITRA PANCHANG 365';
-  const tithi = rawValue(p.tithi_name);
-  const month = rawValue(p.hindu_month);
-  const paksha = rawValue(p.paksha);
-  const sunrise = rawValue(p.sunrise);
-  const sunset = rawValue(p.sunset);
-  const moonrise = rawValue(p.moonrise, 'उपलब्ध नहीं');
-  const moonset = rawValue(p.moonset, 'उपलब्ध नहीं');
-  const flowers = Array.from({length:9},(_,i)=>({
-    left: (8 + ((i*13)%84))+'%',
-    y: 220 + ((i*167)%1380),
-    drift: Math.sin((frame/35)+(i*1.7))*13,
-    opacity: 0.25 + 0.35*(0.5+0.5*Math.sin(frame/22+i))
-  }));
-  return <AbsoluteFill style={{background:'radial-gradient(ellipse at 50% 20%,#761729 0%,#3a0712 55%,#17030a 100%)',fontFamily:'Noto Sans Devanagari, sans-serif',padding:'24px 34px',overflow:'hidden'}}>
-    <Audio src={staticFile('devotional_ambient.wav')} volume={0.10} loop/>
-    <Audio src={staticFile(props.narrationFile || 'narration.wav')} volume={1} />
-    <div style={{position:'absolute',inset:12,border:'8px double #dba73d',borderRadius:22,pointerEvents:'none',boxShadow:'inset 0 0 30px #f8bd4a55'}}/>
-    <div style={{position:'absolute',top:25,left:'50%',transform:'translateX(-50%)',width:180,height:180,borderRadius:'50%',background:'radial-gradient(circle,#ffca54aa 0%,#ff9f1a22 45%,transparent 72%)',filter:'blur(4px)'}}/>
-    <div style={{position:'absolute',top:25,left:0,right:0,textAlign:'center',fontSize:86,filter:'drop-shadow(0 4px 8px #000)'}}>🙏</div>
-    <Bell left="8%" top={28} phase={0} frame={frame}/><Bell left="82%" top={28} phase={9} frame={frame}/>
-    {flowers.map((f,i)=><div key={i} style={{position:'absolute',left:f.left,top:f.y+f.drift,color:'#ffbd4a',fontSize:20,opacity:f.opacity,pointerEvents:'none'}}>✦</div>)}
-    <div style={{position:'relative',zIndex:2,display:'flex',flexDirection:'column',gap:12,height:'100%'}}>
-      <div style={{textAlign:'center',paddingTop:92}}>
-        <div style={{display:'inline-block',padding:'8px 34px',border:'2px solid #e8b64c',borderRadius:40,color:gold,fontSize:23,fontWeight:900,letterSpacing:3,background:'#350711'}}>🕉️ {brand}</div>
-        <div style={{fontSize:70,lineHeight:1.05,fontWeight:1000,color:'#ffe18b',textShadow:'0 4px 0 #7a3009,0 8px 18px #000',marginTop:10}}>दैनिक पंचांग</div>
-        <div style={{display:'inline-block',marginTop:10,padding:'8px 32px',borderRadius:40,background:'linear-gradient(#ffe4a0,#d58b22)',border:'3px solid #fff0b4',color:'#64190d',fontSize:32,fontWeight:1000}}>आज का पंचांग</div>
-        <div style={{marginTop:12,padding:'10px 20px',borderRadius:50,background:'linear-gradient(#fff5dc,#f4d39a)',border:'3px solid #d89c2e',color:'#7b1b16',fontSize:35,fontWeight:1000}}>{date}</div>
+  const title = props.title || 'आज का पंचांग';
+  const footer = 'समय संदर्भ स्थान एवं IST अनुसार • स्थानीय अंतर संभव';
+
+  const scenes: Scene[] = [
+    {
+      eyebrow: 'दैनिक वैदिक पंचांग',
+      title,
+      subtitle: 'परंपरा • कालगणना • शुभ विचार',
+      hero: true,
+    },
+    {
+      eyebrow: 'आज की तिथि',
+      title: value(p.tithi_name, 'तिथि उपलब्ध नहीं'),
+      subtitle: 'आज के दिन का पंचांग परिचय',
+      metrics: [
+        { label: 'पक्ष', value: value(p.paksha), accent: true },
+        { label: 'हिंदू मास', value: value(p.hindu_month) },
+        { label: 'विक्रम संवत', value: value(p.vikram_samvat) },
+        { label: 'शक संवत', value: value(p.shaka_samvat) },
+      ],
+    },
+    {
+      eyebrow: 'नक्षत्र एवं योग',
+      title: 'आज के पंचांग के विशेष योग',
+      metrics: [
+        { label: 'नक्षत्र', value: value(p.nakshatra_name), accent: true },
+        { label: 'योग', value: value(p.yoga_name) },
+        { label: 'करण', value: value(p.karana_name) },
+        { label: 'वार', value: value(p.weekday) },
+      ],
+    },
+    {
+      eyebrow: 'सूर्य की दैनिक गति',
+      title: 'दिन के प्रमुख समय',
+      metrics: [
+        { label: 'सूर्योदय', value: value(p.sunrise), accent: true },
+        { label: 'सूर्यास्त', value: value(p.sunset), accent: true },
+        { label: 'ब्रह्म मुहूर्त', value: value(p.brahma) },
+        { label: 'गोधूलि', value: value(p.godhuli) },
+      ],
+    },
+    {
+      eyebrow: 'शुभ एवं सावधानी के समय',
+      title: 'आज के मुहूर्त',
+      metrics: [
+        { label: 'अभिजीत मुहूर्त', value: value(p.abhijit), accent: true },
+        { label: 'अमृत चौघड़िया', value: value(p.amrit_choghadiya) },
+        { label: 'शुभ चौघड़िया', value: value(p.shubh_choghadiya) },
+        { label: 'राहुकाल', value: value(p.rahu_kaal) },
+      ],
+    },
+    {
+      eyebrow: 'पवित्र पंचांग 365',
+      title: 'आपका दिन मंगलमय हो',
+      subtitle: 'सकारात्मकता, शांति और सद्भाव के साथ दिन की शुरुआत करें।',
+      hero: true,
+    },
+  ];
+
+  const sceneProgress = [0, 0.13, 0.32, 0.51, 0.70, 0.90];
+  const sceneFrames = scenes.map((scene, index) => {
+    const start = Math.round(durationInFrames * sceneProgress[index]);
+    const end = index === scenes.length - 1
+      ? durationInFrames
+      : Math.round(durationInFrames * sceneProgress[index + 1]);
+    const fade = 12;
+    const opacity = interpolate(
+      frame,
+      [start, start + fade, Math.max(start + fade + 1, end - fade), end],
+      [0, 1, 1, 0],
+      { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+    );
+    return { scene, start, end, opacity };
+  });
+
+  const progress = interpolate(frame, [0, durationInFrames], [0, 100], {
+    extrapolateRight: 'clamp',
+  });
+  const glow = 0.78 + Math.sin(frame / 18) * 0.12;
+
+  return (
+    <AbsoluteFill
+      style={{
+        overflow: 'hidden',
+        background: 'radial-gradient(ellipse at 50% 30%, #762638 0%, #3c101d 48%, #10050b 100%)',
+        fontFamily: 'Noto Sans Devanagari, sans-serif',
+      }}
+    >
+      <Audio src={staticFile('devotional_ambient.wav')} volume={0.10} loop />
+      <Audio src={staticFile(props.narrationFile || 'narration.wav')} volume={1} />
+      <AbsoluteFill
+        style={{
+          background: `radial-gradient(circle at 50% 42%, rgba(244,202,114,${glow * 0.13}), transparent 43%)`,
+        }}
+      />
+      <Mandala frame={frame} />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 14,
+          border: '5px double rgba(244,202,114,.78)',
+          borderRadius: 28,
+          boxShadow: 'inset 0 0 55px rgba(244,202,114,.09)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div style={{ position: 'absolute', top: 35, left: 0, right: 0, textAlign: 'center', fontSize: 62, opacity: 0.92 }}>
+        🪔
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,background:'linear-gradient(90deg,#65101a,#300610)',border:'3px solid #d9a13c',borderRadius:18,padding:12}}>
-        {[['विक्रम संवत',rawValue(p.vikram_samvat,'2083')],['शक संवत',rawValue(p.shaka_samvat,'1948')],['मास',month],['पक्ष',paksha]].map(([l,v])=><div key={l} style={{textAlign:'center',borderRight:l==='पक्ष'?'none':'1px solid #e9b54d'}}><div style={{fontSize:21,color:gold,fontWeight:900}}>{l}</div><div style={{fontSize:25,color:'white',fontWeight:900}}>{v}</div></div>)}
+      {sceneFrames.map(({ scene, start, opacity }) => (
+        <AbsoluteFill key={scene.eyebrow} style={{ opacity }}>
+          <SceneView
+            scene={scene}
+            frame={frame - start}
+            brand={brand}
+            date={date}
+            footer={footer}
+          />
+        </AbsoluteFill>
+      ))}
+      <div
+        style={{
+          position: 'absolute',
+          left: 18,
+          right: 18,
+          bottom: 17,
+          height: 7,
+          borderRadius: 10,
+          background: 'rgba(255,244,220,.18)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg,#f4ca72,#fff0c9,#b76a36)',
+            boxShadow: '0 0 18px rgba(244,202,114,.75)',
+          }}
+        />
       </div>
-      <Card style={{display:'grid',gridTemplateColumns:'1fr 1fr',alignItems:'center',gap:12}}>
-        <div><Label>तिथि</Label><Value size={38}>{tithi}</Value></div>
-        <div style={{borderLeft:'2px solid #b87924',paddingLeft:14}}><Label>पक्ष</Label><Value size={29}>{paksha}</Value><Label>वार</Label><Value size={25}>{rawValue(p.weekday, '—')}</Value></div>
-      </Card>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-        {[['✦ नक्षत्र',rawValue(p.nakshatra_name)],['☸ योग',rawValue(p.yoga_name)],['त्रिशूल करण',rawValue(p.karana_name)]].map(([l,v])=><div key={l} style={{background:'linear-gradient(145deg,#64101c,#280711)',border:'2px solid #e4ae3f',borderRadius:18,padding:'12px 6px',textAlign:'center'}}><div style={{color:gold,fontSize:22,fontWeight:900}}>{l}</div><div style={{color:cream,fontSize:27,fontWeight:900}}>{v}</div></div>)}
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:5,background:'linear-gradient(120deg,#32233c,#171020)',border:'2px solid #dca63d',borderRadius:18,padding:12}}>
-        {[['☀️ सूर्योदय',sunrise],['🌇 सूर्यास्त',sunset],['🌅 ब्रह्म मुहूर्त',rawValue(p.brahma)],['🌆 गोधूलि',rawValue(p.godhuli)]].map(([l,v])=><div key={l} style={{textAlign:'center',borderRight:l==='🌘 चंद्रास्त'?'none':'1px solid #b88c50'}}><div style={{fontSize:19,color:gold,fontWeight:900}}>{l}</div><div style={{fontSize:23,color:'white',fontWeight:900}}>{v}</div></div>)}
-      </div>
-      <div style={{textAlign:'center',background:'linear-gradient(90deg,#135b20,#0b3515)',border:'3px solid #d9b44e',borderRadius:28,color:'#fff0a5',fontSize:30,fontWeight:1000,padding:'5px 12px',marginTop:2}}>शुभ मुहूर्त</div>
-      <Card style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <div><Label>🌼 अभिजीत मुहूर्त</Label><Value size={25}>{rawValue(p.abhijit)}</Value></div>
-        <div style={{borderLeft:'2px solid #b87924',paddingLeft:10}}><Label>🌅 ब्रह्म मुहूर्त</Label><Value size={25}>{rawValue(p.brahma)}</Value></div>
-      </Card>
-      <div style={{textAlign:'center',background:'linear-gradient(90deg,#6d0f20,#360712)',border:'2px solid #d9a13c',borderRadius:24,color:'#ffe2a0',fontSize:26,fontWeight:1000,padding:'5px'}}>वर्ज्य / अशुभ काल</div>
-      <Card style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4,padding:'12px 8px'}}>
-        {[['राहुकाल',rawValue(p.rahu_kaal)],['अमृत चौघड़िया',rawValue(p.amrit_choghadiya)],['शुभ चौघड़िया',rawValue(p.shubh_choghadiya)]].map(([l,v])=><div key={l} style={{textAlign:'center',borderRight:l==='गुलिक काल'?'none':'1px solid #b87924'}}><Label>{l}</Label><Value size={22}>{v}</Value></div>)}
-      </Card>
-      <div style={{marginTop:'auto',textAlign:'center',paddingBottom:70}}>
-        <div style={{display:'inline-block',background:'linear-gradient(#ffe7a8,#d99b2d)',border:'2px solid #fff0b8',borderRadius:30,padding:'8px 20px',color:'#46100b',fontSize:23,fontWeight:900}}>ⓘ समय संदर्भ स्थान एवं IST अनुसार • स्थानीय अंतर संभव</div>
-        <div style={{marginTop:12,color:'#fff0b6',fontSize:32,fontWeight:1000,textShadow:'0 3px 8px #000'}}>🙏 आपका दिन मंगलमय हो 🙏</div>
-      </div>
-    </div>
-    <Diya left="1%" bottom={8} frame={frame} phase={0}/><Diya right="1%" bottom={8} frame={frame} phase={11}/>
-  </AbsoluteFill>;
+    </AbsoluteFill>
+  );
 };
