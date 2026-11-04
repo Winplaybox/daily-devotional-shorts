@@ -3,7 +3,7 @@ import {AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate} from 'rem
 
 type Props = {
   religion?: string; title?: string; dateDisplay?: string; footer?: string;
-  panchang_raw?: Record<string, any>; [key: string]: any;
+  panchang_raw?: Record<string, any>; narrationFile?: string; [key: string]: any;
 };
 const gold = '#f8d36f';
 const cream = '#fff1c8';
@@ -45,7 +45,7 @@ export const PanchangVideo: React.FC<Props> = (props) => {
   }));
   return <AbsoluteFill style={{background:'radial-gradient(ellipse at 50% 20%,#761729 0%,#3a0712 55%,#17030a 100%)',fontFamily:'Noto Sans Devanagari, sans-serif',padding:'24px 34px',overflow:'hidden'}}>
     <Audio src={staticFile('devotional_ambient.wav')} volume={0.10} loop/>
-    <Audio src={staticFile('narration.wav')} volume={1} />
+    <Audio src={staticFile(props.narrationFile || 'narration.wav')} volume={1} />
     <div style={{position:'absolute',inset:12,border:'8px double #dba73d',borderRadius:22,pointerEvents:'none',boxShadow:'inset 0 0 30px #f8bd4a55'}}/>
     <div style={{position:'absolute',top:25,left:'50%',transform:'translateX(-50%)',width:180,height:180,borderRadius:'50%',background:'radial-gradient(circle,#ffca54aa 0%,#ff9f1a22 45%,transparent 72%)',filter:'blur(4px)'}}/>
     <div style={{position:'absolute',top:25,left:0,right:0,textAlign:'center',fontSize:86,filter:'drop-shadow(0 4px 8px #000)'}}>🙏</div>
