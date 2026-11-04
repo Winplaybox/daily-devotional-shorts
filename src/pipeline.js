@@ -76,43 +76,79 @@ async function getDailyPanchangData() {
   throw new Error('Both Python real-time engine and Gemini fallback failed.');
 }
 
-// Step 2: Render Remotion Short with Native 2D Vector Animations
-async function generateNarration(data) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is required for Hindi narration.');
-  const { GoogleGenAI } = await import('@google/genai');
-  const ai = new GoogleGenAI({ apiKey });
-  const p = data.panchang_raw || {};
-  const script = [
-    'नमस्कार। प्रस्तुत है '+(data.dateDisplay || 'आज')+' का दैनिक पंचांग।',
-    'आज का मास '+(p.hindu_month || 'उपलब्ध नहीं')+' और पक्ष '+(p.paksha || 'उपलब्ध नहीं')+' है।',
-    'आज की तिथि '+(p.tithi_name || 'उपलब्ध नहीं')+' तथा नक्षत्र '+(p.nakshatra_name || 'उपलब्ध नहीं')+' है।',
-    'योग '+(p.yoga_name || 'उपलब्ध नहीं')+' और करण '+(p.karana_name || 'उपलब्ध नहीं')+' है।',
-    'सूर्योदय '+(p.sunrise || 'उपलब्ध नहीं')+' और सूर्यास्त '+(p.sunset || 'उपलब्ध नहीं')+' पर होगा।',
-    'अभिजीत मुहूर्त '+(p.abhijit || 'उपलब्ध नहीं')+' है। ब्रह्म मुहूर्त '+(p.brahma || 'उपलब्ध नहीं')+' है।',
-    'राहुकाल '+(p.rahu_kaal || 'उपलब्ध नहीं')+' है। अपने स्थानीय पंचांग और परंपरा के अनुसार समय की पुष्टि अवश्य करें।',
-    'इसी तरह के दैनिक पंचांग के लिए Pavitra Panchang 365 को सब्सक्राइब करें। आपका दिन शुभ हो।'
-  ].join(' ');
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-tts',
-    contents: [{ parts: [{ text: 'Speak naturally in clear Hindi at a measured pace. Text: '+script }] }],
-    config: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-  });
-  const audioPart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData?.data);
-  if (!audioPart) throw new Error('Gemini TTS returned no audio payload.');
-  const pcm = Buffer.from(audioPart.inlineData.data, 'base64');
-  const sampleRate = Number((audioPart.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1] || 24000);
-  const wav = Buffer.alloc(44);
-  wav.write('RIFF',0); wav.writeUInt32LE(36+pcm.length,4); wav.write('WAVE',8);
-  wav.write('fmt ',12); wav.writeUInt32LE(16,16); wav.writeUInt16LE(1,20);
-  wav.writeUInt16LE(1,22); wav.writeUInt32LE(sampleRate,24); wav.writeUInt32LE(sampleRate*2,28);
-  wav.writeUInt16LE(2,32); wav.writeUInt16LE(16,34); wav.write('data',36); wav.writeUInt32LE(pcm.length,40);
-  fs.writeFileSync(path.resolve('./public/narration.wav'), Buffer.concat([wav,pcm]));
-  console.log('[AUDIO] Hindi narration generated.');
+
+function formatForVoice(value, fallback = 'जानकारी उपलब्ध नहीं') {
+  return value === undefined || value === null || value === '' ? fallback : String(value);
 }
 
+function buildHindiNarration(data) {
+  const p = data.panchang_raw || data;
+  const date = formatForVoice(data.dateDisplay || p.date_display || data.date);
+  const title = formatForVoice(data.title, 'आज का पंचांग');
+  return [
+    'नमस्कार। आप देख रहे हैं पवित्र पंचांग तीन सौ पैंसठ।',
+    'आइए जानते हैं', date, 'का', title, '.',
+    'आज विक्रम संवत', formatForVoice(p.vikram_samvat, 'दो हजार आठ सौ तिरासी'),
+    'और शक संवत', formatForVoice(p.shaka_samvat, 'उन्नीस सौ अड़तालीस'), 'है।',
+    'हिंदू मास', formatForVoice(p.hindu_month), 'और पक्ष', formatForVoice(p.paksha), 'है।',
+    'आज की तिथि है', formatForVoice(p.tithi_name), '.',
+    'नक्षत्र है', formatForVoice(p.nakshatra_name), ', योग है', formatForVoice(p.yoga_name),
+    'और करण है', formatForVoice(p.karana_name), '.',
+    'आज सूर्योदय', formatForVoice(p.sunrise), 'और सूर्यास्त', formatForVoice(p.sunset), 'पर होगा।',
+    'शुभ समय में ब्रह्म मुहूर्त', formatForVoice(p.brahma),
+    'और अभिजीत मुहूर्त', formatForVoice(p.abhijit), 'है।',
+    'राहुकाल', formatForVoice(p.rahu_kaal),
+    'और यमगण्ड', formatForVoice(p.yamaganda), 'के समय शुभ कार्य आरंभ करने से बचें।',
+    'आज का अमृत चौघड़िया', formatForVoice(p.amrit_choghadiya),
+    'और शुभ चौघड़िया', formatForVoice(p.shubh_choghadiya), 'है।',
+    'किसी भी महत्वपूर्ण कार्य से पहले अपने स्थानीय पंचांग और परंपरा के अनुसार समय की पुष्टि अवश्य करें।',
+    'आपका दिन मंगलमय हो। जय श्री राम।'
+  ].join(' ');
+}
+
+async function generateHindiNarration(data) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is required to generate Hindi narration.');
+  const text = buildHindiNarration(data);
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: 'Speak the following Hindi Panchang narration clearly, warmly and naturally in a calm devotional presenter style. Do not add, omit or translate any information. Text: ' + text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+      }
+    })
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Gemini TTS failed (${response.status}): ${detail.slice(0, 1000)}`);
+  }
+  const result = await response.json();
+  const part = result.candidates?.[0]?.content?.parts?.find(x => x.inlineData?.data);
+  if (!part) throw new Error('Gemini TTS returned no audio data.');
+  const pcm = Buffer.from(part.inlineData.data, 'base64');
+  const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
+  const rate = Number(mime.match(/rate=(\\d+)/)?.[1] || 24000);
+  const channels = 1;
+  const wavHeader = Buffer.alloc(44);
+  wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
+  wavHeader.write('WAVE', 8); wavHeader.write('fmt ', 12);
+  wavHeader.writeUInt32LE(16, 16); wavHeader.writeUInt16LE(1, 20);
+  wavHeader.writeUInt16LE(channels, 22); wavHeader.writeUInt32LE(rate, 24);
+  wavHeader.writeUInt32LE(rate * channels * 2, 28); wavHeader.writeUInt16LE(channels * 2, 32);
+  wavHeader.writeUInt16LE(16, 34); wavHeader.write('data', 36);
+  wavHeader.writeUInt32LE(pcm.length, 40);
+  const rawPath = path.join(OUT_DIR, 'narration_raw.wav');
+  fs.writeFileSync(rawPath, Buffer.concat([wavHeader, pcm]));
+  const narrationPath = path.resolve('./public/narration.wav');
+  execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:60" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
+  console.log('[TTS] Hindi narration generated and normalized to a 60-second track.');
+}
+\n// Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
 async function renderRemotionVideo(data, outVideoPath) {
-  await generateNarration(data);
   console.log('[2/3] Rendering 60s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
 
   const bundleLocation = await bundle({

@@ -16,11 +16,11 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
-def generate_devotional_audio(output_path="public/devotional_ambient.wav", duration=15.0, sample_rate=44100):
+def generate_devotional_audio(output_path="public/devotional_ambient.wav", duration=30.0, sample_rate=44100):
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     num_samples = int(sample_rate * duration)
 
-    bell_times = [0.2, 5.0, 10.0]
+    bell_times = [2.0, 12.0, 22.0]
 
     with wave.open(output_path, 'w') as wav_file:
         wav_file.setnchannels(2)      # Stereo
@@ -33,7 +33,7 @@ def generate_devotional_audio(output_path="public/devotional_ambient.wav", durat
             t = i / sample_rate
 
             # 432 Hz Sacred Om drone with warm sub-harmonic and slow meditative breath
-            breath = 1.0 + 0.08 * math.sin(2 * math.pi * 0.25 * t)
+            breath = 1.0 + 0.08 * math.sin(2 * math.pi * 0.1 * t)
             drone = (
                 0.14 * math.sin(2 * math.pi * 216.0 * t) +
                 0.10 * math.sin(2 * math.pi * 432.0 * t) +
@@ -53,10 +53,10 @@ def generate_devotional_audio(output_path="public/devotional_ambient.wav", durat
 
             # Fade in first 0.5s and fade out last 1.2s for clean loop
             envelope = 1.0
-            if t < 0.5:
-                envelope = t / 0.5
-            elif t > 13.8:
-                envelope = max(0.0, (15.0 - t) / 1.2)
+            if t < 1.0:
+                envelope = t / 1.0
+            elif t > 29.0:
+                envelope = max(0.0, (30.0 - t) / 1.0)
 
             mixed = (drone + bell) * envelope
             val = int(mixed * 22000)
