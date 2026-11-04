@@ -9,7 +9,10 @@
     "auth:fresh": "node scripts/auth_youtube.js --fresh",
     "show:secrets": "node scripts/show_secrets.js",
     "dev": "remotion preview src/index.ts",
-    "render": "remotion render src/index.ts DailyShort out/short.mp4 --scale=2"
+    "render": "remotion render src/index.ts DailyShort60 out/short-60s.mp4",
+    "check": "node --check src/pipeline.js && npx tsc --noEmit",
+    "render:40": "remotion render src/index.ts DailyShort40 out/short-40s.mp4",
+    "render:60": "remotion render src/index.ts DailyShort60 out/short-60s.mp4"
   },
   "dependencies": {
     "@google/genai": "^0.2.0",
