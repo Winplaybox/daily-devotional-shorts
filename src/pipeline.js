@@ -37,43 +37,8 @@ async function getDailyPanchangData() {
     return data;
   }
 
-  // Fallback to Gemini if API key is provided and python engine failed
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (GEMINI_API_KEY) {
-    console.log('[FALLBACK] Querying Gemini AI for Panchang...');
-    const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    const prompt = `
-    You are an expert Indian multi-religion panchang and festival engine.
-    Target date: Current date in India (IST).
-    Output STRICTLY valid JSON with schema:
-    {
-      "religion": "SANATANA DHARMA",
-      "title": "Festival / Day Name in Hindi",
-      "dateDisplay": "Date and Day in Hindi",
-      "label1": "Key timing 1 label in Hindi",
-      "val1": "Key timing 1 value",
-      "label2": "Key timing 2 label in Hindi",
-      "val2": "Key timing 2 value",
-      "label3": "Main auspicious timing/muhurat label in Hindi",
-      "val3": "Main timing range",
-      "footer": "Total duration or greeting in Hindi",
-      "theme": "temple",
-      "yt_title": "SEO clicky YouTube Shorts Title with Hindi keywords and #Shorts",
-      "yt_description": "Comprehensive description with hashtags, muhurat details, and devotional context",
-      "yt_tags": ["Shorts", "Panchang", "Festival", "DailyMuhurat"]
-    }
-    Do not include markdown codeblocks or quotes.
-    `;
-    const res = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    const cleaned = res.text.replace(/^```json/, '').replace(/```$/, '').trim();
-    return JSON.parse(cleaned);
-  }
-
-  throw new Error('Both Python real-time engine and Gemini fallback failed.');
+  // Panchang timings are factual data: never replace a failed calculation with generative guesses.
+  throw new Error('Panchang calculation failed. Fix the Python engine or its inputs; AI-generated timing fallback is disabled to prevent fabricated religious timings.');
 }
 
 
@@ -155,7 +120,7 @@ async function generateHindiNarration(data, durationSeconds = 60) {
 
 // Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
 async function renderRemotionVideo(data, outVideoPath, durationSeconds = 60) {
-  console.log('[2/3] Rendering 60s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
+  console.log('[2/3] Rendering ' + durationSeconds + 's vertical Short at 1080x1920...');
 
   const bundleLocation = await bundle({
     entryPoint: path.resolve('./src/index.ts'),
@@ -179,10 +144,10 @@ async function renderRemotionVideo(data, outVideoPath, durationSeconds = 60) {
     codec: 'h264',
     outputLocation: outVideoPath,
     inputProps,
-    scale: 2, // 4K Ultra HD (2160x3840 from 1080x1920 base)
+    scale: 1, // Native 1080x1920 keeps Shorts render time and file size practical
   });
 
-  console.log(`Video render complete in 4K Ultra HD (2160x3840): ${outVideoPath}`);
+  console.log('Video render complete (' + durationSeconds + 's, 1080x1920): ' + outVideoPath);
 }
 
 // Step 3: YouTube API Upload
