@@ -57,3 +57,12 @@ Defaults are Ujjain, India (23.1765, 75.7885, UTC+5:30). The calculator accepts 
 The 60-second Remotion composition holds the complete Panchang poster layout on screen for the full duration. Text, date, cards and timings are static: there is no zoom, camera movement, scene transition or voice-over. Only decorative artwork has subtle motion (diya flames, hanging bells, ambient glow and drifting light/flower particles). The only audio track is the soft generated devotional ambient music.
 
 The video does not print a city or viewer location. **Calculation caveat:** sunrise/sunset and sunrise-based muhurat timings are location-dependent. The engine still needs one configured reference coordinate/timezone to calculate those values; hiding the location label does not make the timings universally correct for every viewer. Choose a clearly documented reference Panchang or publish location-specific versions if exact local timings are required.
+
+
+### Audio: Hindi narration + soft devotional music
+
+The static poster video includes two simultaneous audio layers:
+- Hindi spoken Panchang narration generated through Gemini 2.5 Flash TTS (voice: Kore).
+- Soft devotional ambient instrumental with temple-bell accents, mixed at 10% volume under the narration.
+
+Narration is normalized and padded/trimmed to the 60-second composition. The TTS step runs before Remotion rendering and requires the `GEMINI_API_KEY` Actions secret. The poster layout and text remain static; only decorative artwork animates.
