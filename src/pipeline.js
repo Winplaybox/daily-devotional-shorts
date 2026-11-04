@@ -79,7 +79,11 @@ function buildHindiNarration(data, durationSeconds = 60) {
 async function generateHindiNarration(data, durationSeconds = 60) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is required to generate Hindi narration.');
-  const text = buildHindiNarration(data, durationSeconds);
+
+  // One Gemini TTS request per run: generate the 60s source once,
+  // then derive the 40s track locally to reduce free-tier quota usage.
+  const sourceDuration = 60;
+  const text = buildHindiNarration(data, sourceDuration);
   const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -92,16 +96,21 @@ async function generateHindiNarration(data, durationSeconds = 60) {
       }
     })
   });
+
   if (!response.ok) {
     const detail = await response.text();
+    if (response.status === 429) {
+      throw new Error('Gemini TTS quota exhausted (HTTP 429). Check Gemini API usage/limits or wait for quota reset. Details: ' + detail.slice(0, 1000));
+    }
     throw new Error(`Gemini TTS failed (${response.status}): ${detail.slice(0, 1000)}`);
   }
+
   const result = await response.json();
   const part = result.candidates?.[0]?.content?.parts?.find(x => x.inlineData?.data);
   if (!part) throw new Error('Gemini TTS returned no audio data.');
   const pcm = Buffer.from(part.inlineData.data, 'base64');
   const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
-  const rate = Number(mime.match(/rate=(\d+)/)?.[1] || 24000);
+  const rate = Number(mime.match(/rate=(\\d+)/)?.[1] || 24000);
   const channels = 1;
   const wavHeader = Buffer.alloc(44);
   wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
@@ -111,11 +120,12 @@ async function generateHindiNarration(data, durationSeconds = 60) {
   wavHeader.writeUInt32LE(rate * channels * 2, 28); wavHeader.writeUInt16LE(channels * 2, 32);
   wavHeader.writeUInt16LE(16, 34); wavHeader.write('data', 36);
   wavHeader.writeUInt32LE(pcm.length, 40);
+
   const rawPath = path.join(OUT_DIR, 'narration_raw.wav');
   fs.writeFileSync(rawPath, Buffer.concat([wavHeader, pcm]));
   const narrationPath = path.resolve('./public/narration' + durationSeconds + '.wav');
   execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:${durationSeconds}" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
-  console.log('[TTS] Hindi narration generated for ' + durationSeconds + ' seconds.');
+  console.log('[TTS] Hindi narration derived from one Gemini TTS generation for ' + durationSeconds + ' seconds.');
 }
 
 // Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
