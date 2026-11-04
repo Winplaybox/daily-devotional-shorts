@@ -151,12 +151,19 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
     Main function: Generates full real-time panchang props payload with slots.
     """
     if target_date is None:
-        target_date = (datetime.now(timezone.utc) + timedelta(hours=5.5)).date()
+        target_date = (datetime.now(timezone.utc) + timedelta(hours=float(os.getenv("PANCHANG_TZ", "5.5")))).date()
 
     # Evening slot calculates advance panchang for tomorrow
     eval_date = target_date + timedelta(days=1) if slot == "evening" else target_date
 
-    panchang = get_complete_panchang(eval_date)
+    lat = float(os.getenv('PANCHANG_LAT', '23.1765'))
+    lon = float(os.getenv('PANCHANG_LON', '75.7885'))
+    tz = float(os.getenv('PANCHANG_TZ', '5.5'))
+    location_name = os.getenv('PANCHANG_LOCATION', 'Ujjain, India')
+    timezone_label = os.getenv('PANCHANG_TIMEZONE_LABEL', f'UTC{tz:+g}')
+    panchang = get_complete_panchang(eval_date, lat=lat, lon=lon, tz=tz)
+    panchang['location_name'] = location_name
+    panchang['timezone_label'] = timezone_label
     festivals = detect_todays_festivals(panchang, eval_date)
     primary_event = festivals[0] # Highest priority event
 
@@ -215,6 +222,8 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         "playlist_name": playlist,
         "publish_at": publish_at,
         "panchang_raw": panchang,
+        "locationName": location_name,
+        "timezoneLabel": timezone_label,
         **seo,
     }
 
@@ -243,7 +252,7 @@ def main():
         parts = [int(p) for p in args.date.split("-")]
         target_date = date(parts[0], parts[1], parts[2])
     else:
-        target_date = (datetime.now(timezone.utc) + timedelta(hours=5.5)).date()
+        target_date = (datetime.now(timezone.utc) + timedelta(hours=float(os.getenv("PANCHANG_TZ", "5.5")))).date()
 
     payload = generate_daily_payload(target_date, slot=slot)
 
