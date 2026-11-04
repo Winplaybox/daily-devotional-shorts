@@ -77,55 +77,81 @@ function buildHindiNarration(data, durationSeconds = 60) {
   ].join(' ');
 }
 async function generateHindiNarration(data, durationSeconds = 60) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is required to generate Hindi narration.');
+  const sourcePath = path.join(OUT_DIR, 'narration_source.wav');
+  const narrationPath = path.resolve('./public/narration' + durationSeconds + '.wav');
 
-  // One Gemini TTS request per run: generate the 60s source once,
-  // then derive the 40s track locally to reduce free-tier quota usage.
-  const sourceDuration = 60;
-  const text = buildHindiNarration(data, sourceDuration);
-  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: 'Speak the following Hindi Panchang narration clearly, warmly and naturally in a calm devotional presenter style. Do not add, omit or translate any information. Text: ' + text }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+  // Generate the narration once, then reuse the source for both video durations.
+  if (!fs.existsSync(sourcePath)) {
+    const text = buildHindiNarration(data, 60);
+    const apiKey = process.env.GEMINI_API_KEY;
+    let generated = false;
+
+    if (apiKey) {
+      try {
+        console.log('[TTS] Trying Gemini TTS primary provider...');
+        const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Speak the following Hindi Panchang narration clearly, warmly and naturally in a calm devotional presenter style. Do not add, omit or translate any information. Text: ' + text }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          console.warn('[TTS] Gemini returned HTTP ' + response.status + '; trying Edge TTS fallback. ' + detail.slice(0, 300));
+        } else {
+          const result = await response.json();
+          const part = result.candidates?.[0]?.content?.parts?.find(x => x.inlineData?.data);
+          if (!part) throw new Error('Gemini TTS returned no audio data.');
+          const pcm = Buffer.from(part.inlineData.data, 'base64');
+          const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
+          const rate = Number(mime.match(/rate=(\\d+)/)?.[1] || 24000);
+          const wavHeader = Buffer.alloc(44);
+          wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
+          wavHeader.write('WAVE', 8); wavHeader.write('fmt ', 12);
+          wavHeader.writeUInt32LE(16, 16); wavHeader.writeUInt16LE(1, 20);
+          wavHeader.writeUInt16LE(1, 22); wavHeader.writeUInt32LE(rate, 24);
+          wavHeader.writeUInt32LE(rate * 2, 28); wavHeader.writeUInt16LE(2, 32);
+          wavHeader.writeUInt16LE(16, 34); wavHeader.write('data', 36);
+          wavHeader.writeUInt32LE(pcm.length, 40);
+          fs.writeFileSync(sourcePath, Buffer.concat([wavHeader, pcm]));
+          generated = true;
+          console.log('[TTS] Gemini narration generated successfully.');
+        }
+      } catch (error) {
+        console.warn('[TTS] Gemini failed; trying Edge TTS fallback. ' + error.message);
       }
-    })
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    if (response.status === 429) {
-      throw new Error('Gemini TTS quota exhausted (HTTP 429). Check Gemini API usage/limits or wait for quota reset. Details: ' + detail.slice(0, 1000));
+    } else {
+      console.warn('[TTS] GEMINI_API_KEY is missing; using Edge TTS fallback.');
     }
-    throw new Error(`Gemini TTS failed (${response.status}): ${detail.slice(0, 1000)}`);
+
+    if (!generated) {
+      const mp3Path = path.join(OUT_DIR, 'narration_edge_fallback.mp3');
+      const python = process.platform === 'win32' ? 'python' : 'python3';
+      const voice = process.env.EDGE_TTS_VOICE || 'hi-IN-SwaraNeural';
+      try {
+        execSync(`${python} -m edge_tts --voice "${voice}" --text ${JSON.stringify(text)} --write-media "${mp3Path}"`, {
+          stdio: 'inherit',
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        execSync(`ffmpeg -y -i "${mp3Path}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'inherit' });
+        console.log('[TTS] Edge TTS fallback generated Hindi narration using ' + voice + '.');
+      } catch (error) {
+        throw new Error('Gemini TTS and Edge TTS fallback both failed. Check Python package installation and network access. Details: ' + error.message);
+      }
+    }
+  } else {
+    console.log('[TTS] Reusing cached narration source for ' + durationSeconds + 's render.');
   }
 
-  const result = await response.json();
-  const part = result.candidates?.[0]?.content?.parts?.find(x => x.inlineData?.data);
-  if (!part) throw new Error('Gemini TTS returned no audio data.');
-  const pcm = Buffer.from(part.inlineData.data, 'base64');
-  const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
-  const rate = Number(mime.match(/rate=(\\d+)/)?.[1] || 24000);
-  const channels = 1;
-  const wavHeader = Buffer.alloc(44);
-  wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
-  wavHeader.write('WAVE', 8); wavHeader.write('fmt ', 12);
-  wavHeader.writeUInt32LE(16, 16); wavHeader.writeUInt16LE(1, 20);
-  wavHeader.writeUInt16LE(channels, 22); wavHeader.writeUInt32LE(rate, 24);
-  wavHeader.writeUInt32LE(rate * channels * 2, 28); wavHeader.writeUInt16LE(channels * 2, 32);
-  wavHeader.writeUInt16LE(16, 34); wavHeader.write('data', 36);
-  wavHeader.writeUInt32LE(pcm.length, 40);
-
-  const rawPath = path.join(OUT_DIR, 'narration_raw.wav');
-  fs.writeFileSync(rawPath, Buffer.concat([wavHeader, pcm]));
-  const narrationPath = path.resolve('./public/narration' + durationSeconds + '.wav');
-  execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:${durationSeconds}" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
-  console.log('[TTS] Hindi narration derived from one Gemini TTS generation for ' + durationSeconds + ' seconds.');
+  execSync(`ffmpeg -y -i "${sourcePath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:${durationSeconds}" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
+  console.log('[TTS] Hindi narration prepared for ' + durationSeconds + ' seconds.');
 }
 
 // Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
