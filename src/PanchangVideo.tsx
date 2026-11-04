@@ -307,22 +307,13 @@ export const PanchangVideo: React.FC<Props> = (props) => {
     const end = index === scenes.length - 1
       ? durationInFrames
       : Math.round(durationInFrames * sceneProgress[index + 1]);
-    const fade = 12;
-    // Adjacent scenes overlap their fades to avoid exposing the empty background.
-    const opacity = index === 0
-      ? interpolate(frame, [0, end - fade, end + fade], [1, 1, 0], {
-          extrapolateLeft: 'clamp',
-          extrapolateRight: 'clamp',
-        })
-      : index === scenes.length - 1
-        ? interpolate(frame, [start - fade, start + fade], [0, 1], {
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp',
-          })
-        : interpolate(frame, [start - fade, start + fade, end - fade, end + fade], [0, 1, 1, 0], {
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp',
-          });
+    const fade = 10;
+    // Fade each scene's content entirely out before the next scene fades in.
+    // The shared background and mandala remain visible, so transitions never expose a blank frame.
+    const opacity = interpolate(frame, [start, start + fade, end - fade, end], [0, 1, 1, 0], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    });
     return { scene, start, end, opacity };
   });
 
