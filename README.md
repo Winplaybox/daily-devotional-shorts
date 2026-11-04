@@ -36,16 +36,17 @@ Use the following variables locally or as GitHub Actions repository variables:
 
 The current calculator accepts a fixed UTC offset, not an IANA timezone database. Daylight-saving regions require a correct date-specific offset. Sunrise, sunset, Rahu Kaal and muhurat are reference-location dependent. The video therefore discloses that local timings may differ. Do not market one reference calculation as universal local time.
 
-## Review-first publishing
+## YouTube scheduling and safety
 
-The default pipeline **renders only**. It does not upload merely because OAuth files exist.
+The default pipeline renders only. Code pushes and PR merges never trigger the publisher.
 
-YouTube upload requires all of the following:
-- Valid local `client_secret.json` and `token.json`
-- `AUTO_PUBLISH=true` explicitly set in the environment
-- A human-reviewed output and verified metadata
+To enable scheduled uploads:
+1. Add repository variable `AUTO_PUBLISH=true` in Settings → Secrets and variables → Actions → Variables.
+2. Add `CLIENT_SECRET_JSON`, `TOKEN_JSON`, and `GEMINI_API_KEY` as Actions secrets.
+3. First run the workflow manually with `publish=false`, download and review both MP4s, and confirm the OAuth token belongs to the intended YouTube channel.
+4. Then manually dispatch with `publish=true` to test a real scheduled upload. Once enabled, the daily cron also uploads and schedules automatically.
 
-Do not commit OAuth files or API keys. For GitHub Actions, use repository secrets for credentials. Keep automatic publishing disabled until the entire render and review workflow has been tested.
+The 40-second edition is scheduled at the selected Panchang slot; the 60-second edition is scheduled six hours later. Missed publishing slots roll forward to the same slot on the next day. OAuth files must never be committed.
 
 ## GitHub Actions
 
