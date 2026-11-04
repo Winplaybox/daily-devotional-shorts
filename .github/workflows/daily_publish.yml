@@ -65,3 +65,10 @@ jobs:
           PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
           PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, India' }}
           PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
+      - name: Upload rendered videos for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-panchang-${{ github.run_id }}
+          path: out/*.mp4
+          if-no-files-found: error
+          retention-days: 7
