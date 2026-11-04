@@ -131,7 +131,7 @@ async function generateHindiNarration(data) {
   if (!part) throw new Error('Gemini TTS returned no audio data.');
   const pcm = Buffer.from(part.inlineData.data, 'base64');
   const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
-  const rate = Number(mime.match(/rate=(\\d+)/)?.[1] || 24000);
+  const rate = Number(mime.match(/rate=(\d+)/)?.[1] || 24000);
   const channels = 1;
   const wavHeader = Buffer.alloc(44);
   wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
@@ -361,6 +361,8 @@ async function run() {
 
     const videoPath = path.join(OUT_DIR, 'final_short.mp4');
 
+    // Generate the narration asset before Remotion resolves staticFile('narration.wav').
+    await generateHindiNarration(data);
     await renderRemotionVideo(data, videoPath);
 
     if (hasValidCredentials()) {
