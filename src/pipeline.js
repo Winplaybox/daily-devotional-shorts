@@ -147,7 +147,8 @@ async function generateHindiNarration(data) {
   execSync(`ffmpeg -y -i "${rawPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10,apad,atrim=0:60" -ar 48000 -ac 2 "${narrationPath}"`, { stdio: 'inherit' });
   console.log('[TTS] Hindi narration generated and normalized to a 60-second track.');
 }
-\n// Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
+
+// Step 2: Render a static Panchang poster with artwork-only motion, Hindi narration and soft ambient music.
 async function renderRemotionVideo(data, outVideoPath) {
   console.log('[2/3] Rendering 60s animated Short with Remotion (Native 2D Vector Motifs in 4K Ultra HD)...');
 
