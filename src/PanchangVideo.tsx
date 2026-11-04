@@ -297,12 +297,11 @@ export const PanchangVideo: React.FC<Props> = (props) => {
   ];
 
   const sceneProgress = [0, 0.13, 0.32, 0.51, 0.70, 0.90];
-  const sceneSpan = 0.13;
   const sceneFrames = scenes.map((scene, index) => {
     const start = Math.round(durationInFrames * sceneProgress[index]);
     const end = index === scenes.length - 1
       ? durationInFrames
-      : Math.round(durationInFrames * (sceneProgress[index] + sceneSpan));
+      : Math.round(durationInFrames * sceneProgress[index + 1]);
     const fade = 12;
     const opacity = interpolate(
       frame,
