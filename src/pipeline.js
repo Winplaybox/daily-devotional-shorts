@@ -246,17 +246,19 @@ async function addVideoToPlaylist(yt, playlistId, videoId) {
   }
 }
 
-async function uploadToYouTube(yt, videoPath, metadata) {
+async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
   console.log('[3/3] Uploading Short to YouTube (Scheduled Mode)...');
   try {
-    const rawPublishAt = process.env.PUBLISH_AT || process.env.SCHEDULE_TIME || metadata.publish_at || metadata.publishAt;
+    const rawPublishAt = publishAt || metadata.publish_at || metadata.publishAt;
     
     // Default to at least 30 minutes in future so YouTube can process 4K Ultra HD
-    const targetPublishAt = rawPublishAt ? new Date(rawPublishAt) : new Date(Date.now() + 30 * 60 * 1000);
+    const targetPublishAt = new Date(rawPublishAt || Date.now() + 30 * 60 * 1000);
+    if (!Number.isFinite(targetPublishAt.getTime())) throw new Error('Invalid YouTube publishAt timestamp.');
+    if (targetPublishAt.getTime() < Date.now() + 5 * 60 * 1000) throw new Error('Scheduled publish time must be at least 5 minutes in the future.');
     const publishAtIso = targetPublishAt.toISOString();
 
-    console.log(`[SCHEDULE] 4K Video will automatically publish at: ${publishAtIso}`);
-    console.log(`[SCHEDULE] Privacy: private (YouTube processes 4K Ultra HD & releases at scheduled time)`);
+    console.log(`[SCHEDULE] Video will publish at: ${publishAtIso}`);
+    console.log(`[SCHEDULE] Privacy: private until the scheduled publish time.`);
 
     const statusConfig = {
       privacyStatus: 'private', // Required by YouTube API for scheduled uploads
@@ -283,7 +285,7 @@ async function uploadToYouTube(yt, videoPath, metadata) {
 
     const videoId = res.data.id;
     console.log(`\n==========================================================`);
-    console.log(`🎉 Successfully published to YouTube Shorts!`);
+    console.log(`🎉 Successfully uploaded and scheduled on YouTube!`);
     console.log(`URL: https://youtube.com/shorts/${videoId}`);
     if (statusConfig.publishAt) {
       console.log(`Status: Scheduled (Private until ${statusConfig.publishAt})`);
@@ -338,14 +340,24 @@ async function run() {
       await renderRemotionVideo(data, videoPath, durationSeconds);
       outputs.push(videoPath);
     }
-    // Review-first: publishing is never triggered just because OAuth credentials exist.
-    if (process.env.AUTO_PUBLISH === 'true' && hasValidCredentials()) {
+    // Publishing requires both an explicit run request and the repository-level opt-in.
+    const uploadRequested = process.env.REQUEST_UPLOAD === 'true';
+    const autoPublishEnabled = process.env.AUTO_PUBLISH === 'true';
+    if (uploadRequested && autoPublishEnabled) {
+      if (!hasValidCredentials()) throw new Error('Publishing requested but YouTube OAuth files are missing or invalid.');
       const yt = await getYouTubeClient();
-      for (const videoPath of outputs) await uploadToYouTube(yt, videoPath, data);
+      const channel = await yt.channels.list({ part: ['snippet'], mine: true, maxResults: 1 });
+      if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
+      console.log('[YOUTUBE] Authenticated channel: ' + channel.data.items[0].snippet.title);
+      const firstPublishAt = new Date(data.publish_at);
+      if (!Number.isFinite(firstPublishAt.getTime())) throw new Error('Panchang engine returned invalid publish_at.');
+      const secondPublishAt = new Date(firstPublishAt.getTime() + 6 * 60 * 60 * 1000);
+      await uploadToYouTube(yt, outputs[0], data, firstPublishAt.toISOString());
+      await uploadToYouTube(yt, outputs[1], data, secondPublishAt.toISOString());
     } else {
-      console.log('\n[REVIEW] Both MP4s rendered; no YouTube upload was attempted.');
+      console.log('\n[REVIEW] Render completed. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
       for (const videoPath of outputs) console.log('[REVIEW] ' + videoPath);
-      console.log('[REVIEW] Set AUTO_PUBLISH=true only after manually reviewing both MP4s.');
+      console.log('[REVIEW] Enable repository variable AUTO_PUBLISH=true and use workflow_dispatch with publish=true after reviewing the outputs.');
     }
 
     console.log('Daily automation workflow finished successfully.');
