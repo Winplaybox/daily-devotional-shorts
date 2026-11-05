@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1a6"/><stop offset=".25" stop-color="#d99a32"/><stop offset=".5" stop-color="#fff0a0"/><stop offset=".76" stop-color="#9d5716"/><stop offset="1" stop-color="#f6d56d"/></linearGradient>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 .4 0 0 0 0 0 0 0 0 0 0 0 0 0 .7 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<g id="corner" fill="none" stroke="url(#gold)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M0 210V70Q0 0 70 0H210"/><path d="M18 150V82Q18 18 82 18H150" stroke-width="4"/><path d="M24 52Q62 65 52 24Q82 56 112 24Q105 65 145 52Q115 84 145 112Q105 105 112 145Q82 115 52 145Q65 105 24 112Q54 84 24 52Z" stroke-width="4"/><circle cx="84" cy="84" r="12" fill="#e6b54e" stroke-width="3"/></g>
+</defs>
+<g filter="url(#shadow)" opacity=".96"><rect x="44" y="48" width="992" height="1824" rx="62" fill="none" stroke="url(#gold)" stroke-width="9"/><rect x="62" y="66" width="956" height="1788" rx="50" fill="none" stroke="#f6d77d" stroke-opacity=".6" stroke-width="2" stroke-dasharray="4 13"/>
+<use href="#corner" x="42" y="46"/><use href="#corner" transform="translate(1038 46) scale(-1 1)"/><use href="#corner" transform="translate(42 1874) scale(1 -1)"/><use href="#corner" transform="translate(1038 1874) scale(-1 -1)"/>
+<path d="M340 48Q540 155 740 48M340 1872Q540 1765 740 1872" fill="none" stroke="url(#gold)" stroke-width="5"/>
+<path d="M540 28C505 70 508 102 540 128C572 102 575 70 540 28ZM540 1792C505 1834 508 1866 540 1892C572 1866 575 1834 540 1792Z" fill="none" stroke="url(#gold)" stroke-width="5"/>
+</g></svg>
