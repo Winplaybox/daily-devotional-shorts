@@ -8,6 +8,14 @@ import {
   useCurrentFrame,
   useVideoConfig
 } from 'remotion';
+import {loadFont as loadRozha} from '@remotion/google-fonts/RozhaOne';
+import {loadFont as loadNotoSans} from '@remotion/google-fonts/NotoSansDevanagari';
+import {noise2D} from '@remotion/noise';
+import {Star} from '@remotion/shapes';
+
+// Load authentic Google Fonts natively via @remotion/google-fonts
+const {fontFamily: rozhaFont} = loadRozha();
+const {fontFamily: notoFont} = loadNotoSans();
 
 export type PanchangProps = {
   religion?: string;
@@ -91,7 +99,7 @@ const MangalKalash: React.FC<{size?: number; style?: React.CSSProperties}> = ({s
     <path d="M50 48 C24 42 12 26 16 16 C26 30 40 40 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
     <path d="M50 48 C76 42 88 26 84 16 C74 30 60 40 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
     <path d="M50 48 C38 32 34 12 43 4 C47 20 49 36 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
-    <path d="M50 48 C62 32 66 12 57 4 C53 20 51 36 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
+    <path d="M50 48 C62 32 66 12 57 4 C52 20 50 36 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
     {/* Kalash Rim */}
     <ellipse cx="50" cy="50" rx="24" ry="7" fill="#fef08a" stroke="#b45309" strokeWidth="2.2" />
     <ellipse cx="50" cy="54" rx="20" ry="4" fill="#ca8a04" />
@@ -114,14 +122,15 @@ const MangalKalash: React.FC<{size?: number; style?: React.CSSProperties}> = ({s
   </svg>
 );
 
-// 2. Hanging Temple Bell with animated swaying chain
+// 2. Hanging Temple Bell with organic noise sway
 const SwayingBell: React.FC<{frame: number; offset?: number; length?: number; style?: React.CSSProperties}> = ({
   frame,
   offset = 0,
   length = 240,
   style
 }) => {
-  const sway = Math.sin((frame + offset) / 22) * 3.5;
+  // Use @remotion/noise for natural temple bell sway physics
+  const sway = noise2D('bell-sway-' + offset, frame * 0.045, 0) * 5.5;
   return (
     <div
       style={{
@@ -199,23 +208,27 @@ const MarigoldGarland: React.FC<{count?: number; style?: React.CSSProperties}> =
   </div>
 );
 
-// 4. Glowing Sacred Diya (दीपक) with animated flame
+// 4. Glowing Sacred Diya with organic Perlin Noise flame flicker
 const GlowingDiya: React.FC<{frame: number; size?: number; style?: React.CSSProperties}> = ({frame, size = 95, style}) => {
-  const flicker = 0.88 + Math.sin(frame / 4) * 0.10 + Math.cos(frame / 7) * 0.06;
+  // Use @remotion/noise for realistic procedural flame flicker
+  const noiseVal = noise2D('diya-flame', frame * 0.18, 0);
+  const flicker = 0.90 + noiseVal * 0.16;
+  const flameTilt = noise2D('flame-tilt', frame * 0.12, 10) * 8;
+
   return (
     <div style={{position: 'relative', width: size, height: size * 0.8, ...style}}>
       {/* Flickering Flame */}
       <div
         style={{
           position: 'absolute',
-          top: -size * 0.42,
+          top: -size * 0.44,
           left: size * 0.35,
           width: size * 0.3,
-          height: size * 0.58,
+          height: size * 0.60,
           borderRadius: '50% 50% 35% 35% / 80% 80% 25% 25%',
           background: 'radial-gradient(ellipse at 50% 85%, #ffffff 0%, #fef08a 35%, #f97316 75%, transparent 100%)',
-          filter: `drop-shadow(0 0 ${14 * flicker}px #f59e0b) drop-shadow(0 0 ${28 * flicker}px #ea580c)`,
-          transform: `scale(${flicker})`,
+          filter: `drop-shadow(0 0 ${16 * flicker}px #f59e0b) drop-shadow(0 0 ${30 * flicker}px #ea580c)`,
+          transform: `scale(${flicker}) rotate(${flameTilt}deg)`,
           transformOrigin: 'bottom center'
         }}
       />
@@ -239,7 +252,9 @@ const GlowingDiya: React.FC<{frame: number; size?: number; style?: React.CSSProp
 const PillBadge: React.FC<{text: string; bg?: string}> = ({text, bg = '#7f1d1d'}) => (
   <div
     style={{
-      display: 'inline-block',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 10,
       padding: '7px 32px',
       borderRadius: 24,
       background: `linear-gradient(180deg, #991b1b, ${bg})`,
@@ -250,10 +265,13 @@ const PillBadge: React.FC<{text: string; bg?: string}> = ({text, bg = '#7f1d1d'}
       fontWeight: 900,
       letterSpacing: 1.5,
       textAlign: 'center',
-      textShadow: '0 2px 5px #000'
+      textShadow: '0 2px 5px #000',
+      fontFamily: notoFont
     }}
   >
-    {text}
+    <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
+    <span>{text}</span>
+    <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
   </div>
 );
 
@@ -342,9 +360,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
   // Disha Shool
   const disha = p.disha_shool || 'पूर्व दिशा';
 
-  // Animation values
+  // Animation values using @remotion/noise for organic movement
   const entrance = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
-  const pulseScale = 1 + Math.sin(frame / 60) * 0.012;
+  const pulseScale = 1 + noise2D('mandala-pulse', frame * 0.02, 0) * 0.015;
   const progressPct = interpolate(frame, [0, durationInFrames], [0, 100], {extrapolateRight: 'clamp'});
 
   return (
@@ -352,7 +370,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
       style={{
         overflow: 'hidden',
         background: '#2b0308',
-        fontFamily: "'Noto Sans Devanagari', 'Nirmala UI', sans-serif"
+        fontFamily: notoFont
       }}
     >
       {/* Optional Audio Tracks */}
@@ -380,10 +398,11 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         }}
       />
 
-      {/* Layer 3: Floating Divine Particles */}
+      {/* Layer 3: Floating Divine Particles with Procedural Air Turbulence */}
       {Array.from({length: 16}).map((_, i) => {
+        const drift = noise2D('particle-drift-' + i, frame * 0.03, i) * 22;
         const pY = (1920 - ((frame * (1.6 + (i % 3))) + i * 115) % 2000);
-        const pX = (i * 63 + 35) % 1080;
+        const pX = (i * 63 + 35 + drift) % 1080;
         const pOpacity = 0.25 + (Math.sin(frame / 12 + i) * 0.2);
         return (
           <div
@@ -463,6 +482,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontSize: 72,
               fontWeight: 900,
               letterSpacing: 3,
+              fontFamily: rozhaFont,
               background: 'linear-gradient(180deg, #ffffff 0%, #fef08a 30%, #facc15 65%, #ca8a04 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -477,6 +497,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 900,
               color: WHITE,
               letterSpacing: 1,
+              fontFamily: notoFont,
               textShadow: '0 3px 12px rgba(0,0,0,0.95)',
               margin: '2px 0 2px'
             }}
@@ -490,6 +511,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 700,
               color: GOLD_LIGHT,
               letterSpacing: 1.5,
+              fontFamily: notoFont,
               textShadow: '0 2px 8px #000'
             }}
           >
@@ -505,6 +527,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             fontWeight: 800,
             color: WHITE,
             lineHeight: 1.45,
+            fontFamily: notoFont,
             textShadow: '0 3px 8px #000'
           }}
         >
@@ -522,6 +545,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             fontWeight: 800,
             color: CREAM,
             lineHeight: 1.45,
+            fontFamily: notoFont,
             textShadow: '0 3px 8px #000'
           }}
         >
@@ -541,6 +565,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.45,
+              fontFamily: notoFont,
               textShadow: '0 3px 8px #000'
             }}
           >
@@ -560,6 +585,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.45,
+              fontFamily: notoFont,
               textShadow: '0 3px 8px #000'
             }}
           >
@@ -589,6 +615,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               color: GOLD_LIGHT,
               marginBottom: 8,
               letterSpacing: 1.5,
+              fontFamily: notoFont,
               textShadow: '0 2px 6px #000'
             }}
           >
@@ -600,6 +627,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 750,
               color: WHITE,
               lineHeight: 1.45,
+              fontFamily: notoFont,
               textShadow: '0 2px 6px #000'
             }}
           >
@@ -618,6 +646,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 900,
               color: GOLD_LIGHT,
               marginBottom: 4,
+              fontFamily: notoFont,
               textShadow: '0 2px 6px #000'
             }}
           >
@@ -629,6 +658,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontWeight: 650,
               color: WHITE,
               lineHeight: 1.35,
+              fontFamily: notoFont,
               textShadow: '0 2px 6px #000'
             }}
           >
@@ -640,6 +670,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               fontSize: 24,
               fontWeight: 900,
               color: '#fef08a',
+              fontFamily: notoFont,
               textShadow: '0 2px 6px #000'
             }}
           >
@@ -661,7 +692,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           {/* Left Mangal Kalash */}
           <MangalKalash size={125} style={{filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.85))'}} />
 
-          {/* Center Glowing Diya */}
+          {/* Center Glowing Diya with Noise Physics */}
           <GlowingDiya frame={frame} size={92} style={{marginBottom: 8}} />
 
           {/* Right Mangal Kalash */}
