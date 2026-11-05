@@ -499,7 +499,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         );
       })}
 
-      {/* Layer 4: Authentic Devotional Gold Frame Borders & 4 Corner Flourishes (from Reference SVG) */}
+      {/* Authentic Devotional Gold Frame Borders & Bottom Corner Flourishes (from Victorian Vector SVGs) */}
       {/* Outer Gold Border Line */}
       <div
         style={{
@@ -515,72 +515,43 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         }}
       />
 
-      {/* 4 Authentic Devotional Gold Corner Flourishes */}
-      {/* Top-Left Corner Flourish */}
-      <Img
-        src={staticFile('assets/devotional_corner.png')}
-        style={{
-          position: 'absolute',
-          top: 24,
-          left: 24,
-          width: 175,
-          height: 175,
-          transform: 'scaleY(-1)',
-          pointerEvents: 'none',
-          zIndex: 10,
-          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
-        }}
-      />
-      {/* Top-Right Corner Flourish */}
-      <Img
-        src={staticFile('assets/devotional_corner.png')}
-        style={{
-          position: 'absolute',
-          top: 24,
-          right: 24,
-          width: 175,
-          height: 175,
-          transform: 'scale(-1, -1)',
-          pointerEvents: 'none',
-          zIndex: 10,
-          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
-        }}
-      />
+      {/* 2 Authentic Bottom Corner Flourishes (Vector SVG from vecteezy) */}
       {/* Bottom-Left Corner Flourish */}
       <Img
-        src={staticFile('assets/devotional_corner.png')}
+        src={staticFile('assets/victorian_corner_1.svg')}
         style={{
           position: 'absolute',
           bottom: 24,
           left: 24,
-          width: 175,
-          height: 175,
+          width: 140,
+          height: 140,
+          transform: 'scaleY(-1)',
           pointerEvents: 'none',
           zIndex: 10,
-          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
         }}
       />
       {/* Bottom-Right Corner Flourish */}
       <Img
-        src={staticFile('assets/devotional_corner.png')}
+        src={staticFile('assets/victorian_corner_1.svg')}
         style={{
           position: 'absolute',
           bottom: 24,
           right: 24,
-          width: 175,
-          height: 175,
-          transform: 'scaleX(-1)',
+          width: 140,
+          height: 140,
+          transform: 'scale(-1, -1)',
           pointerEvents: 'none',
           zIndex: 10,
-          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
         }}
       />
 
-      {/* Connecting Inner Border Lines (linking the 4 corners) */}
-      <div style={{position: 'absolute', top: 38, left: 195, right: 195, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
-      <div style={{position: 'absolute', bottom: 38, left: 195, right: 195, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
-      <div style={{position: 'absolute', left: 38, top: 195, bottom: 195, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
-      <div style={{position: 'absolute', right: 38, top: 195, bottom: 195, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      {/* Connecting Inner Border Lines (framing the poster harmoniously) */}
+      <div style={{position: 'absolute', top: 38, left: 38, right: 38, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', bottom: 38, left: 155, right: 155, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', left: 38, top: 38, bottom: 155, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', right: 38, top: 38, bottom: 155, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
 
       {/* Layer 5: Authentic Marigold Garlands & Hanging Brass Temple Bells */}
       {/* Left Side: Exactly 2 Garlands with Connected Bells */}
@@ -657,7 +628,18 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         }}
       >
         {/* --- HEADER BLOCK (Remocn-inspired Kinetic Shimmer) --- */}
-        <div style={{textAlign: 'center', width: '100%', marginTop: 6}}>
+        <div style={{textAlign: 'center', width: '100%', marginTop: 2}}>
+          <Img
+            src={staticFile('assets/victorian_header_3.svg')}
+            style={{
+              width: 250,
+              height: 46,
+              objectFit: 'contain',
+              margin: '0 auto 2px',
+              display: 'block',
+              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
+            }}
+          />
           <ShimmerHeader text="॥ दैनिक पंचांग ॥" frame={frame} font={rozhaFont} />
           <div
             style={{
@@ -705,8 +687,17 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           <div>तिथि– {hindiTithi}</div>
         </div>
 
-        {/* Vedic Decorative Flourish Divider */}
-        <VedicDivider width={380} />
+        {/* Authentic Victorian Filigree Divider */}
+        <Img
+          src={staticFile('assets/victorian_bar_2.svg')}
+          style={{
+            width: 380,
+            height: 24,
+            objectFit: 'contain',
+            margin: '4px 0',
+            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))'
+          }}
+        />
 
         {/* --- SECTION 2: SURYA & CHANDRA TIMINGS --- */}
         <div
@@ -860,25 +851,26 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         </div>
       </AbsoluteFill>
 
-      {/* Layer 7: Golden Video Timeline Progress Indicator */}
+      {/* Layer 7: Golden Video Timeline Progress Indicator (in bottom margin, below border line) */}
       <div
         style={{
           position: 'absolute',
-          left: 56,
-          right: 56,
-          bottom: 38,
-          height: 6,
-          borderRadius: 6,
-          background: 'rgba(255,244,220,0.22)',
-          overflow: 'hidden'
+          left: 48,
+          right: 48,
+          bottom: 10,
+          height: 4,
+          borderRadius: 4,
+          background: 'rgba(255,244,220,0.20)',
+          overflow: 'hidden',
+          zIndex: 20
         }}
       >
         <div
           style={{
             width: `${progressPct}%`,
             height: '100%',
-            background: 'linear-gradient(90deg, #b45309, #fde047, #f59e0b)',
-            boxShadow: '0 0 12px rgba(250,204,21,0.8)'
+            background: 'linear-gradient(90deg, #ca8a04, #fde047, #f59e0b)',
+            boxShadow: '0 0 10px rgba(250,204,21,0.85)'
           }}
         />
       </div>
