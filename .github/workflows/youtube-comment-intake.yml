@@ -43,5 +43,9 @@ jobs:
           umask 077
           printf '%s' "$CLIENT_SECRET_JSON" > client_secret.json
           printf '%s' "$TOKEN_JSON" > token.json
+      - name: Run request and timezone tests
+        run: |
+          npm test
+          python -m unittest discover -s tests -p 'test_*.py'
       - name: Poll and enqueue eligible requests
         run: node src/youtube/comment-poller.js
