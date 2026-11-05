@@ -529,91 +529,65 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
       />
 
       {/* Layer 5: Authentic Marigold Garlands & Hanging Brass Temple Bells */}
-      {/* Left Side: 3-Garland Cascade with 2 Aligned Bells */}
-      <div style={{position: 'absolute', top: 26, left: 52, zIndex: 11, pointerEvents: 'none'}}>
-        {/* Column 1 (Outermost): Full-length Marigold Garland (no bell) */}
-        <div style={{position: 'absolute', top: 0, left: 0, width: 34, overflow: 'hidden'}}>
+      {/* Left Side: Exactly 2 Garlands with Connected Bells */}
+      <div style={{position: 'absolute', top: 26, left: 56, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland (350px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, left: 0, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <Img
             src={staticFile('assets/marigold_garland.png')}
             style={{
               width: 34,
-              height: 480,
+              height: 350,
               objectFit: 'cover',
               filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
             }}
           />
+          <SwayingBell frame={frame} offset={8} length={60} size={56} style={{marginTop: -4}} />
         </div>
 
-        {/* Column 2 (Middle): Medium Garland + Long Brass Chain + Temple Bell */}
-        <div style={{position: 'absolute', top: 0, left: 42, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          <Img
-            src={staticFile('assets/marigold_garland.png')}
-            style={{
-              width: 34,
-              height: 310,
-              objectFit: 'cover',
-              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
-            }}
-          />
-          <SwayingBell frame={frame} offset={8} length={105} size={56} style={{marginTop: -4}} />
-        </div>
-
-        {/* Column 3 (Innermost): Short Garland + Short Link + Temple Bell */}
-        <div style={{position: 'absolute', top: 0, left: 84, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        {/* Inner Short Garland (230px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, left: 48, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <Img
             src={staticFile('assets/marigold_garland.png')}
             style={{
               width: 32,
-              height: 220,
+              height: 230,
               objectFit: 'cover',
               filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
             }}
           />
-          <SwayingBell frame={frame} offset={0} length={22} size={50} style={{marginTop: -4}} />
+          <SwayingBell frame={frame} offset={0} length={30} size={50} style={{marginTop: -4}} />
         </div>
       </div>
 
-      {/* Right Side: Symmetrical 3-Garland Cascade with 2 Aligned Bells */}
-      <div style={{position: 'absolute', top: 26, right: 52, zIndex: 11, pointerEvents: 'none'}}>
-        {/* Column 1 (Outermost): Full-length Marigold Garland (no bell) */}
-        <div style={{position: 'absolute', top: 0, right: 0, width: 34, overflow: 'hidden'}}>
+      {/* Right Side: Exactly 2 Garlands with Connected Bells */}
+      <div style={{position: 'absolute', top: 26, right: 56, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland (350px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, right: 0, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <Img
             src={staticFile('assets/marigold_garland.png')}
             style={{
               width: 34,
-              height: 480,
+              height: 350,
               objectFit: 'cover',
               filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
             }}
           />
+          <SwayingBell frame={frame} offset={22} length={60} size={56} style={{marginTop: -4}} />
         </div>
 
-        {/* Column 2 (Middle): Medium Garland + Long Brass Chain + Temple Bell */}
-        <div style={{position: 'absolute', top: 0, right: 42, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          <Img
-            src={staticFile('assets/marigold_garland.png')}
-            style={{
-              width: 34,
-              height: 310,
-              objectFit: 'cover',
-              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
-            }}
-          />
-          <SwayingBell frame={frame} offset={22} length={105} size={56} style={{marginTop: -4}} />
-        </div>
-
-        {/* Column 3 (Innermost): Short Garland + Short Link + Temple Bell */}
-        <div style={{position: 'absolute', top: 0, right: 84, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        {/* Inner Short Garland (230px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, right: 48, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <Img
             src={staticFile('assets/marigold_garland.png')}
             style={{
               width: 32,
-              height: 220,
+              height: 230,
               objectFit: 'cover',
               filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
             }}
           />
-          <SwayingBell frame={frame} offset={14} length={22} size={50} style={{marginTop: -4}} />
+          <SwayingBell frame={frame} offset={14} length={30} size={50} style={{marginTop: -4}} />
         </div>
       </div>
 
