@@ -74,7 +74,7 @@ export async function pollYouTubeRequests({ maxPages = 3, pageSize = 50 } = {}) 
       let combinedText = rootText;
       const replies = thread.replies?.comments || [];
       for (const child of replies) {
-        if (child.snippet?.authorChannelId?.value !== channelId) combinedText += `\n${getText(child)}`;
+        if (child.snippet?.authorChannelId?.value === authorId) combinedText += `\n${getText(child)}`;
       }
 
       const parsed = parsePanchangComment(combinedText);
@@ -137,9 +137,13 @@ export async function pollYouTubeRequests({ maxPages = 3, pageSize = 50 } = {}) 
         visibility: "public",
         request_payload: finalized,
       });
-      await reply(yt, root.id, buildPublicRequestReply({ status: saved ? "queued" : "needs-details" }));
+      if (saved) {
+        await reply(yt, root.id, buildPublicRequestReply({ status: "queued" }));
+        processed++;
+      } else {
+        await reply(yt, root.id, "This request is already in our processing queue or has already been handled. 🙏");
+      }
       await markCommentProcessed(root.id, saved ? "queued" : "duplicate");
-      processed++;
     }
 
     pageToken = response.data.nextPageToken;
