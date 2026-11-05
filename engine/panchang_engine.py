@@ -158,10 +158,17 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
     # Evening slot calculates advance panchang for tomorrow
     eval_date = target_date + timedelta(days=1) if slot == "evening" else target_date
 
-    lat = float(os.getenv('PANCHANG_LAT', '23.1765'))
-    lon = float(os.getenv('PANCHANG_LON', '75.7885'))
-    tz = float(os.getenv('PANCHANG_TZ', '5.5'))
-    location_name = os.getenv('PANCHANG_LOCATION', 'Ujjain, India')
+    # Empty GitHub Actions variables are present-but-empty, so os.getenv(key,
+    # default) does not apply the default. Keep deterministic legacy defaults
+    # for explicit offline validation only; production publishing validates
+    # that a real location was configured before this engine is invoked.
+    lat_raw = os.getenv('PANCHANG_LAT') or '23.1765'
+    lon_raw = os.getenv('PANCHANG_LON') or '75.7885'
+    tz_raw = os.getenv('PANCHANG_TZ') or '5.5'
+    lat = float(lat_raw)
+    lon = float(lon_raw)
+    tz = float(tz_raw)
+    location_name = os.getenv('PANCHANG_LOCATION') or 'Ujjain, India (legacy offline default)'
     timezone_label = os.getenv('PANCHANG_TIMEZONE_LABEL', f'UTC{tz:+g}')
     panchang = get_complete_panchang(eval_date, lat=lat, lon=lon, tz=tz)
     panchang['location_name'] = location_name
