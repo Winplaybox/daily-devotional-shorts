@@ -499,34 +499,88 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         );
       })}
 
-      {/* Layer 4: Victorian Gold Double Border & 4 Corner Flourishes */}
-      {/* Outer Border Line */}
+      {/* Layer 4: Authentic Devotional Gold Frame Borders & 4 Corner Flourishes (from Reference SVG) */}
+      {/* Outer Gold Border Line */}
       <div
         style={{
           position: 'absolute',
-          top: 26,
-          left: 26,
-          right: 26,
-          bottom: 26,
+          top: 24,
+          left: 24,
+          right: 24,
+          bottom: 24,
           border: '2px solid #ca8a04',
-          boxShadow: '0 0 16px rgba(250,204,21,0.4), inset 0 0 16px rgba(0,0,0,0.6)',
+          boxShadow: '0 0 16px rgba(250,204,21,0.35), inset 0 0 12px rgba(0,0,0,0.5)',
           pointerEvents: 'none',
           zIndex: 9
         }}
       />
-      {/* Inner Border Line */}
-      <div
+
+      {/* 4 Authentic Devotional Gold Corner Flourishes */}
+      {/* Top-Left Corner Flourish */}
+      <Img
+        src={staticFile('assets/devotional_corner.png')}
         style={{
           position: 'absolute',
-          top: 36,
-          left: 36,
-          right: 36,
-          bottom: 36,
-          border: '1px solid rgba(254, 240, 138, 0.75)',
+          top: 24,
+          left: 24,
+          width: 175,
+          height: 175,
+          transform: 'scaleY(-1)',
           pointerEvents: 'none',
-          zIndex: 9
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
         }}
       />
+      {/* Top-Right Corner Flourish */}
+      <Img
+        src={staticFile('assets/devotional_corner.png')}
+        style={{
+          position: 'absolute',
+          top: 24,
+          right: 24,
+          width: 175,
+          height: 175,
+          transform: 'scale(-1, -1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
+        }}
+      />
+      {/* Bottom-Left Corner Flourish */}
+      <Img
+        src={staticFile('assets/devotional_corner.png')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 24,
+          width: 175,
+          height: 175,
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
+        }}
+      />
+      {/* Bottom-Right Corner Flourish */}
+      <Img
+        src={staticFile('assets/devotional_corner.png')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 24,
+          width: 175,
+          height: 175,
+          transform: 'scaleX(-1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.75))'
+        }}
+      />
+
+      {/* Connecting Inner Border Lines (linking the 4 corners) */}
+      <div style={{position: 'absolute', top: 38, left: 195, right: 195, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', bottom: 38, left: 195, right: 195, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', left: 38, top: 195, bottom: 195, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', right: 38, top: 195, bottom: 195, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
 
       {/* Layer 5: Authentic Marigold Garlands & Hanging Brass Temple Bells */}
       {/* Left Side: Exactly 2 Garlands with Connected Bells */}
