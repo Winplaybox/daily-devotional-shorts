@@ -14,7 +14,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from skyfield.api import load
+from skyfield.api import load, wgs84
 from skyfield.framelib import ecliptic_frame
 from skyfield import almanac
 
@@ -142,7 +142,7 @@ class SkyfieldPanchangAstronomy:
         end = datetime.combine(local_date + timedelta(days=1), time.min, tzinfo=zone)
         t0, t1 = self._time(start), self._time(end)
         events, states = almanac.find_discrete(
-            t0, t1, almanac.sunrise_sunset(self.eph, location.latitude, location.longitude)
+            t0, t1, almanac.sunrise_sunset(self.eph, wgs84.latlon(location.latitude, location.longitude))
         )
         sunrise = next((event for event, state in zip(events, states) if bool(state)), None)
         sunset = next((event for event, state in zip(events, states) if not bool(state)), None)
