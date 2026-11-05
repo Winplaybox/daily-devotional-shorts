@@ -170,7 +170,6 @@ export const PanchangVideo: React.FC<Props> = (props) => {
     <AbsoluteFill style={{background:'radial-gradient(ellipse at 50% 48%,rgba(35,3,5,.58),rgba(35,3,5,.72) 68%,rgba(15,1,4,.84))'}}/>
     <AbsoluteFill style={{background:'radial-gradient(circle at 50% 38%,rgba(255,184,74,'+glow+'),transparent 52%)'}}/>
     <Img src={staticFile('assets/lotus-filigree-frame.svg')} style={{position:'absolute',width:'100%',height:'100%',objectFit:'fill',opacity:.96,pointerEvents:'none'}}/>
-    <div style={{position:'absolute',top:44,left:86,right:86,display:'flex',justifyContent:'space-between',fontSize:38,color:GOLD,textShadow:'0 3px 9px #000'}}><span>🪔</span><span>🪔</span></div>
     {panels.map((panel,index) => {
       const start = Math.round(durationInFrames * index / panels.length);
       const end = Math.round(durationInFrames * (index+1) / panels.length);
