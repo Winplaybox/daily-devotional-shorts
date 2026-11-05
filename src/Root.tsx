@@ -71,7 +71,15 @@ export const RemotionRoot: React.FC = () => {
         { name: 'Rahu Kaal', start: '09:17:00', end: '10:40:00', severity: 'high' },
         { name: 'Yamagandam', start: '13:32:00', end: '14:56:00', severity: 'medium' },
         { name: 'Gulika Kaal', start: '06:28:00', end: '07:52:00', severity: 'low' }
-      ]
+      ],
+      choghadiya: {
+        poster_items: [
+          { name: 'शुभ', time: '07:51 AM – 09:18 AM', display: 'शुभ का चौघड़िया 07:51 AM – 09:18 AM तक' },
+          { name: 'चर', time: '12:12 PM – 01:39 PM', display: 'चर का चौघड़िया 12:12 PM – 01:39 PM तक' },
+          { name: 'लाभ', time: '01:39 PM – 03:06 PM', display: 'लाभ का चौघड़िया 01:39 PM – 03:06 PM तक' },
+          { name: 'अमृत', time: '03:06 PM – 04:32 PM', display: 'अमृत का चौघड़िया 03:06 PM – 04:32 PM तक' }
+        ]
+      }
     },
     card_4_cultural: {
       title: 'Festivals & Vrats',

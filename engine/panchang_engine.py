@@ -208,10 +208,113 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
     playlist = get_target_playlist(primary_event["religion"], title_disp, slot=slot)
     publish_at = compute_scheduled_publish_time(slot, target_date)
 
+    # 1. date_meta
+    date_meta = {
+        "gregorian_date": eval_date.strftime("%Y-%m-%d"),
+        "day_of_week": panchang["weekday_en"],
+        "day_of_week_hi": panchang["weekday"],
+        "vikram_samvat": panchang["vikram_samvat"],
+        "shaka_samvat": panchang["shaka_samvat"],
+        "ayana": panchang["ayana"],
+        "ritu": panchang["ritu"],
+        "month_amanta": panchang["hindu_month_clean"],
+        "month_purnimanta": panchang["hindu_month_clean"],
+        "paksha": panchang["paksha"],
+        "tithi_number": panchang["tithi_number"]
+    }
+
+    # 2. card_1_essence
+    card_1_essence = {
+        "title": "Today's Essence",
+        "tithi": {
+            "name": f"{panchang['paksha']} {panchang['tithi_clean']}",
+            "raw_name": panchang["tithi_clean"],
+            "ends_at": panchang.get("tithi_ends_at", "सूर्योदय पर्यन्त"),
+            "significance": primary_event.get("title", "दैनिक पंचांग")
+        },
+        "nakshatra": {
+            "name": panchang["nakshatra_clean"],
+            "ends_at": panchang.get("nakshatra_ends_at", "दिनभर"),
+            "lord": panchang.get("nakshatra_lord", "—")
+        },
+        "yoga": {
+            "name": panchang["yoga_name"],
+            "ends_at": panchang.get("yoga_ends_at", "—")
+        },
+        "karana": {
+            "first": panchang["karana_name"],
+            "second": panchang.get("karana_name", "—")
+        },
+        "rashi": {
+            "sun_sign": panchang.get("sun_sign", "—"),
+            "moon_sign": panchang.get("moon_sign", "—")
+        }
+    }
+
+    # 3. card_2_nature
+    card_2_nature = {
+        "title": "Time & Nature",
+        "solar": {
+            "sunrise": panchang["sunrise"],
+            "sunset": panchang["sunset"]
+        },
+        "lunar": {
+            "moonrise": panchang["moonrise"],
+            "moonset": panchang["moonset"]
+        },
+        "durations": {
+            "day_length": panchang["day_length"],
+            "night_length": panchang["night_length"]
+        },
+        "ayanamsa": "24° 15' (Lahiri)"
+    }
+
+    # 4. card_3_muhurat
+    card_3_muhurat = {
+        "title": "Muhurat & Timings",
+        "auspicious": [
+            { "name": "Abhijit Muhurat", "name_hi": "अभिजीत मुहूर्त", "start": panchang["abhijit"].split(" से ")[0] if " से " in panchang["abhijit"] else panchang["abhijit"], "end": panchang["abhijit"].split(" से ")[-1] if " से " in panchang["abhijit"] else "", "display": panchang["abhijit_range"] },
+            { "name": "Amrit Kaal", "name_hi": "अमृत काल", "start": panchang["amrit_kaal"].split(" – ")[0] if " – " in panchang["amrit_kaal"] else panchang["amrit_kaal"], "end": panchang["amrit_kaal"].split(" – ")[-1] if " – " in panchang["amrit_kaal"] else "", "display": panchang["amrit_kaal"] },
+            { "name": "Brahma Muhurat", "name_hi": "ब्रह्म मुहूर्त", "start": panchang["brahma"].split(" से ")[0] if " से " in panchang["brahma"] else panchang["brahma"], "end": panchang["brahma"].split(" से ")[-1] if " से " in panchang["brahma"] else "", "display": panchang["brahma_range"] }
+        ],
+        "inauspicious": [
+            { "name": "Rahu Kaal", "name_hi": "राहूकाल", "start": panchang["rahu_kaal"].split(" से ")[0] if " से " in panchang["rahu_kaal"] else panchang["rahu_kaal"], "end": panchang["rahu_kaal"].split(" से ")[-1] if " से " in panchang["rahu_kaal"] else "", "display": panchang["rahu_kaal_range"], "severity": "high" },
+            { "name": "Yamagandam", "name_hi": "यमगण्ड काल", "start": panchang["yamaganda"].split(" से ")[0] if " से " in panchang["yamaganda"] else panchang["yamaganda"], "end": panchang["yamaganda"].split(" से ")[-1] if " से " in panchang["yamaganda"] else "", "display": panchang["yamaganda_range"], "severity": "medium" },
+            { "name": "Gulika Kaal", "name_hi": "गुलिक काल", "start": panchang["gulika"].split(" से ")[0] if " से " in panchang["gulika"] else panchang["gulika"], "end": panchang["gulika"].split(" से ")[-1] if " से " in panchang["gulika"] else "", "display": panchang["gulika_range"], "severity": "low" }
+        ],
+        "choghadiya": {
+            "day": panchang["choghadiya_day"],
+            "auspicious": panchang["choghadiya_auspicious"],
+            "poster_items": panchang["choghadiya_poster_items"]
+        }
+    }
+
+    # 5. card_4_cultural
+    has_festival = (primary_event.get("priority", 1) > 1)
+    festival_items = [{"name": primary_event["title"], "description": primary_event.get("label1", "")}] if has_festival else []
+    disha_clean = panchang["disha_shool"].split(" ")[0]
+    card_4_cultural = {
+        "title": "Festivals & Vrats",
+        "is_fasting_day": has_festival and any(k in primary_event["title"] for k in ("एकादशी", "प्रदोष", "शिवरात्रि", "नवरात्रि", "व्रत", "पूर्णिमा", "अमावस्या")),
+        "festivals": festival_items,
+        "disha_shool": {
+            "direction": disha_clean,
+            "full_direction": panchang["disha_shool"],
+            "guidance": f"आज {disha_clean} में दिशा शूल रहेगा। इसलिए आज {disha_clean} में यात्रा करने से बचें। यदि आवश्यक हो तो पहले उपाय करके ही प्रस्थान करें।"
+        }
+    }
+
+    # 6. card_5_jyotish
+    card_5_jyotish = {
+        "title": "Planetary Positions",
+        "graha_sthiti": []
+    }
+
     payload = {
         "religion": primary_event["religion"],
         "title": title_disp,
         "dateDisplay": panchang["date_display"],
+        "dateDisplayFull": panchang["date_display_full"],
         "label1": label1,
         "val1": val1,
         "label2": label2,
@@ -223,6 +326,12 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         "slot": slot,
         "playlist_name": playlist,
         "publish_at": publish_at,
+        "date_meta": date_meta,
+        "card_1_essence": card_1_essence,
+        "card_2_nature": card_2_nature,
+        "card_3_muhurat": card_3_muhurat,
+        "card_4_cultural": card_4_cultural,
+        "card_5_jyotish": card_5_jyotish,
         "panchang_raw": panchang,
         "locationName": location_name,
         "timezoneLabel": timezone_label,

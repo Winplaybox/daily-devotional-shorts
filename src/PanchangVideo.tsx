@@ -40,36 +40,17 @@ const WHITE = '#ffffff';
 const CREAM = '#fef9c3';
 const MAROON_CARD = 'rgba(78, 9, 18, 0.90)';
 
-// --- HINDI MAPPINGS ---
-const HINDI_MONTHS: Record<number, string> = {
-  1: 'जनवरी', 2: 'फ़रवरी', 3: 'मार्च', 4: 'अप्रैल', 5: 'मई', 6: 'जून',
-  7: 'जुलाई', 8: 'अगस्त', 9: 'सितम्बर', 10: 'अक्टूबर', 11: 'नवम्बर', 12: 'दिसम्बर'
-};
+import {
+  mapPanchangData,
+  formatTime12h,
+  MappedPanchangData,
+  HINDI_MONTHS,
+  HINDI_WEEKDAYS,
+  HINDI_LUNAR_MONTHS
+} from './panchangMapper';
 
-const HINDI_WEEKDAYS: Record<string, string> = {
-  'monday': 'सोमवार', 'tuesday': 'मंगलवार', 'wednesday': 'बुधवार',
-  'thursday': 'गुरुवार', 'friday': 'शुक्रवार', 'saturday': 'शनिवार', 'sunday': 'रविवार'
-};
-
-const HINDI_LUNAR_MONTHS: Record<string, string> = {
-  'chaitra': 'चैत्र', 'vaishakha': 'वैशाख', 'jyeshtha': 'ज्येष्ठ', 'ashadha': 'आषाढ़',
-  'shravana': 'श्रावण', 'bhadrapada': 'भाद्रपद', 'ashwin': 'आश्विन', 'kartika': 'कार्तिक',
-  'margashirsha': 'मार्गशीर्ष', 'pausha': 'पौष', 'magha': 'माघ', 'phalguna': 'फाल्गुन'
-};
-
-const formatTime12h = (t: string | undefined): string => {
-  if (!t) return '—';
-  if (t.includes('AM') || t.includes('PM')) return t;
-  const parts = t.trim().split(':');
-  if (parts.length >= 2) {
-    let h = parseInt(parts[0], 10);
-    const m = parts[1].padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
-  }
-  return t;
-};
+export { mapPanchangData, formatTime12h };
+export type { MappedPanchangData };
 
 // --- ORNATE SVG COMPONENTS ---
 
@@ -356,85 +337,26 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
 
-  // Normalize data between structured JSON and flat keys
-  const p = props.panchang_raw || {};
-  const meta = props.date_meta || p.date_meta || {};
-  const c1 = props.card_1_essence || p.card_1_essence || {};
-  const c2 = props.card_2_nature || p.card_2_nature || {};
-  const c3 = props.card_3_muhurat || p.card_3_muhurat || {};
-  const c4 = props.card_4_cultural || p.card_4_cultural || {};
-  const c5 = props.card_5_jyotish || p.card_5_jyotish || {};
-
-  // Date parsing
-  const rawDateStr = meta.gregorian_date || p.date || '2026-10-17';
-  let formattedHindiDate = props.dateDisplay || '';
-  if (!formattedHindiDate && rawDateStr) {
-    const parts = rawDateStr.split('-');
-    if (parts.length === 3) {
-      const day = parseInt(parts[2], 10);
-      const monthIdx = parseInt(parts[1], 10);
-      const year = parts[0];
-      const monthHi = HINDI_MONTHS[monthIdx] || parts[1];
-      formattedHindiDate = `${day} ${monthHi} ${year}`;
-    }
-  }
-
-  // Weekday in Hindi
-  const rawDay = (meta.day_of_week || p.weekday || 'Saturday').toLowerCase();
-  const hindiDay = HINDI_WEEKDAYS[rawDay] || meta.day_of_week || p.weekday || 'शनिवार';
-
-  // Month (Hindu)
-  const rawMonth = (meta.month_amanta || meta.month_purnimanta || p.hindu_month || 'Ashwin').toLowerCase();
-  const hindiMonth = HINDI_LUNAR_MONTHS[rawMonth] ? `${HINDI_LUNAR_MONTHS[rawMonth]} माह` : (p.hindu_month || 'आश्विन माह');
-
-  // Paksha
-  const rawPaksha = meta.paksha || p.paksha || 'Shukla';
-  const hindiPaksha = rawPaksha.toLowerCase().includes('shukla') ? 'शुक्ल पक्ष' : (rawPaksha.toLowerCase().includes('krishna') ? 'कृष्ण पक्ष' : rawPaksha);
-
-  // Tithi
-  const rawTithi = c1.tithi?.name || p.tithi_name || 'सप्तमी तिथि';
-  const hindiTithi = rawTithi.includes('तिथि') ? rawTithi : `${rawTithi} तिथि`;
-
-  // Sun & Moon Timings
-  const sunrise = formatTime12h(c2.solar?.sunrise || p.sunrise || '06:23 AM');
-  const sunset = formatTime12h(c2.solar?.sunset || p.sunset || '05:56 PM');
-  const moonrise = formatTime12h(c2.lunar?.moonrise || p.moonrise || '12:23 PM');
-  const moonset = formatTime12h(c2.lunar?.moonset || p.moonset || '10:36 PM');
-
-  // Auspicious (Shubh Kaal)
-  const auspiciousList = Array.isArray(c3.auspicious) ? c3.auspicious : [];
-  const abhijit = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit'))
-    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit')).end)}`
-    : (p.abhijit || '11:43 AM – 12:29 PM');
-
-  const amritKaal = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit'))
-    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit')).end)}`
-    : (p.amrit_kaal || '02:10 AM – 03:40 AM');
-
-  const brahma = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma'))
-    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma')).end)}`
-    : (p.brahma || '04:51 AM – 05:40 AM');
-
-  // Inauspicious (Ashubh Kaal)
-  const inauspiciousList = Array.isArray(c3.inauspicious) ? c3.inauspicious : [];
-  const rahuKaal = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu'))
-    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu')).end)}`
-    : (p.rahu_kaal || '09:17 AM – 10:40 AM');
-
-  const yamagandam = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama'))
-    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama')).end)}`
-    : (p.yamaganda || '01:32 PM – 02:56 PM');
-
-  const gulikKaal = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli'))
-    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli')).end)}`
-    : (p.gulika || '06:28 AM – 07:52 AM');
-
-  // Festival & Vrat
-  const festivals = Array.isArray(c4.festivals) ? c4.festivals : [];
-  const festivalTitle = festivals.length > 0 ? festivals[0].name : (props.title || 'शारदीय नवरात्रि का सातवें दिन (माँ कालरात्रि की पूजा)');
-
-  // Disha Shool
-  const disha = p.disha_shool || 'पूर्व दिशा';
+  const {
+    formattedHindiDate,
+    hindiDay,
+    hindiMonth,
+    hindiPaksha,
+    hindiTithi,
+    sunrise,
+    sunset,
+    moonrise,
+    moonset,
+    abhijit,
+    amritKaal,
+    brahma,
+    rahuKaal,
+    yamagandam,
+    gulikKaal,
+    choghadiyaLines,
+    festivalTitle,
+    dishaGuidance
+  } = mapPanchangData(props);
 
   // Animation values using @remotion/noise for organic movement
   const entrance = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
@@ -616,15 +538,14 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         </div>
       </div>
 
-      {/* Layer 6: MAIN CONTENT POSTER (Centered & Symmetrical) */}
+      {/* Layer 6: MAIN CONTENT POSTER (Centered & Symmetrical - 100% visible from first frame to last) */}
       <AbsoluteFill
         style={{
           padding: '52px 90px 48px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          opacity: entrance
+          justifyContent: 'space-between'
         }}
       >
         {/* --- HEADER BLOCK (Remocn-inspired Kinetic Shimmer) --- */}
@@ -782,10 +703,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               textShadow: '0 2px 6px #000'
             }}
           >
-            <div>शुभ का चौघड़िया 07:51 AM–09:16 AM तक</div>
-            <div>चर का चौघड़िया 12:06 PM–01:31 PM तक</div>
-            <div>लाभ का चौघड़िया 01:31 PM–02:56 PM तक</div>
-            <div>अमृत का चौघड़िया 02:56 PM–04:20 PM तक</div>
+            {choghadiyaLines.map((line, idx) => (
+              <div key={idx}>{line}</div>
+            ))}
           </div>
         </GlowGlassCard>
 
@@ -813,7 +733,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
               textShadow: '0 2px 6px #000'
             }}
           >
-            आज {disha} में दिशा शूल रहेगा। इसलिए आज {disha} में यात्रा करने से बचें। यदि आवश्यक हो तो पहले उपाय करके ही प्रस्थान करें।
+            {dishaGuidance}
           </div>
           <div
             style={{
