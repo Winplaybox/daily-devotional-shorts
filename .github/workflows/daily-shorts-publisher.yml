@@ -11,6 +11,10 @@ on:
         required: true
         default: false
         type: boolean
+      panchang_date:
+        description: "Optional YYYY-MM-DD date for a one-time catch-up run (for example 2026-11-07)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -24,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
+      PANCHANG_DATE: ${{ inputs.panchang_date || '' }}
       PANCHANG_LAT: ${{ vars.PANCHANG_LAT }}
       PANCHANG_LON: ${{ vars.PANCHANG_LON }}
       PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
