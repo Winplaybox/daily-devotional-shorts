@@ -1,0 +1,128 @@
+name: Daily Shorts Publisher
+
+on:
+  schedule:
+    # 06:00 IST render; publish the 40s edition at 07:00 and the 60s edition at 19:00 IST.
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Upload both rendered Shorts to the authenticated YouTube channel"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavitra-panchang-daily-publisher
+  cancel-in-progress: false
+
+jobs:
+  render-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PANCHANG_LAT: ${{ vars.PANCHANG_LAT }}
+      PANCHANG_LON: ${{ vars.PANCHANG_LON }}
+      PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
+      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION }}
+      PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
+      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
+      TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install --upgrade pip
+          python -m pip install edge-tts
+
+      - name: Validate source
+        run: |
+          npm run check
+          npm test
+          python -m py_compile engine/*.py
+
+      - name: Resolve publishing mode
+        shell: bash
+        run: |
+          publish=false
+          if [[ "${GITHUB_EVENT_NAME}" == "schedule" && "${AUTO_PUBLISH}" == "true" ]]; then
+            publish=true
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish }}" == "true" && "${AUTO_PUBLISH}" == "true" ]]; then
+            publish=true
+          fi
+          echo "REQUEST_UPLOAD=$publish" >> "$GITHUB_ENV"
+          echo "Publishing requested: $publish"
+
+      - name: Validate publishing configuration
+        if: env.REQUEST_UPLOAD == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$CLIENT_SECRET_JSON" ]] || { echo "::error::Missing Actions secret CLIENT_SECRET_JSON"; exit 1; }
+          [[ -n "$TOKEN_JSON" ]] || { echo "::error::Missing Actions secret TOKEN_JSON"; exit 1; }
+          [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Edge TTS fallback will be used."
+          [[ -n "$PANCHANG_LAT" && -n "$PANCHANG_LON" && -n "$PANCHANG_LOCATION" ]] || {
+            echo "::error::Set PANCHANG_LAT, PANCHANG_LON and PANCHANG_LOCATION repository variables before public publishing."
+            exit 1
+          }
+          python - <<'PY'
+          import json, os
+          for key in ("CLIENT_SECRET_JSON", "TOKEN_JSON"):
+              try:
+                  value = json.loads(os.environ[key])
+              except Exception as exc:
+                  raise SystemExit(f"{key} is not valid JSON: {exc}")
+              if key == "CLIENT_SECRET_JSON":
+                  conf = value.get("installed") or value.get("web") or value
+                  if not conf.get("client_id") or not conf.get("client_secret"):
+                      raise SystemExit("CLIENT_SECRET_JSON must contain client_id and client_secret.")
+              elif not (value.get("refresh_token") or value.get("access_token") or value.get("token")):
+                  raise SystemExit("TOKEN_JSON must contain a refresh_token or access_token.")
+          PY
+
+      - name: Write OAuth files
+        if: env.REQUEST_UPLOAD == 'true'
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$CLIENT_SECRET_JSON" > client_secret.json
+          printf '%s' "$TOKEN_JSON" > token.json
+
+      - name: Render and optionally publish both editions
+        run: npm start
+
+      - name: Upload render artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavitra-panchang-${{ github.run_number }}
+          path: |
+            out/*.mp4
+            out/*.json
+          if-no-files-found: warn
+          retention-days: 14
