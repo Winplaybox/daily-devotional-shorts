@@ -1,0 +1,4 @@
+# Commercial-use application dependency set. Review each transitive dependency license before distribution.
+skyfield==1.53
+jplephem==2.23
+numpy==2.2.6
