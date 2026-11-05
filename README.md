@@ -38,20 +38,20 @@ The current calculator accepts a fixed UTC offset, not an IANA timezone database
 
 ## YouTube scheduling and safety
 
-The default pipeline renders only. Code pushes and PR merges never trigger the publisher.
+The default pipeline renders only. Code pushes and PR merges never trigger the publisher. Scheduled uploads run only when `AUTO_PUBLISH=true`; manual uploads additionally require the workflow-dispatch `publish=true` input. Both OAuth JSON secrets are written to temporary ignored files only during the job.
 
 To enable scheduled uploads:
-1. Add repository variable `AUTO_PUBLISH=true` in Settings → Secrets and variables → Actions → Variables.
+1. Add repository variable `AUTO_PUBLISH=true` in Settings → Secrets and variables → Actions → Variables. Also set `PANCHANG_LAT`, `PANCHANG_LON`, `PANCHANG_LOCATION`, `PANCHANG_TZ=5.5`, and `PANCHANG_TIMEZONE_LABEL=IST` to the intended calculation location; public publishing fails closed if the coordinates or location label are missing.
 2. Add `CLIENT_SECRET_JSON`, `TOKEN_JSON`, and `GEMINI_API_KEY` as Actions secrets.
 3. First run the workflow manually with `publish=false`, download and review both MP4s, and confirm the OAuth token belongs to the intended YouTube channel.
 4. Then manually dispatch with `publish=true` to test a real scheduled upload. Once enabled, the daily cron also uploads and schedules automatically.
 
-The 40-second edition is scheduled at the selected Panchang slot; the 60-second edition is scheduled six hours later. Missed publishing slots roll forward to the same slot on the next day. OAuth files must never be committed.
+The 40-second edition is scheduled for 07:00 IST; the 60-second edition is scheduled for 19:00 IST (12 hours later). The scheduled workflow starts at 06:00 IST to leave a rendering and upload buffer. Missed publishing slots roll forward to the same slot on the next day. OAuth files must never be committed.
 
 ## GitHub Actions
 
 - `Validate Panchang Shorts` runs JavaScript syntax, TypeScript and Python compilation checks on pull requests.
-- `Daily Shorts Publisher` runs one daily batch at 06:00 IST and can also be started manually.
+- `Daily Shorts Publisher` runs one daily batch at 06:00 IST and can also be started manually. A manual catch-up run accepts an optional `panchang_date` (YYYY-MM-DD).
 - Each batch renders both 40-second and 60-second versions. Scheduled workflow runs do not upload unless `AUTO_PUBLISH=true` is deliberately configured in the workflow.
 
 ## Monetization-readiness principles
