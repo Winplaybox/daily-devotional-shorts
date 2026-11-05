@@ -1,185 +1,879 @@
 import React from 'react';
-import {AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {
+  AbsoluteFill,
+  Audio,
+  Img,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig
+} from 'remotion';
+import {loadFont as loadRozha} from '@remotion/google-fonts/RozhaOne';
+import {loadFont as loadNotoSans} from '@remotion/google-fonts/NotoSansDevanagari';
+import {noise2D} from '@remotion/noise';
+import {Star} from '@remotion/shapes';
 
-type Props = {religion?: string; title?: string; dateDisplay?: string; footer?: string; panchang_raw?: Record<string, any>; narrationFile?: string; [key: string]: any};
-type Row = {label: string; value: string; tone?: 'good' | 'bad'};
-type Panel = {heading: string; title: string; subtitle?: string; rows: Row[]};
+// Load authentic Google Fonts natively via @remotion/google-fonts
+const {fontFamily: rozhaFont} = loadRozha();
+const {fontFamily: notoFont} = loadNotoSans();
 
-const GOLD = '#f6d78b';
-const WHITE = '#fff4df';
-const MUTED = '#e9c99a';
-const safe = (v: unknown, fallback = '—'): string => v === undefined || v === null || v === '' ? fallback : String(v);
-const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
-const row = (label: string, v: unknown, tone?: Row['tone']): Row => ({label, value: safe(v), tone});
-const timeRange = (v: any): string => v && typeof v === 'object' ? safe(v.start) + ' – ' + safe(v.end) : safe(v);
-const dateLabel = (p: any, fallback: string): string => {
-  const d = p.date_meta?.gregorian_date;
-  if (!d) return fallback || safe(p.date_display, 'आज का पंचांग');
-  const a = d.split('-');
-  return a.length === 3 ? a[2] + '-' + a[1] + '-' + a[0] : d;
+export type PanchangProps = {
+  religion?: string;
+  title?: string;
+  dateDisplay?: string;
+  footer?: string;
+  panchang_raw?: Record<string, any>;
+  narrationFile?: string;
+  date_meta?: any;
+  card_1_essence?: any;
+  card_2_nature?: any;
+  card_3_muhurat?: any;
+  card_4_cultural?: any;
+  card_5_jyotish?: any;
+  [key: string]: any;
 };
 
-const Divider: React.FC<{width?: number}> = ({width = 540}) => (
-  <Img src={staticFile('assets/lotus-divider.svg')} style={{width, height: width * 0.122, objectFit: 'contain', margin: '0 auto'}} />
-);
+// --- COLOR PALETTE ---
+const GOLD_LIGHT = '#fff8db';
+const GOLD_MID = '#fde047';
+const WHITE = '#ffffff';
+const CREAM = '#fef9c3';
+const MAROON_CARD = 'rgba(78, 9, 18, 0.90)';
 
-const HeadingBanner: React.FC<{children: React.ReactNode}> = ({children}) => (
-  <div style={{
-    minWidth: 500, maxWidth: 760, padding: '12px 28px', textAlign: 'center',
-    color: GOLD, fontSize: 34, fontWeight: 900, lineHeight: 1.2,
-    background: 'linear-gradient(110deg,rgba(107,15,25,.98),rgba(45,5,12,.98) 50%,rgba(107,15,25,.98))',
-    border: '2px solid #e9bd60', borderRadius: 22,
-    boxShadow: '0 7px 18px rgba(0,0,0,.65),inset 0 1px 5px rgba(255,238,185,.25),0 0 0 4px rgba(213,158,62,.12)',
-    textShadow: '0 3px 7px rgba(0,0,0,.9)',
-  }}>{children}</div>
-);
-
-const DataRow: React.FC<{item: Row; index: number; frame: number; compact: boolean}> = ({item,index,frame,compact}) => {
-  const opacity = interpolate(frame - index * 2, [0, 9], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
-  return <div style={{
-    opacity, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
-    padding: compact ? '8px 17px' : '12px 20px',
-    borderBottom: '1px solid rgba(239,190,92,.25)',
-    background: index % 2 ? 'rgba(255,221,160,.035)' : 'rgba(20,2,7,.12)',
-  }}>
-    <div style={{color: GOLD, fontSize: compact ? 22 : 26, fontWeight: 750, flex: '0 0 40%', textShadow: '0 2px 5px #000'}}>{item.label}</div>
-    <div style={{
-      color: item.tone === 'bad' ? '#ffd1c4' : item.tone === 'good' ? '#d9efb9' : WHITE,
-      fontSize: compact ? 22 : 26, fontWeight: 800, flex: 1, textAlign: 'right', lineHeight: 1.25,
-      overflowWrap: 'anywhere', textShadow: '0 2px 5px #000',
-    }}>{item.value}</div>
-  </div>;
+// --- HINDI MAPPINGS ---
+const HINDI_MONTHS: Record<number, string> = {
+  1: 'जनवरी', 2: 'फ़रवरी', 3: 'मार्च', 4: 'अप्रैल', 5: 'मई', 6: 'जून',
+  7: 'जुलाई', 8: 'अगस्त', 9: 'सितम्बर', 10: 'अक्टूबर', 11: 'नवम्बर', 12: 'दिसम्बर'
 };
 
-const PanelView: React.FC<{panel: Panel; frame: number; brand: string; date: string; footer: string}> = ({panel,frame,brand,date,footer}) => {
-  const enter = interpolate(frame, [0, 12], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
-  const compact = panel.rows.length > 6;
-  return <AbsoluteFill style={{padding: '158px 112px 138px', justifyContent: 'center', gap: 14}}>
-    <div style={{opacity: enter, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7}}>
-      <div style={{color: GOLD, fontSize: 21, fontWeight: 800, letterSpacing: 3, textShadow: '0 2px 8px #000'}}>॥ {brand} ॥</div>
-      <HeadingBanner>{panel.heading}</HeadingBanner>
-      <div style={{color: WHITE, fontSize: 49, fontWeight: 900, lineHeight: 1.16, textShadow: '0 4px 9px #000'}}>{panel.title}</div>
-      {panel.subtitle ? <div style={{color: MUTED, fontSize: 24, fontWeight: 650}}>{panel.subtitle}</div> : null}
-      <Divider />
-      <div style={{color: GOLD, fontSize: 23, fontWeight: 700}}>{date}</div>
-    </div>
-    <div style={{
-      border: '2px solid rgba(231,185,91,.95)', borderRadius: 24, background: 'linear-gradient(145deg,rgba(111,24,26,.96),rgba(43,6,12,.98))',
-      overflow: 'hidden', boxShadow: '0 12px 30px rgba(0,0,0,.72),inset 0 1px 8px rgba(255,231,170,.16),0 0 0 5px rgba(214,161,70,.12)',
-    }}>
-      {panel.rows.map((item,i) => <DataRow key={item.label + i} item={item} index={i} frame={frame} compact={compact}/>)}
-    </div>
-    <div style={{color: MUTED, fontSize: 18, textAlign: 'center', lineHeight: 1.3, textShadow: '0 2px 7px #000'}}>{footer}</div>
-  </AbsoluteFill>;
+const HINDI_WEEKDAYS: Record<string, string> = {
+  'monday': 'सोमवार', 'tuesday': 'मंगलवार', 'wednesday': 'बुधवार',
+  'thursday': 'गुरुवार', 'friday': 'शुक्रवार', 'saturday': 'शनिवार', 'sunday': 'रविवार'
 };
 
-const createPanels = (p: any, props: Props, brand: string, date: string): Panel[] => {
-  const m = p.date_meta || {}, e = p.card_1_essence || {}, n = p.card_2_nature || {};
-  const mu = p.card_3_muhurat || {}, c = p.card_4_cultural || {}, j = p.card_5_jyotish || {};
-  const good = arr(mu.auspicious), bad = arr(mu.inauspicious), festivals = arr(c.festivals), yogas = arr(c.special_yogas), grahas = arr(j.graha_sthiti);
-  const structured = Boolean(p.date_meta || p.card_1_essence || p.card_2_nature || p.card_3_muhurat || p.card_4_cultural || p.card_5_jyotish);
-  const panels: Panel[] = [{
-    heading: '॥ दैनिक पंचांग ॥', title: props.title || 'आज का पंचांग',
-    subtitle: date + '  •  ' + safe(m.day_of_week || p.weekday),
-    rows: [
-      row('विक्रम संवत', m.vikram_samvat ?? p.vikram_samvat), row('शक संवत', m.shaka_samvat ?? p.shaka_samvat),
-      row('अयन', m.ayana ?? p.ayana), row('ऋतु', m.ritu ?? p.ritu),
-      row('मास', m.month_amanta || p.hindu_month), row('पक्ष', m.paksha || p.paksha),
-    ],
-  }];
-  if (structured) {
-    panels.push({
-      heading: 'आज का पंचांग', title: e.title || 'तिथि एवं नक्षत्र', subtitle: 'तिथि • नक्षत्र • योग • करण • राशि',
-      rows: [
-        row('तिथि', e.tithi?.name || p.tithi_name), row('तिथि समाप्त', e.tithi?.ends_at),
-        row('महत्व', e.tithi?.significance), row('नक्षत्र', e.nakshatra?.name || p.nakshatra_name),
-        row('नक्षत्र स्वामी', e.nakshatra?.lord), row('नक्षत्र समाप्त', e.nakshatra?.ends_at),
-        row('योग', e.yoga?.name || p.yoga_name), row('योग समाप्त', e.yoga?.ends_at),
-        row('करण', [e.karana?.first,e.karana?.second].filter(Boolean).join(' / ') || p.karana_name),
-        row('सूर्य / चंद्र राशि', [e.rashi?.sun_sign,e.rashi?.moon_sign].filter(Boolean).join(' / ')),
-      ],
-    });
-    panels.push({
-      heading: 'समय एवं प्रकृति', title: n.title || 'सूर्य और चंद्र समय', subtitle: 'सूर्योदय • सूर्यास्त • चन्द्रोदय • चन्द्रास्त',
-      rows: [
-        row('सूर्योदय', n.solar?.sunrise || p.sunrise), row('सूर्यास्त', n.solar?.sunset || p.sunset),
-        row('चन्द्रोदय', n.lunar?.moonrise || p.moonrise), row('चन्द्रास्त', n.lunar?.moonset || p.moonset),
-        row('दिन की अवधि', n.durations?.day_length), row('रात्रि की अवधि', n.durations?.night_length), row('अयनांश', n.ayanamsa),
-      ],
-    });
-    panels.push({
-      heading: 'शुभ एवं अशुभ काल', title: mu.title || 'मुहूर्त एवं समय', subtitle: 'शुभ मुहूर्त और सावधानी के समय',
-      rows: [
-        ...good.map((x:any) => row(x.name,timeRange(x),'good')),
-        ...bad.map((x:any) => row(x.name,timeRange(x),'bad')),
-        ...(!good.length && !bad.length ? [row('अभिजीत मुहूर्त',p.abhijit,'good'),row('ब्रह्म मुहूर्त',p.brahma,'good'),row('राहुकाल',p.rahu_kaal,'bad'),row('यमगण्ड',p.yamaganda,'bad'),row('गुलिक काल',p.gulika,'bad')] : []),
-      ],
-    });
-    panels.push({
-      heading: 'पर्व एवं व्रत', title: c.title || 'आज के विशेष पर्व',
-      subtitle: c.is_fasting_day ? 'आज व्रत का दिन है' : 'पर्व • व्रत • विशेष योग',
-      rows: [
-        row('व्रत',c.is_fasting_day ? (c.fast_type || 'हाँ') : 'नहीं'),
-        ...festivals.map((x:any) => row(x.name,x.description || 'विशेष पर्व')),
-        ...yogas.map((x:string,i:number) => row('विशेष योग ' + (i+1),x,'good')),
-        ...(!festivals.length && !yogas.length ? [row('आज का पर्व',props.title)] : []),
-      ],
-    });
-    panels.push({
-      heading: 'ग्रह स्थिति', title: j.title || 'ग्रहों की स्थिति', subtitle: 'ग्रह • राशि • अंश',
-      rows: [
-        ...grahas.map((x:any) => row(x.planet,safe(x.sign) + ' • ' + safe(x.degree))),
-        row('वर्तमान चौघड़िया',j.current_choghadiya,'good'),
-      ],
-    });
-  } else {
-    panels.push({
-      heading: 'आज का पंचांग', title: safe(p.tithi_name,'तिथि विवरण'), subtitle: safe(p.nakshatra_name,'नक्षत्र विवरण'),
-      rows: [row('पक्ष',p.paksha),row('हिंदू मास',p.hindu_month),row('विक्रम संवत',p.vikram_samvat),row('शक संवत',p.shaka_samvat),row('नक्षत्र',p.nakshatra_name),row('योग',p.yoga_name),row('करण',p.karana_name)],
-    });
-    panels.push({
-      heading: 'समय एवं प्रकृति', title: 'सूर्य और चंद्र समय',
-      rows: [row('सूर्योदय',p.sunrise),row('सूर्यास्त',p.sunset),row('चन्द्रोदय',p.moonrise),row('चन्द्रास्त',p.moonset),row('ब्रह्म मुहूर्त',p.brahma),row('गोधूलि',p.godhuli)],
-    });
-    panels.push({
-      heading: 'शुभ एवं अशुभ काल', title: 'मुहूर्त एवं चौघड़िया',
-      rows: [row('अभिजीत मुहूर्त',p.abhijit,'good'),row('अमृत चौघड़िया',p.amrit_choghadiya,'good'),row('शुभ चौघड़िया',p.shubh_choghadiya,'good'),row('राहुकाल',p.rahu_kaal,'bad'),row('यमगण्ड',p.yamaganda,'bad'),row('गुलिक काल',p.gulika,'bad')],
-    });
+const HINDI_LUNAR_MONTHS: Record<string, string> = {
+  'chaitra': 'चैत्र', 'vaishakha': 'वैशाख', 'jyeshtha': 'ज्येष्ठ', 'ashadha': 'आषाढ़',
+  'shravana': 'श्रावण', 'bhadrapada': 'भाद्रपद', 'ashwin': 'आश्विन', 'kartika': 'कार्तिक',
+  'margashirsha': 'मार्गशीर्ष', 'pausha': 'पौष', 'magha': 'माघ', 'phalguna': 'फाल्गुन'
+};
+
+const formatTime12h = (t: string | undefined): string => {
+  if (!t) return '—';
+  if (t.includes('AM') || t.includes('PM')) return t;
+  const parts = t.trim().split(':');
+  if (parts.length >= 2) {
+    let h = parseInt(parts[0], 10);
+    const m = parts[1].padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
   }
-  panels.push({
-    heading: '॥ पवित्र पंचांग 365 ॥', title: 'आपका दिन मंगलमय हो', subtitle: 'दैनिक पंचांग • शुभ मुहूर्त • चौघड़िया',
-    rows: [row('आज की तिथि',e.tithi?.name || p.tithi_name),row('आज का नक्षत्र',e.nakshatra?.name || p.nakshatra_name),row('कल फिर मिलेंगे','नए दैनिक पंचांग के साथ','good')],
-  });
-  return panels;
+  return t;
 };
 
-export const PanchangVideo: React.FC<Props> = (props) => {
+// --- ORNATE SVG COMPONENTS ---
+
+// 1. Vector Sacred Mangal Kalash (100% clean SVG vector from vecteezy)
+const MangalKalash: React.FC<{size?: number; variant?: number; style?: React.CSSProperties}> = ({size = 145, variant = 2, style}) => (
+  <div style={{position: 'relative', width: size, height: size, ...style}}>
+    {/* Divine golden radial aura */}
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: '10%',
+        right: '10%',
+        height: size * 0.45,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(250,204,21,0.4) 0%, transparent 70%)',
+        filter: 'blur(10px)',
+        pointerEvents: 'none'
+      }}
+    />
+    <Img
+      src={staticFile(`assets/kalash_${variant}.svg`)}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        display: 'block',
+        filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.9)) drop-shadow(0 0 12px rgba(250,204,21,0.3))'
+      }}
+    />
+  </div>
+);
+
+// 2. Hanging 3D Brass Temple Bell with organic noise sway
+const SwayingBell: React.FC<{
+  frame: number;
+  offset?: number;
+  length?: number;
+  size?: number;
+  style?: React.CSSProperties;
+}> = ({
+  frame,
+  offset = 0,
+  length = 65,
+  size = 56,
+  style
+}) => {
+  // Use @remotion/noise for natural temple bell sway physics
+  const sway = noise2D('bell-sway-' + offset, frame * 0.045, 0) * 6.5;
+  return (
+    <div
+      style={{
+        position: 'relative',
+        transformOrigin: 'top center',
+        transform: `rotate(${sway}deg)`,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.85))',
+        zIndex: 11,
+        ...style
+      }}
+    >
+      {/* Brass Chain attached directly to garland */}
+      <div
+        style={{
+          width: 3.5,
+          height: length,
+          background: 'repeating-linear-gradient(to bottom, #fde047 0px, #ca8a04 4px, #854d0e 8px)',
+          boxShadow: '0 0 3px rgba(0,0,0,0.6)'
+        }}
+      />
+      {/* 3D Realistic Temple Bell */}
+      <Img
+        src={staticFile('assets/temple_bell.png')}
+        style={{
+          width: size,
+          height: 'auto',
+          marginTop: -2,
+          display: 'block'
+        }}
+      />
+    </div>
+  );
+};
+
+// 3. Hanging Marigold Garland (गेंदे की माला)
+const MarigoldGarland: React.FC<{count?: number; style?: React.CSSProperties}> = ({count = 11, style}) => (
+  <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, ...style}}>
+    {Array.from({length: count}).map((_, i) => (
+      <div key={i} style={{position: 'relative', width: 36, height: 36}}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '50%',
+            background:
+              i % 2 === 0
+                ? 'radial-gradient(circle, #fef08a 25%, #f59e0b 75%, #b45309 100%)'
+                : 'radial-gradient(circle, #facc15 20%, #ea580c 80%, #9a3412 100%)',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
+            transform: `rotate(${i * 37}deg)`
+          }}
+        />
+        {i % 3 === 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              width: 11,
+              height: 15,
+              borderRadius: '50%',
+              background: '#22c55e',
+              top: 10,
+              left: -4,
+              transform: 'rotate(-45deg)'
+            }}
+          />
+        )}
+      </div>
+    ))}
+  </div>
+);
+
+// 4. Glowing Sacred Diya with organic Perlin Noise flame flicker
+const GlowingDiya: React.FC<{frame: number; size?: number; style?: React.CSSProperties}> = ({frame, size = 95, style}) => {
+  // Use @remotion/noise for realistic procedural flame flicker
+  const noiseVal = noise2D('diya-flame', frame * 0.18, 0);
+  const flicker = 0.90 + noiseVal * 0.16;
+  const flameTilt = noise2D('flame-tilt', frame * 0.12, 10) * 8;
+
+  return (
+    <div style={{position: 'relative', width: size, height: size * 0.8, ...style}}>
+      {/* Flickering Flame */}
+      <div
+        style={{
+          position: 'absolute',
+          top: -size * 0.44,
+          left: size * 0.35,
+          width: size * 0.3,
+          height: size * 0.60,
+          borderRadius: '50% 50% 35% 35% / 80% 80% 25% 25%',
+          background: 'radial-gradient(ellipse at 50% 85%, #ffffff 0%, #fef08a 35%, #f97316 75%, transparent 100%)',
+          filter: `drop-shadow(0 0 ${16 * flicker}px #f59e0b) drop-shadow(0 0 ${30 * flicker}px #ea580c)`,
+          transform: `scale(${flicker}) rotate(${flameTilt}deg)`,
+          transformOrigin: 'bottom center'
+        }}
+      />
+      {/* Clay Lamp Body */}
+      <svg width={size} height={size * 0.55} viewBox="0 0 60 33" style={{position: 'absolute', bottom: 0}}>
+        <defs>
+          <linearGradient id="clayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="50%" stopColor="#b45309" />
+            <stop offset="100%" stopColor="#451a03" />
+          </linearGradient>
+        </defs>
+        <path d="M5 8 C15 28 45 28 55 8 C58 5 54 2 48 4 C35 8 25 8 12 4 C6 2 2 5 5 8 Z" fill="url(#clayGrad)" stroke="#fde047" strokeWidth="1.2" />
+        <ellipse cx="30" cy="6" rx="18" ry="3.5" fill="#ca8a04" />
+      </svg>
+    </div>
+  );
+};
+
+// 5. Remocn-inspired Ornate Pill Badge with rhythmic ambient glow
+const PillBadge: React.FC<{text: string; frame: number; bg?: string}> = ({text, frame, bg = '#7f1d1d'}) => {
+  const pulse = 1 + Math.sin(frame * 0.06) * 0.02;
+  const glow = 10 + Math.sin(frame * 0.06) * 6;
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '7px 32px',
+        borderRadius: 24,
+        background: `linear-gradient(180deg, #991b1b, ${bg})`,
+        border: '2px solid #facc15',
+        boxShadow: `0 4px 14px rgba(0,0,0,0.65), 0 0 ${glow}px rgba(250,204,21,0.4), inset 0 1px 4px rgba(255,255,255,0.3)`,
+        color: GOLD_LIGHT,
+        fontSize: 29,
+        fontWeight: 900,
+        letterSpacing: 1.5,
+        textAlign: 'center',
+        textShadow: '0 2px 5px #000',
+        fontFamily: notoFont,
+        transform: `scale(${pulse})`
+      }}
+    >
+      <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
+      <span>{text}</span>
+      <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
+    </div>
+  );
+};
+
+// 6. Remocn-inspired Glassmorphism Card with golden ambient edge glow
+const GlowGlassCard: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  glowColor?: string;
+  borderColor?: string;
+}> = ({children, style, glowColor = 'rgba(250, 204, 21, 0.35)', borderColor = '#facc15'}) => {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        background: 'linear-gradient(135deg, rgba(69, 10, 10, 0.82) 0%, rgba(28, 4, 4, 0.90) 100%)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: `2px solid ${borderColor}`,
+        borderRadius: 24,
+        padding: '16px 26px',
+        boxShadow: `0 12px 36px rgba(0,0,0,0.75), 0 0 24px ${glowColor}, inset 0 1px 8px rgba(254,240,138,0.22)`,
+        ...style
+      }}
+    >
+      {/* Specular top-edge glass refraction highlight */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: '12%',
+          right: '12%',
+          height: 1.5,
+          background: 'linear-gradient(90deg, transparent, #fef08a, transparent)',
+          opacity: 0.9
+        }}
+      />
+      {children}
+    </div>
+  );
+};
+
+// 7. Kinetic Shimmer Header (clean specular light sweep, zero duplicate text)
+const ShimmerHeader: React.FC<{text: string; frame: number; font: string}> = ({text, frame, font}) => {
+  const cycle = frame % 90;
+  const sweep = interpolate(cycle, [0, 45, 90], [-80, 180, 180], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp'
+  });
+
+  return (
+    <h1
+      style={{
+        margin: '0 0 4px',
+        fontSize: 72,
+        fontWeight: 900,
+        letterSpacing: 3,
+        fontFamily: font,
+        backgroundImage: 'linear-gradient(110deg, #ca8a04 0%, #facc15 25%, #ffffff 50%, #facc15 75%, #ca8a04 100%)',
+        backgroundSize: '250% 100%',
+        backgroundPosition: `${sweep}% 0`,
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.95))',
+        display: 'inline-block'
+      }}
+    >
+      {text}
+    </h1>
+  );
+};
+
+// 8. Vedic Filigree Divider
+const VedicDivider: React.FC<{width?: number}> = ({width = 380}) => (
+  <svg width={width} height="16" viewBox="0 0 380 16" fill="none" style={{margin: '6px 0', opacity: 0.85}}>
+    <path d="M0 8 H150 M230 8 H380" stroke="url(#divGrad)" strokeWidth="1.5" />
+    <defs>
+      <linearGradient id="divGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="transparent" />
+        <stop offset="50%" stopColor="#fde047" />
+        <stop offset="100%" stopColor="transparent" />
+      </linearGradient>
+    </defs>
+    <circle cx="165" cy="8" r="2.5" fill="#facc15" />
+    <polygon points="190,2 196,8 190,14 184,8" fill="#fde047" stroke="#b45309" strokeWidth="1" />
+    <circle cx="215" cy="8" r="2.5" fill="#facc15" />
+  </svg>
+);
+
+// --- MAIN PANCHANG POSTER COMPONENT ---
+export const PanchangVideo: React.FC<PanchangProps> = (props) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
+
+  // Normalize data between structured JSON and flat keys
   const p = props.panchang_raw || {};
-  const brand = props.religion || 'PAVITRA PANCHANG 365';
-  const date = dateLabel(p,props.dateDisplay || '');
-  const footer = 'गणना स्थान: ' + safe(p.location_name || props.locationName,'उज्जैन') + ' • ' + safe(p.timezone_label || props.timezoneLabel,'IST') + ' • ' + safe(props.footer,'स्थानीय समय में अंतर संभव');
-  const panels = createPanels(p,props,brand,date);
-  const progress = interpolate(frame,[0,durationInFrames],[0,100],{extrapolateRight:'clamp'});
-  const glow = 0.08 + Math.sin(frame / 23) * 0.012;
-  return <AbsoluteFill style={{overflow:'hidden',background:'#21050b',fontFamily:'Noto Sans Devanagari, sans-serif'}}>
-    <Audio src={staticFile('devotional_ambient.wav')} volume={0.10} loop/>
-    <Audio src={staticFile(props.narrationFile || 'narration.wav')} volume={1}/>
-    <Img src={staticFile('assets/oxblood-mandala.svg')} style={{position:'absolute',width:'100%',height:'100%',objectFit:'cover',opacity:.96}}/>
-    <AbsoluteFill style={{background:'radial-gradient(ellipse at 50% 48%,rgba(35,3,5,.58),rgba(35,3,5,.72) 68%,rgba(15,1,4,.84))'}}/>
-    <AbsoluteFill style={{background:'radial-gradient(circle at 50% 38%,rgba(255,184,74,'+glow+'),transparent 52%)'}}/>
-    <Img src={staticFile('assets/lotus-filigree-frame.svg')} style={{position:'absolute',width:'100%',height:'100%',objectFit:'fill',opacity:.96,pointerEvents:'none'}}/>
-    {panels.map((panel,index) => {
-      const start = Math.round(durationInFrames * index / panels.length);
-      const end = Math.round(durationInFrames * (index+1) / panels.length);
-      const opacity = interpolate(frame,[start,start+9,end-9,end],[0,1,1,0],{extrapolateLeft:'clamp',extrapolateRight:'clamp'});
-      return <AbsoluteFill key={panel.heading+index} style={{opacity}}>
-        <PanelView panel={panel} frame={frame-start} brand={brand} date={date} footer={footer}/>
-      </AbsoluteFill>;
-    })}
-    <div style={{position:'absolute',left:92,right:92,bottom:65,height:6,borderRadius:8,background:'rgba(255,244,220,.2)',overflow:'hidden',boxShadow:'0 2px 8px #000'}}>
-      <div style={{width:progress+'%',height:'100%',background:'linear-gradient(90deg,#b87922,#fff0a0,#d99b3b)',boxShadow:'0 0 16px rgba(244,202,114,.8)'}}/>
-    </div>
-  </AbsoluteFill>;
+  const meta = props.date_meta || p.date_meta || {};
+  const c1 = props.card_1_essence || p.card_1_essence || {};
+  const c2 = props.card_2_nature || p.card_2_nature || {};
+  const c3 = props.card_3_muhurat || p.card_3_muhurat || {};
+  const c4 = props.card_4_cultural || p.card_4_cultural || {};
+  const c5 = props.card_5_jyotish || p.card_5_jyotish || {};
+
+  // Date parsing
+  const rawDateStr = meta.gregorian_date || p.date || '2026-10-17';
+  let formattedHindiDate = props.dateDisplay || '';
+  if (!formattedHindiDate && rawDateStr) {
+    const parts = rawDateStr.split('-');
+    if (parts.length === 3) {
+      const day = parseInt(parts[2], 10);
+      const monthIdx = parseInt(parts[1], 10);
+      const year = parts[0];
+      const monthHi = HINDI_MONTHS[monthIdx] || parts[1];
+      formattedHindiDate = `${day} ${monthHi} ${year}`;
+    }
+  }
+
+  // Weekday in Hindi
+  const rawDay = (meta.day_of_week || p.weekday || 'Saturday').toLowerCase();
+  const hindiDay = HINDI_WEEKDAYS[rawDay] || meta.day_of_week || p.weekday || 'शनिवार';
+
+  // Month (Hindu)
+  const rawMonth = (meta.month_amanta || meta.month_purnimanta || p.hindu_month || 'Ashwin').toLowerCase();
+  const hindiMonth = HINDI_LUNAR_MONTHS[rawMonth] ? `${HINDI_LUNAR_MONTHS[rawMonth]} माह` : (p.hindu_month || 'आश्विन माह');
+
+  // Paksha
+  const rawPaksha = meta.paksha || p.paksha || 'Shukla';
+  const hindiPaksha = rawPaksha.toLowerCase().includes('shukla') ? 'शुक्ल पक्ष' : (rawPaksha.toLowerCase().includes('krishna') ? 'कृष्ण पक्ष' : rawPaksha);
+
+  // Tithi
+  const rawTithi = c1.tithi?.name || p.tithi_name || 'सप्तमी तिथि';
+  const hindiTithi = rawTithi.includes('तिथि') ? rawTithi : `${rawTithi} तिथि`;
+
+  // Sun & Moon Timings
+  const sunrise = formatTime12h(c2.solar?.sunrise || p.sunrise || '06:23 AM');
+  const sunset = formatTime12h(c2.solar?.sunset || p.sunset || '05:56 PM');
+  const moonrise = formatTime12h(c2.lunar?.moonrise || p.moonrise || '12:23 PM');
+  const moonset = formatTime12h(c2.lunar?.moonset || p.moonset || '10:36 PM');
+
+  // Auspicious (Shubh Kaal)
+  const auspiciousList = Array.isArray(c3.auspicious) ? c3.auspicious : [];
+  const abhijit = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit'))
+    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('abhijit')).end)}`
+    : (p.abhijit || '11:43 AM – 12:29 PM');
+
+  const amritKaal = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit'))
+    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('amrit')).end)}`
+    : (p.amrit_kaal || '02:10 AM – 03:40 AM');
+
+  const brahma = auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma'))
+    ? `${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma')).start)} – ${formatTime12h(auspiciousList.find((x: any) => x.name?.toLowerCase().includes('brahma')).end)}`
+    : (p.brahma || '04:51 AM – 05:40 AM');
+
+  // Inauspicious (Ashubh Kaal)
+  const inauspiciousList = Array.isArray(c3.inauspicious) ? c3.inauspicious : [];
+  const rahuKaal = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu'))
+    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('rahu')).end)}`
+    : (p.rahu_kaal || '09:17 AM – 10:40 AM');
+
+  const yamagandam = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama'))
+    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('yama')).end)}`
+    : (p.yamaganda || '01:32 PM – 02:56 PM');
+
+  const gulikKaal = inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli'))
+    ? `${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli')).start)} – ${formatTime12h(inauspiciousList.find((x: any) => x.name?.toLowerCase().includes('guli')).end)}`
+    : (p.gulika || '06:28 AM – 07:52 AM');
+
+  // Festival & Vrat
+  const festivals = Array.isArray(c4.festivals) ? c4.festivals : [];
+  const festivalTitle = festivals.length > 0 ? festivals[0].name : (props.title || 'शारदीय नवरात्रि का सातवें दिन (माँ कालरात्रि की पूजा)');
+
+  // Disha Shool
+  const disha = p.disha_shool || 'पूर्व दिशा';
+
+  // Animation values using @remotion/noise for organic movement
+  const entrance = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
+  const pulseScale = 1 + noise2D('mandala-pulse', frame * 0.02, 0) * 0.015;
+  const progressPct = interpolate(frame, [0, durationInFrames], [0, 100], {extrapolateRight: 'clamp'});
+
+  return (
+    <AbsoluteFill
+      style={{
+        overflow: 'hidden',
+        background: '#2b0308',
+        fontFamily: notoFont
+      }}
+    >
+      {/* Optional Audio Tracks */}
+      <Audio src={staticFile('devotional_ambient.wav')} volume={0.12} loop />
+      {props.narrationFile && <Audio src={staticFile(props.narrationFile)} volume={1} />}
+
+      {/* Layer 1: Ethereal Royal Mandala Wallpaper */}
+      <Img
+        src={staticFile('assets/mandala-bg.jpg')}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: `scale(${pulseScale})`,
+          opacity: 0.94
+        }}
+      />
+
+      {/* Layer 2: Vignette & Radial Glow */}
+      <AbsoluteFill
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, rgba(66,7,14,0.38) 0%, rgba(36,2,7,0.74) 68%, rgba(15,1,3,0.92) 100%)'
+        }}
+      />
+
+      {/* Layer 3: Floating Divine Particles with Procedural Air Turbulence */}
+      {Array.from({length: 16}).map((_, i) => {
+        const drift = noise2D('particle-drift-' + i, frame * 0.03, i) * 22;
+        const pY = (1920 - ((frame * (1.6 + (i % 3))) + i * 115) % 2000);
+        const pX = (i * 63 + 35 + drift) % 1080;
+        const pOpacity = 0.25 + (Math.sin(frame / 12 + i) * 0.2);
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: pY,
+              left: pX,
+              width: (i % 3) * 2 + 3,
+              height: (i % 3) * 2 + 3,
+              borderRadius: '50%',
+              background: '#fef08a',
+              boxShadow: '0 0 10px #f59e0b',
+              opacity: pOpacity,
+              pointerEvents: 'none'
+            }}
+          />
+        );
+      })}
+
+      {/* Authentic Devotional Gold Frame Borders & Bottom Corner Flourishes (from Victorian Vector SVGs) */}
+      {/* Outer Gold Border Line */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 24,
+          left: 24,
+          right: 24,
+          bottom: 24,
+          border: '2px solid #ca8a04',
+          boxShadow: '0 0 16px rgba(250,204,21,0.35), inset 0 0 12px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+          zIndex: 9
+        }}
+      />
+
+      {/* 2 Authentic Bottom Corner Flourishes (Vector SVG from vecteezy) */}
+      {/* Bottom-Left Corner Flourish */}
+      <Img
+        src={staticFile('assets/victorian_corner_1.svg')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 24,
+          width: 140,
+          height: 140,
+          transform: 'scaleY(-1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
+        }}
+      />
+      {/* Bottom-Right Corner Flourish */}
+      <Img
+        src={staticFile('assets/victorian_corner_1.svg')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 24,
+          width: 140,
+          height: 140,
+          transform: 'scale(-1, -1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
+        }}
+      />
+
+      {/* Connecting Inner Border Lines (framing the poster harmoniously) */}
+      <div style={{position: 'absolute', top: 38, left: 38, right: 38, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', bottom: 38, left: 155, right: 155, height: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', left: 38, top: 38, bottom: 155, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+      <div style={{position: 'absolute', right: 38, top: 38, bottom: 155, width: 1.5, background: 'rgba(254, 240, 138, 0.85)', pointerEvents: 'none', zIndex: 9}} />
+
+      {/* Layer 5: Authentic Marigold Garlands & Hanging Brass Temple Bells */}
+      {/* Left Side: Exactly 2 Garlands with Connected Bells */}
+      <div style={{position: 'absolute', top: 26, left: 56, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland (350px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, left: 0, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <Img
+            src={staticFile('assets/marigold_garland.png')}
+            style={{
+              width: 34,
+              height: 350,
+              objectFit: 'cover',
+              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+            }}
+          />
+          <SwayingBell frame={frame} offset={8} length={60} size={56} style={{marginTop: -4}} />
+        </div>
+
+        {/* Inner Short Garland (230px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, left: 48, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <Img
+            src={staticFile('assets/marigold_garland.png')}
+            style={{
+              width: 32,
+              height: 230,
+              objectFit: 'cover',
+              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+            }}
+          />
+          <SwayingBell frame={frame} offset={0} length={30} size={50} style={{marginTop: -4}} />
+        </div>
+      </div>
+
+      {/* Right Side: Exactly 2 Garlands with Connected Bells */}
+      <div style={{position: 'absolute', top: 26, right: 56, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland (350px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, right: 0, width: 34, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <Img
+            src={staticFile('assets/marigold_garland.png')}
+            style={{
+              width: 34,
+              height: 350,
+              objectFit: 'cover',
+              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+            }}
+          />
+          <SwayingBell frame={frame} offset={22} length={60} size={56} style={{marginTop: -4}} />
+        </div>
+
+        {/* Inner Short Garland (230px) + Bell directly connected */}
+        <div style={{position: 'absolute', top: 0, right: 48, width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <Img
+            src={staticFile('assets/marigold_garland.png')}
+            style={{
+              width: 32,
+              height: 230,
+              objectFit: 'cover',
+              filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+            }}
+          />
+          <SwayingBell frame={frame} offset={14} length={30} size={50} style={{marginTop: -4}} />
+        </div>
+      </div>
+
+      {/* Layer 6: MAIN CONTENT POSTER (Centered & Symmetrical) */}
+      <AbsoluteFill
+        style={{
+          padding: '52px 90px 48px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          opacity: entrance
+        }}
+      >
+        {/* --- HEADER BLOCK (Remocn-inspired Kinetic Shimmer) --- */}
+        <div style={{textAlign: 'center', width: '100%', marginTop: 2}}>
+          <Img
+            src={staticFile('assets/victorian_header_3.svg')}
+            style={{
+              width: 250,
+              height: 46,
+              objectFit: 'contain',
+              margin: '0 auto 2px',
+              display: 'block',
+              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.85))'
+            }}
+          />
+          <ShimmerHeader text="॥ दैनिक पंचांग ॥" frame={frame} font={rozhaFont} />
+          <div
+            style={{
+              fontSize: 46,
+              fontWeight: 900,
+              color: WHITE,
+              letterSpacing: 1,
+              fontFamily: notoFont,
+              textShadow: '0 3px 12px rgba(0,0,0,0.95)',
+              margin: '2px 0 2px'
+            }}
+          >
+            {formattedHindiDate}
+          </div>
+          <div
+            style={{
+              fontSize: 25,
+              fontStyle: 'italic',
+              fontWeight: 700,
+              color: GOLD_LIGHT,
+              letterSpacing: 1.5,
+              fontFamily: notoFont,
+              textShadow: '0 2px 8px #000'
+            }}
+          >
+            ॥ हिन्दू पंचांग के अनुसार ॥
+          </div>
+        </div>
+
+        {/* --- SECTION 1: CORE PANCHANG (वार, माह, पक्ष, तिथि) --- */}
+        <div
+          style={{
+            textAlign: 'center',
+            fontSize: 32,
+            fontWeight: 800,
+            color: WHITE,
+            lineHeight: 1.45,
+            fontFamily: notoFont,
+            textShadow: '0 3px 8px #000'
+          }}
+        >
+          <div>वार– {hindiDay}</div>
+          <div>माह – {hindiMonth}</div>
+          <div>पक्ष– {hindiPaksha}</div>
+          <div>तिथि– {hindiTithi}</div>
+        </div>
+
+        {/* Authentic Victorian Filigree Divider */}
+        <Img
+          src={staticFile('assets/victorian_bar_2.svg')}
+          style={{
+            width: 380,
+            height: 24,
+            objectFit: 'contain',
+            margin: '4px 0',
+            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))'
+          }}
+        />
+
+        {/* --- SECTION 2: SURYA & CHANDRA TIMINGS --- */}
+        <div
+          style={{
+            textAlign: 'center',
+            fontSize: 29,
+            fontWeight: 800,
+            color: CREAM,
+            lineHeight: 1.45,
+            fontFamily: notoFont,
+            textShadow: '0 3px 8px #000'
+          }}
+        >
+          <div>सूर्योदय – {sunrise}</div>
+          <div>सूर्यास्त – {sunset}</div>
+          <div>चन्द्रोदय – {moonrise}</div>
+          <div>चन्द्रास्त – {moonset}</div>
+        </div>
+
+        {/* --- SECTION 3: SHUBH KAAL (शुभ काल) --- */}
+        <div style={{textAlign: 'center', width: '100%'}}>
+          <PillBadge text="शुभ काल" frame={frame} bg="#7f1d1d" />
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 28,
+              fontWeight: 800,
+              color: WHITE,
+              lineHeight: 1.45,
+              fontFamily: notoFont,
+              textShadow: '0 3px 8px #000'
+            }}
+          >
+            <div>अभिजीत मुहूर्त – {abhijit}</div>
+            <div>अमृत काल – {amritKaal}</div>
+            <div>ब्रह्म मुहूर्त – {brahma}</div>
+          </div>
+        </div>
+
+        {/* --- SECTION 4: ASHUBH KAAL (अशुभ काल) --- */}
+        <div style={{textAlign: 'center', width: '100%'}}>
+          <PillBadge text="अशुभ काल" frame={frame} bg="#7f1d1d" />
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 28,
+              fontWeight: 800,
+              color: WHITE,
+              lineHeight: 1.45,
+              fontFamily: notoFont,
+              textShadow: '0 3px 8px #000'
+            }}
+          >
+            <div style={{color: '#fca5a5'}}>राहूकाल – {rahuKaal}</div>
+            <div>यमगण्ड काल – {yamagandam}</div>
+            <div>गुलिक काल – {gulikKaal}</div>
+          </div>
+        </div>
+
+        {/* --- SECTION 5: CHOGHADIYA MUHURAT (Remocn-inspired GlowGlassCard) --- */}
+        <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
+          <div
+            style={{
+              fontSize: 30,
+              fontWeight: 900,
+              color: GOLD_LIGHT,
+              marginBottom: 8,
+              letterSpacing: 1.5,
+              fontFamily: notoFont,
+              textShadow: '0 2px 6px #000'
+            }}
+          >
+            चौघड़िया मुहूर्त
+          </div>
+          <div
+            style={{
+              fontSize: 25,
+              fontWeight: 750,
+              color: WHITE,
+              lineHeight: 1.45,
+              fontFamily: notoFont,
+              textShadow: '0 2px 6px #000'
+            }}
+          >
+            <div>शुभ का चौघड़िया 07:51 AM–09:16 AM तक</div>
+            <div>चर का चौघड़िया 12:06 PM–01:31 PM तक</div>
+            <div>लाभ का चौघड़िया 01:31 PM–02:56 PM तक</div>
+            <div>अमृत का चौघड़िया 02:56 PM–04:20 PM तक</div>
+          </div>
+        </GlowGlassCard>
+
+        {/* --- SECTION 6: DISHA SHOOL & VISHESH PARV --- */}
+        <div style={{textAlign: 'center', width: '92%', maxWidth: 860}}>
+          <div
+            style={{
+              fontSize: 28,
+              fontWeight: 900,
+              color: GOLD_LIGHT,
+              marginBottom: 4,
+              fontFamily: notoFont,
+              textShadow: '0 2px 6px #000'
+            }}
+          >
+            दिशा शूल
+          </div>
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 650,
+              color: WHITE,
+              lineHeight: 1.35,
+              fontFamily: notoFont,
+              textShadow: '0 2px 6px #000'
+            }}
+          >
+            आज {disha} में दिशा शूल रहेगा। इसलिए आज {disha} में यात्रा करने से बचें। यदि आवश्यक हो तो पहले उपाय करके ही प्रस्थान करें।
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 24,
+              fontWeight: 900,
+              color: '#fef08a',
+              fontFamily: notoFont,
+              textShadow: '0 2px 6px #000'
+            }}
+          >
+            विशेष पर्व : {festivalTitle}
+          </div>
+        </div>
+
+        {/* --- SECTION 7: DEVOTIONAL ORNAMENTS (MANGAL KALASH & GLOWING DIYA) --- */}
+        <div
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            padding: '0 40px',
+            marginTop: 4
+          }}
+        >
+          {/* Left Mangal Kalash */}
+          <MangalKalash size={140} />
+
+          {/* Center Glowing Diya with Noise Physics */}
+          <GlowingDiya frame={frame} size={92} style={{marginBottom: 8}} />
+
+          {/* Right Mangal Kalash */}
+          <MangalKalash size={140} />
+        </div>
+      </AbsoluteFill>
+
+      {/* Layer 7: Golden Video Timeline Progress Indicator (in bottom margin, below border line) */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 48,
+          right: 48,
+          bottom: 10,
+          height: 4,
+          borderRadius: 4,
+          background: 'rgba(255,244,220,0.20)',
+          overflow: 'hidden',
+          zIndex: 20
+        }}
+      >
+        <div
+          style={{
+            width: `${progressPct}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg, #ca8a04, #fde047, #f59e0b)',
+            boxShadow: '0 0 10px rgba(250,204,21,0.85)'
+          }}
+        />
+      </div>
+    </AbsoluteFill>
+  );
 };
