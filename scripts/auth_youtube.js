@@ -11,6 +11,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
   'https://www.googleapis.com/auth/youtube.readonly',
   'https://www.googleapis.com/auth/youtube.force-ssl',
+  'https://www.googleapis.com/auth/yt-analytics.readonly',
 ];
 
 const CLIENT_SECRET_FILE = path.resolve('./client_secret.json');
