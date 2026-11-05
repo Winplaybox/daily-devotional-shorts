@@ -248,31 +248,141 @@ const GlowingDiya: React.FC<{frame: number; size?: number; style?: React.CSSProp
   );
 };
 
-// 5. Ornate Pill Badge
-const PillBadge: React.FC<{text: string; bg?: string}> = ({text, bg = '#7f1d1d'}) => (
-  <div
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '7px 32px',
-      borderRadius: 24,
-      background: `linear-gradient(180deg, #991b1b, ${bg})`,
-      border: '2.5px solid #facc15',
-      boxShadow: '0 4px 14px rgba(0,0,0,0.65), inset 0 1px 4px rgba(255,255,255,0.3)',
-      color: GOLD_LIGHT,
-      fontSize: 29,
-      fontWeight: 900,
-      letterSpacing: 1.5,
-      textAlign: 'center',
-      textShadow: '0 2px 5px #000',
-      fontFamily: notoFont
-    }}
-  >
-    <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
-    <span>{text}</span>
-    <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
-  </div>
+// 5. Remocn-inspired Ornate Pill Badge with rhythmic ambient glow
+const PillBadge: React.FC<{text: string; frame: number; bg?: string}> = ({text, frame, bg = '#7f1d1d'}) => {
+  const pulse = 1 + Math.sin(frame * 0.06) * 0.02;
+  const glow = 10 + Math.sin(frame * 0.06) * 6;
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '7px 32px',
+        borderRadius: 24,
+        background: `linear-gradient(180deg, #991b1b, ${bg})`,
+        border: '2px solid #facc15',
+        boxShadow: `0 4px 14px rgba(0,0,0,0.65), 0 0 ${glow}px rgba(250,204,21,0.4), inset 0 1px 4px rgba(255,255,255,0.3)`,
+        color: GOLD_LIGHT,
+        fontSize: 29,
+        fontWeight: 900,
+        letterSpacing: 1.5,
+        textAlign: 'center',
+        textShadow: '0 2px 5px #000',
+        fontFamily: notoFont,
+        transform: `scale(${pulse})`
+      }}
+    >
+      <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
+      <span>{text}</span>
+      <Star points={8} outerRadius={7} innerRadius={3.5} fill="#fde047" />
+    </div>
+  );
+};
+
+// 6. Remocn-inspired Glassmorphism Card with golden ambient edge glow
+const GlowGlassCard: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  glowColor?: string;
+  borderColor?: string;
+}> = ({children, style, glowColor = 'rgba(250, 204, 21, 0.35)', borderColor = '#facc15'}) => {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        background: 'linear-gradient(135deg, rgba(69, 10, 10, 0.82) 0%, rgba(28, 4, 4, 0.90) 100%)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: `2px solid ${borderColor}`,
+        borderRadius: 24,
+        padding: '16px 26px',
+        boxShadow: `0 12px 36px rgba(0,0,0,0.75), 0 0 24px ${glowColor}, inset 0 1px 8px rgba(254,240,138,0.22)`,
+        ...style
+      }}
+    >
+      {/* Specular top-edge glass refraction highlight */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: '12%',
+          right: '12%',
+          height: 1.5,
+          background: 'linear-gradient(90deg, transparent, #fef08a, transparent)',
+          opacity: 0.9
+        }}
+      />
+      {children}
+    </div>
+  );
+};
+
+// 7. Kinetic Shimmer Header (light sweep effect across gold title)
+const ShimmerHeader: React.FC<{text: string; frame: number; font: string}> = ({text, frame, font}) => {
+  const cycle = frame % 90;
+  const sweep = interpolate(cycle, [0, 45, 90], [-120, 220, 220], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp'
+  });
+
+  return (
+    <div style={{position: 'relative', display: 'inline-block'}}>
+      <h1
+        style={{
+          margin: '0 0 4px',
+          fontSize: 72,
+          fontWeight: 900,
+          letterSpacing: 3,
+          fontFamily: font,
+          background: 'linear-gradient(180deg, #ffffff 0%, #fef08a 30%, #facc15 65%, #ca8a04 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.9))'
+        }}
+      >
+        {text}
+      </h1>
+      {/* Dynamic specular light beam */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+          background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.75) 48%, rgba(254,240,138,0.9) 52%, transparent 80%)',
+          backgroundSize: '200% 100%',
+          backgroundPosition: `${sweep}% 0`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          mixBlendMode: 'color-dodge',
+          opacity: 0.85
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+};
+
+// 8. Vedic Filigree Divider
+const VedicDivider: React.FC<{width?: number}> = ({width = 380}) => (
+  <svg width={width} height="16" viewBox="0 0 380 16" fill="none" style={{margin: '6px 0', opacity: 0.85}}>
+    <path d="M0 8 H150 M230 8 H380" stroke="url(#divGrad)" strokeWidth="1.5" />
+    <defs>
+      <linearGradient id="divGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="transparent" />
+        <stop offset="50%" stopColor="#fde047" />
+        <stop offset="100%" stopColor="transparent" />
+      </linearGradient>
+    </defs>
+    <circle cx="165" cy="8" r="2.5" fill="#facc15" />
+    <polygon points="190,2 196,8 190,14 184,8" fill="#fde047" stroke="#b45309" strokeWidth="1" />
+    <circle cx="215" cy="8" r="2.5" fill="#facc15" />
+  </svg>
 );
 
 // --- MAIN PANCHANG POSTER COMPONENT ---
@@ -474,23 +584,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           opacity: entrance
         }}
       >
-        {/* --- HEADER BLOCK --- */}
+        {/* --- HEADER BLOCK (Remocn-inspired Kinetic Shimmer) --- */}
         <div style={{textAlign: 'center', width: '100%', marginTop: 4}}>
-          <h1
-            style={{
-              margin: '0 0 4px',
-              fontSize: 72,
-              fontWeight: 900,
-              letterSpacing: 3,
-              fontFamily: rozhaFont,
-              background: 'linear-gradient(180deg, #ffffff 0%, #fef08a 30%, #facc15 65%, #ca8a04 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.9))'
-            }}
-          >
-            ॥ दैनिक पंचांग ॥
-          </h1>
+          <ShimmerHeader text="॥ दैनिक पंचांग ॥" frame={frame} font={rozhaFont} />
           <div
             style={{
               fontSize: 46,
@@ -537,6 +633,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           <div>तिथि– {hindiTithi}</div>
         </div>
 
+        {/* Vedic Decorative Flourish Divider */}
+        <VedicDivider width={380} />
+
         {/* --- SECTION 2: SURYA & CHANDRA TIMINGS --- */}
         <div
           style={{
@@ -557,7 +656,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
 
         {/* --- SECTION 3: SHUBH KAAL (शुभ काल) --- */}
         <div style={{textAlign: 'center', width: '100%'}}>
-          <PillBadge text="शुभ काल" bg="#7f1d1d" />
+          <PillBadge text="शुभ काल" frame={frame} bg="#7f1d1d" />
           <div
             style={{
               marginTop: 10,
@@ -577,7 +676,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
 
         {/* --- SECTION 4: ASHUBH KAAL (अशुभ काल) --- */}
         <div style={{textAlign: 'center', width: '100%'}}>
-          <PillBadge text="अशुभ काल" bg="#7f1d1d" />
+          <PillBadge text="अशुभ काल" frame={frame} bg="#7f1d1d" />
           <div
             style={{
               marginTop: 10,
@@ -595,19 +694,8 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           </div>
         </div>
 
-        {/* --- SECTION 5: CHOGHADIYA MUHURAT (चौघड़िया मुहूर्त Card) --- */}
-        <div
-          style={{
-            width: '95%',
-            maxWidth: 820,
-            background: MAROON_CARD,
-            border: '2.5px solid #facc15',
-            borderRadius: 24,
-            padding: '16px 26px',
-            textAlign: 'center',
-            boxShadow: '0 8px 26px rgba(0,0,0,0.75), inset 0 1px 6px rgba(250,204,21,0.3)'
-          }}
-        >
+        {/* --- SECTION 5: CHOGHADIYA MUHURAT (Remocn-inspired GlowGlassCard) --- */}
+        <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
           <div
             style={{
               fontSize: 30,
@@ -636,7 +724,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             <div>लाभ का चौघड़िया 01:31 PM–02:56 PM तक</div>
             <div>अमृत का चौघड़िया 02:56 PM–04:20 PM तक</div>
           </div>
-        </div>
+        </GlowGlassCard>
 
         {/* --- SECTION 6: DISHA SHOOL & VISHESH PARV --- */}
         <div style={{textAlign: 'center', width: '92%', maxWidth: 860}}>
