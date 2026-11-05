@@ -15,7 +15,9 @@ import { resolveWorldwideLocation } from "../location/worldwide-resolver.js";
 
 function viewerKey(authorChannelId) {
   if (!authorChannelId) return null;
-  return createHash("sha256").update(`${process.env.REQUEST_HASH_SALT || "configure-a-long-random-salt"}:${authorChannelId}`).digest("hex");
+  const salt = process.env.REQUEST_HASH_SALT;
+  if (!salt || salt.length < 32) throw new Error("REQUEST_HASH_SALT must be configured with at least 32 characters");
+  return createHash("sha256").update(`${salt}:${authorChannelId}`).digest("hex");
 }
 
 async function youtubeClient() {
@@ -110,7 +112,7 @@ export async function pollYouTubeRequests({ maxPages = 3, pageSize = 50 } = {}) 
       try {
         location = await resolveWorldwideLocation(parsed.request.locationText);
       } catch (error) {
-        await reply(yt, root.id, "I couldn't uniquely identify that place. Please reply with City, State/Region, Country. Panchang timings are calculated for the selected location. 🙏");
+        await reply(yt, root.id, "I couldn't uniquely identify that place. Please post a new top-level comment with the exact City, Region/State and Country. Panchang timings are calculated for the selected location. 🙏");
         await markCommentProcessed(root.id, "location-clarification-required");
         continue;
       }
