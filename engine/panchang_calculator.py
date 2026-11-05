@@ -200,6 +200,91 @@ def format_time_12h(dt: datetime) -> str:
     """Formats datetime to 12-hour Hindi/English readable string (e.g., 06:42 AM)."""
     return dt.strftime("%I:%M %p")
 
+# ----------------- Moon Coordinates & Rise/Set -----------------
+
+def get_moon_coordinates(jd: float):
+    """Calculates geocentric right ascension and declination of the Moon (radians)."""
+    T = (jd - 2451545.0) / 36525.0
+    lam_deg = moon_apparent_longitude(jd)
+    lam = math.radians(lam_deg)
+
+    F = math.radians((93.2720950 + 483202.0175233 * T - 0.0036539 * T * T) % 360.0)
+    Mp = math.radians((134.9633964 + 477198.8675055 * T + 0.0087414 * T * T) % 360.0)
+    D = math.radians((297.8501921 + 445267.1114034 * T - 0.0018819 * T * T) % 360.0)
+
+    beta_deg = (
+        5.128177 * math.sin(F) +
+        0.280602 * math.sin(Mp + F) +
+        0.277693 * math.sin(Mp - F) +
+        0.173237 * math.sin(2 * D - F) +
+        0.055413 * math.sin(2 * D - Mp + F) +
+        0.046271 * math.sin(2 * D - Mp - F) +
+        0.032573 * math.sin(2 * D + F) +
+        0.017198 * math.sin(2 * Mp + F)
+    )
+    beta = math.radians(beta_deg)
+
+    eps0 = 23.4392911 - (46.8150 * T) / 3600.0
+    eps = math.radians(eps0)
+
+    sin_dec = math.sin(beta) * math.cos(eps) + math.cos(beta) * math.sin(eps) * math.sin(lam)
+    dec = math.asin(max(-1.0, min(1.0, sin_dec)))
+
+    y = math.cos(beta) * math.cos(eps) * math.sin(lam) - math.sin(beta) * math.sin(eps)
+    x = math.cos(beta) * math.cos(lam)
+    ra = math.atan2(y, x)
+    return ra, dec
+
+def moon_altitude_at_hour(target_date: datetime.date, hour_local: float, lat: float, lon: float, tz: float) -> float:
+    """Calculates topocentric altitude of the Moon in degrees for a given local hour."""
+    utc_hour = hour_local - tz
+    jd = gregorian_to_jd(target_date.year, target_date.month, target_date.day, utc_hour)
+    ra, dec = get_moon_coordinates(jd)
+
+    T = (jd - 2451545.0) / 36525.0
+    gmst = (280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * T * T) % 360.0
+    lmst = math.radians((gmst + lon) % 360.0)
+
+    ha = lmst - ra
+    lat_r = math.radians(lat)
+    sin_alt = math.sin(lat_r) * math.sin(dec) + math.cos(lat_r) * math.cos(dec) * math.cos(ha)
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_alt))))
+
+def calculate_moon_times(target_date: datetime.date, lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, tz: float = DEFAULT_TZ):
+    """
+    Computes Moonrise and Moonset for the given calendar date and location.
+    Returns datetime objects in local timezone or None if no rise/set occurs today.
+    """
+    # Sample altitude across 24 hours at 15-minute intervals
+    step_minutes = 15
+    alts = []
+    for m in range(0, 24 * 60 + 1, step_minutes):
+        h = m / 60.0
+        alt = moon_altitude_at_hour(target_date, h, lat, lon, tz)
+        alts.append((h, alt))
+
+    # Standard apparent horizon altitude for Moon (+0.125 deg) accounting for parallax & refraction
+    h0 = 0.125
+    rise_dt = None
+    set_dt = None
+
+    for i in range(len(alts) - 1):
+        h1, a1 = alts[i]
+        h2, a2 = alts[i + 1]
+        if a1 <= h0 < a2 and rise_dt is None:
+            frac = (h0 - a1) / (a2 - a1) if a2 != a1 else 0
+            rise_hour = h1 + frac * (h2 - h1)
+            rise_dt = datetime(target_date.year, target_date.month, target_date.day) + timedelta(minutes=int(round(rise_hour * 60)))
+        elif a1 >= h0 > a2 and set_dt is None:
+            frac = (h0 - a1) / (a2 - a1) if a2 != a1 else 0
+            set_hour = h1 + frac * (h2 - h1)
+            set_dt = datetime(target_date.year, target_date.month, target_date.day) + timedelta(minutes=int(round(set_hour * 60)))
+
+    return {
+        "moonrise": rise_dt,
+        "moonset": set_dt,
+    }
+
 def calculate_muhurats(sun_times: dict, weekday: int):
     """
     Computes Rahukaal, Yamaganda, Gulika Kaal, Abhijit, Brahma, and Godhuli Muhurat.
@@ -210,36 +295,41 @@ def calculate_muhurats(sun_times: dict, weekday: int):
     day_duration = sun_times["day_duration"]
     part = timedelta(minutes=day_duration / 8.0)
 
-    # Rahukaal period by day of week (Monday=0 to Sunday=6)
-    # Standard Vedic allocation:
+    # 1. Rahukaal period by day of week (Monday=0 to Sunday=6)
     # Mon: 2nd, Tue: 7th, Wed: 5th, Thu: 6th, Fri: 4th, Sat: 3rd, Sun: 8th
-    rahu_periods = {
-        0: 1,  # Mon -> 2nd part (0-indexed: 1)
-        1: 6,  # Tue -> 7th part
-        2: 4,  # Wed -> 5th part
-        3: 5,  # Thu -> 6th part
-        4: 3,  # Fri -> 4th part
-        5: 2,  # Sat -> 3rd part
-        6: 7,  # Sun -> 8th part
-    }
+    rahu_periods = { 0: 1, 1: 6, 2: 4, 3: 5, 4: 3, 5: 2, 6: 7 }
     rahu_idx = rahu_periods[weekday]
     rahu_start = sunrise + (part * rahu_idx)
     rahu_end = rahu_start + part
 
-    # Abhijit Muhurat: 8th of 15 daylight muhurats (centered on solar noon)
+    # 2. Yamaganda period by day of week
+    # Mon: 4th, Tue: 3rd, Wed: 2nd, Thu: 1st, Fri: 7th, Sat: 6th, Sun: 5th
+    yamaganda_periods = { 0: 3, 1: 2, 2: 1, 3: 0, 4: 6, 5: 5, 6: 4 }
+    yama_idx = yamaganda_periods[weekday]
+    yama_start = sunrise + (part * yama_idx)
+    yama_end = yama_start + part
+
+    # 3. Gulika Kaal period by day of week
+    # Mon: 6th, Tue: 5th, Wed: 4th, Thu: 3rd, Fri: 2nd, Sat: 1st, Sun: 7th
+    gulika_periods = { 0: 5, 1: 4, 2: 3, 3: 2, 4: 1, 5: 0, 6: 6 }
+    guli_idx = gulika_periods[weekday]
+    guli_start = sunrise + (part * guli_idx)
+    guli_end = guli_start + part
+
+    # 4. Abhijit Muhurat: 8th of 15 daylight muhurats (centered on solar noon)
     muhurat_len = timedelta(minutes=day_duration / 15.0)
     abhijit_start = sunrise + (muhurat_len * 7)
     abhijit_end = sunrise + (muhurat_len * 8)
 
-    # Brahma Muhurat: 2 muhurats (96 mins to 48 mins) before sunrise
+    # 5. Brahma Muhurat: 2 muhurats (96 mins to 48 mins) before sunrise
     brahma_start = sunrise - timedelta(minutes=96)
     brahma_end = sunrise - timedelta(minutes=48)
 
-    # Godhuli Muhurat: 24 mins window around sunset (-12 to +12)
+    # 6. Godhuli Muhurat: 24 mins window around sunset (-12 to +12)
     godhuli_start = sunset - timedelta(minutes=12)
     godhuli_end = sunset + timedelta(minutes=12)
 
-    # Disha Shool by weekday (Monday=0 ... Sunday=6)
+    # 7. Disha Shool by weekday (Monday=0 ... Sunday=6)
     disha_map = {
         0: "पूर्व दिशा (East)",
         1: "उत्तर दिशा (North)",
@@ -251,7 +341,7 @@ def calculate_muhurats(sun_times: dict, weekday: int):
     }
     disha_shool = disha_map.get(weekday, "पश्चिम दिशा")
 
-    # Daytime Choghadiya (8 segments from sunrise to sunset)
+    # 8. Daytime Choghadiya (8 segments from sunrise to sunset)
     choghadiya_patterns = {
         0: ["अमृत", "काल", "शुभ", "रोग", "उद्वेग", "चर", "लाभ", "अमृत"],  # Mon
         1: ["रोग", "उद्वेग", "चर", "लाभ", "अमृत", "काल", "शुभ", "रोग"],   # Tue
@@ -266,30 +356,79 @@ def calculate_muhurats(sun_times: dict, weekday: int):
 
     choghadiyas = []
     shubh_times = []
-    amrit_times = []
+    char_times = []
     labh_times = []
+    amrit_times = []
+
+    # Map the first occurrence of each of the 4 auspicious Choghadiyas
+    shubh_first = None
+    char_first = None
+    labh_first = None
+    amrit_first = None
 
     for idx, name in enumerate(pattern):
         c_start = sunrise + (chog_part * idx)
         c_end = c_start + chog_part
-        time_str = f"{format_time_12h(c_start)} से {format_time_12h(c_end)}"
-        choghadiyas.append({"name": name, "time": time_str})
+        range_str = f"{format_time_12h(c_start)} – {format_time_12h(c_end)}"
+        time_str_hi = f"{format_time_12h(c_start)} से {format_time_12h(c_end)}"
+        is_ausp = name in ("शुभ", "अमृत", "लाभ", "चर")
+        choghadiyas.append({
+            "name": name,
+            "start": format_time_12h(c_start),
+            "end": format_time_12h(c_end),
+            "time": range_str,
+            "type": "auspicious" if is_ausp else "inauspicious"
+        })
+
         if name == "शुभ":
-            shubh_times.append(time_str)
-        elif name == "अमृत":
-            amrit_times.append(time_str)
+            shubh_times.append(time_str_hi)
+            if shubh_first is None: shubh_first = range_str
+        elif name == "चर":
+            char_times.append(time_str_hi)
+            if char_first is None: char_first = range_str
         elif name == "लाभ":
-            labh_times.append(time_str)
+            labh_times.append(time_str_hi)
+            if labh_first is None: labh_first = range_str
+        elif name == "अमृत":
+            amrit_times.append(time_str_hi)
+            if amrit_first is None: amrit_first = range_str
+
+    # Formatted 4 Auspicious Choghadiya items for poster display
+    choghadiya_poster_items = [
+        {"name": "शुभ", "time": shubh_first or "उपलब्ध नहीं", "display": f"शुभ का चौघड़िया {shubh_first or 'उपलब्ध नहीं'} तक"},
+        {"name": "चर", "time": char_first or "उपलब्ध नहीं", "display": f"चर का चौघड़िया {char_first or 'उपलब्ध नहीं'} तक"},
+        {"name": "लाभ", "time": labh_first or "उपलब्ध नहीं", "display": f"लाभ का चौघड़िया {labh_first or 'उपलब्ध नहीं'} तक"},
+        {"name": "अमृत", "time": amrit_first or "उपलब्ध नहीं", "display": f"अमृत का चौघड़िया {amrit_first or 'उपलब्ध नहीं'} तक"},
+    ]
+
+    # Amrit Kaal: Calculate daytime Amrit Muhurat window from Choghadiya or astronomical window
+    amrit_kaal_str = amrit_first or "उपलब्ध नहीं"
 
     return {
         "rahu_kaal": f"{format_time_12h(rahu_start)} से {format_time_12h(rahu_end)}",
+        "rahu_kaal_range": f"{format_time_12h(rahu_start)} – {format_time_12h(rahu_end)}",
+        "yamaganda": f"{format_time_12h(yama_start)} से {format_time_12h(yama_end)}",
+        "yamaganda_range": f"{format_time_12h(yama_start)} – {format_time_12h(yama_end)}",
+        "gulika": f"{format_time_12h(guli_start)} से {format_time_12h(guli_end)}",
+        "gulika_range": f"{format_time_12h(guli_start)} – {format_time_12h(guli_end)}",
         "abhijit": f"{format_time_12h(abhijit_start)} से {format_time_12h(abhijit_end)}",
+        "abhijit_range": f"{format_time_12h(abhijit_start)} – {format_time_12h(abhijit_end)}",
         "brahma": f"{format_time_12h(brahma_start)} से {format_time_12h(brahma_end)}",
+        "brahma_range": f"{format_time_12h(brahma_start)} – {format_time_12h(brahma_end)}",
         "godhuli": f"{format_time_12h(godhuli_start)} से {format_time_12h(godhuli_end)}",
+        "amrit_kaal": amrit_kaal_str,
         "disha_shool": disha_shool,
         "shubh_choghadiya": ", ".join(shubh_times) if shubh_times else "दोपहर बाद",
         "amrit_choghadiya": ", ".join(amrit_times) if amrit_times else "प्रातःकाल",
         "labh_choghadiya": ", ".join(labh_times) if labh_times else "अपराह्न",
+        "choghadiya_day": choghadiyas,
+        "choghadiya_poster_items": choghadiya_poster_items,
+        "choghadiya_auspicious": {
+            "shubh": shubh_first,
+            "char": char_first,
+            "labh": labh_first,
+            "amrit": amrit_first,
+        }
     }
 
 # ----------------- Tithi, Nakshatra, Yoga, Karana -----------------
@@ -365,6 +504,7 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         date = (datetime.now(timezone.utc) + timedelta(hours=DEFAULT_TZ)).date()
 
     sun_times = calculate_sun_times(date, lat, lon, tz)
+    moon_times = calculate_moon_times(date, lat, lon, tz)
     weekday = date.weekday()  # Monday=0, Sunday=6
     weekday_hi = WEEKDAY_NAMES_HI[(weekday + 1) % 7]
 
@@ -373,16 +513,53 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
     elements = calculate_panchang_elements(sunrise_dt, tz)
     muhurats = calculate_muhurats(sun_times, weekday)
 
+    day_mins = sun_times["day_duration"]
+    night_mins = 24 * 60 - day_mins
+    day_length = f"{int(day_mins // 60)}h {int(round(day_mins % 60))}m"
+    night_length = f"{int(night_mins // 60)}h {int(round(night_mins % 60))}m"
+
+    # Vedic Ritu mapping (based on Hindu Month)
+    ritu_map = {
+        "चैत्र": "बसंत (Spring)", "वैशाख": "बसंत (Spring)",
+        "ज्येष्ठ": "ग्रीष्म (Summer)", "आषाढ़": "ग्रीष्म (Summer)",
+        "श्रावण": "वर्षा (Monsoon)", "भाद्रपद": "वर्षा (Monsoon)",
+        "आश्विन": "शरद (Autumn)", "कार्तिक": "शरद (Autumn)",
+        "मार्गशीर्ष": "हेमंत (Pre-Winter)", "पौष": "हेमंत (Pre-Winter)",
+        "माघ": "शिशिर (Winter)", "फाल्गुन": "शिशिर (Winter)"
+    }
+    m_name = elements["hindu_month"].split(" ")[0]
+    ritu = ritu_map.get(m_name, "शरद (Autumn)")
+
+    # Ayana based on solar month (Dakshinayan vs Uttarayan)
+    # Sun from Karka to Dhanu is Dakshinayan; Makara to Mithuna is Uttarayan
+    jd_noon = gregorian_to_jd(date.year, date.month, date.day, 12.0 - tz)
+    sun_lon = sun_apparent_longitude(jd_noon)
+    ayana = "दक्षिणायन (Dakshinayan)" if (90.0 <= sun_lon < 270.0) else "उत्तरायण (Uttarayan)"
+
+    # Clean Vernacular Hindi Tithi and Nakshatra names (without English brackets)
+    tithi_clean = elements["tithi_name"].split(" ")[0]
+    nakshatra_clean = elements["nakshatra_name"].split(" ")[0]
+    hindu_month_clean = elements["hindu_month"].split(" ")[0]
+
     return {
         "date": date.strftime("%Y-%m-%d"),
-        "date_display": f"{date.day} {['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][date.month-1]} {date.year}, {weekday_hi}",
+        "date_display": f"{date.day} {['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][date.month-1]} {date.year}",
+        "date_display_full": f"{date.day} {['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][date.month-1]} {date.year}, {weekday_hi}",
         "weekday": weekday_hi,
-        # Traditional year labels follow the Chaitradi year boundary. During
-        # Pausha–Phalguna, the next Gregorian year has not yet begun in this scheme.
+        "weekday_en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][weekday],
         "vikram_samvat": date.year + (56 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 57),
         "shaka_samvat": date.year - (77 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 78),
         "sunrise": format_time_12h(sun_times["sunrise"]),
         "sunset": format_time_12h(sun_times["sunset"]),
+        "moonrise": format_time_12h(moon_times["moonrise"]) if moon_times["moonrise"] else None,
+        "moonset": format_time_12h(moon_times["moonset"]) if moon_times["moonset"] else None,
+        "day_length": day_length,
+        "night_length": night_length,
+        "ritu": ritu,
+        "ayana": ayana,
+        "tithi_clean": tithi_clean,
+        "nakshatra_clean": nakshatra_clean,
+        "hindu_month_clean": hindu_month_clean,
         **elements,
         **muhurats,
     }
