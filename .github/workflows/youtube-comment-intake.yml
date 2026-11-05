@@ -1,0 +1,51 @@
+name: YouTube Panchang Comment Intake
+
+on:
+  schedule:
+    # Poll every 15 minutes; keep the worker short and quota-aware.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavitra-panchang-comment-intake
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
+      TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      REQUEST_HASH_SALT: ${{ secrets.REQUEST_HASH_SALT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in CLIENT_SECRET_JSON TOKEN_JSON SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY REQUEST_HASH_SALT; do
+            [[ -n "${!key}" ]] || { echo "::error::Missing required secret: $key"; exit 1; }
+          done
+      - name: Write OAuth files
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$CLIENT_SECRET_JSON" > client_secret.json
+          printf '%s' "$TOKEN_JSON" > token.json
+      - name: Run request and timezone tests
+        run: |
+          npm test
+          python -m unittest discover -s tests -p 'test_*.py'
+      - name: Poll and enqueue eligible requests
+        run: node src/youtube/comment-poller.js

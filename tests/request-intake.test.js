@@ -40,7 +40,7 @@ test("queues public video only after trusted location resolution", () => {
   const admission = assessCommentRequest({ parsed, commentText: "panchang", channelKey: "opaque-key", now: new Date("2026-11-06T00:00:00Z") });
   assert.equal(admission.status, "awaiting-location-resolution");
   const resolved = finalizeResolvedRequest({ admission, resolvedLocation: {
-    location_id: "miraroad", city: "Mira Road", state: "Maharashtra", country: "India",
+    location_id: "geo-miraroad", city: "Mira Road", admin1: "Maharashtra", country: "India", country_code: "IN", timezone: "Asia/Kolkata",
     latitude: 19.2813, longitude: 72.8694,
   }});
   assert.equal(resolved.publishVisibility, "public");
@@ -51,8 +51,22 @@ test("deduplicates the same content, date, location and time", () => {
   const key = makeRequestKey({ contentType: "panchang", date: "2026-11-07" }, "miraroad");
   const result = finalizeResolvedRequest({
     admission: { accepted: true, request: { contentType: "panchang", date: "2026-11-07" } },
-    resolvedLocation: { location_id: "miraroad", city: "Mira Road", state: "Maharashtra", latitude: 19.28, longitude: 72.87 },
+    resolvedLocation: { location_id: "geo-miraroad", city: "Mira Road", country: "India", timezone: "Asia/Kolkata", latitude: 19.28, longitude: 72.87 },
     existingKeys: new Set([key]),
   });
   assert.equal(result.status, "duplicate");
+});
+
+test("accepts worldwide locations only with a valid IANA timezone", () => {
+  const parsed = parsePanchangComment("panchang\\nDate: 07-11-2026\\nLocation: New York, NY, USA");
+  const admission = assessCommentRequest({ parsed, commentText: "panchang", channelKey: "hash", now: new Date("2026-11-06T00:00:00Z") });
+  const resolved = finalizeResolvedRequest({ admission, resolvedLocation: {
+    location_id: "geo-new-york", city: "New York", admin1: "New York", country: "United States",
+    latitude: 40.7128, longitude: -74.006, timezone: "America/New_York",
+  }});
+  assert.equal(resolved.status, "queued");
+  assert.equal(resolved.calculationContext.timezone, "America/New_York");
+  assert.equal(finalizeResolvedRequest({ admission, resolvedLocation: {
+    location_id: "bad", city: "Unknown", country: "Unknown", latitude: 0, longitude: 0, timezone: "EST",
+  }}).reason, "location-not-resolved");
 });
