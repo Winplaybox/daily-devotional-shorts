@@ -119,7 +119,7 @@ def get_target_playlist(religion: str, title: str, slot: str = "morning") -> str
 def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
     """
     Computes ISO 8601 UTC timestamp for YouTube scheduled publishing in IST.
-    Morning: 06:00 AM IST (00:30 UTC)
+    Morning: 07:00 AM IST (01:30 UTC)
     Afternoon: 12:30 PM IST (07:00 UTC)
     Evening: 07:00 PM IST (13:30 UTC)
     Guarantees the scheduled time gives YouTube at least 30 minutes of processing buffer for 4K.
@@ -128,13 +128,13 @@ def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
     now_ist = datetime.now(ist_tz)
 
     if slot == "morning":
-        slot_hour, slot_minute = 6, 0
+        slot_hour, slot_minute = 7, 0
     elif slot == "afternoon":
         slot_hour, slot_minute = 12, 30
     elif slot == "evening":
         slot_hour, slot_minute = 19, 0
     else:
-        slot_hour, slot_minute = 6, 0
+        slot_hour, slot_minute = 7, 0
 
     target_dt_ist = datetime(target_date.year, target_date.month, target_date.day, slot_hour, slot_minute, tzinfo=ist_tz)
 

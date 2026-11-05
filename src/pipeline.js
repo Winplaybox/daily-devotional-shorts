@@ -607,7 +607,7 @@ async function run() {
       console.log('[YOUTUBE] Authenticated channel: ' + channel.data.items[0].snippet.title);
       const firstPublishAt = new Date(data.publish_at);
       if (!Number.isFinite(firstPublishAt.getTime())) throw new Error('Panchang engine returned invalid publish_at.');
-      const secondPublishAt = new Date(firstPublishAt.getTime() + 6 * 60 * 60 * 1000);
+      const secondPublishAt = new Date(firstPublishAt.getTime() + 12 * 60 * 60 * 1000);
       await uploadToYouTube(yt, outputs[0], data, firstPublishAt.toISOString());
       await uploadToYouTube(yt, outputs[1], data, secondPublishAt.toISOString());
     } else {
