@@ -73,64 +73,45 @@ const formatTime12h = (t: string | undefined): string => {
 
 // --- ORNATE SVG COMPONENTS ---
 
-// 1. Mangal Kalash with Coconut, Mango Leaves & Sacred Swastika
-const MangalKalash: React.FC<{size?: number; style?: React.CSSProperties}> = ({size = 140, style}) => (
-  <svg width={size} height={size * 1.25} viewBox="0 0 100 125" style={style}>
-    <defs>
-      <linearGradient id="goldPotGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fffbeb" />
-        <stop offset="30%" stopColor="#fde047" />
-        <stop offset="65%" stopColor="#d97706" />
-        <stop offset="100%" stopColor="#78350f" />
-      </linearGradient>
-      <linearGradient id="cocoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#b45309" />
-        <stop offset="100%" stopColor="#3f1704" />
-      </linearGradient>
-      <linearGradient id="leafGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-        <stop offset="0%" stopColor="#166534" />
-        <stop offset="50%" stopColor="#22c55e" />
-        <stop offset="100%" stopColor="#86efac" />
-      </linearGradient>
-    </defs>
-    {/* Coconut */}
-    <path d="M50 12 C34 32 34 46 50 50 C66 46 66 32 50 12 Z" fill="url(#cocoGrad)" stroke="#451a03" strokeWidth="1.8" />
-    {/* Mango leaves */}
-    <path d="M50 48 C24 42 12 26 16 16 C26 30 40 40 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
-    <path d="M50 48 C76 42 88 26 84 16 C74 30 60 40 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
-    <path d="M50 48 C38 32 34 12 43 4 C47 20 49 36 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
-    <path d="M50 48 C62 32 66 12 57 4 C52 20 50 36 50 48 Z" fill="url(#leafGrad)" stroke="#14532d" strokeWidth="1" />
-    {/* Kalash Rim */}
-    <ellipse cx="50" cy="50" rx="24" ry="7" fill="#fef08a" stroke="#b45309" strokeWidth="2.2" />
-    <ellipse cx="50" cy="54" rx="20" ry="4" fill="#ca8a04" />
-    {/* Kalash Pot Body */}
-    <path d="M30 55 C16 66 14 92 32 107 C40 115 60 115 68 107 C86 92 84 66 70 55 Z" fill="url(#goldPotGrad)" stroke="#78350f" strokeWidth="2.2" />
-    {/* Sacred Red Mauli bands */}
-    <path d="M28 68 Q50 75 72 68 Q50 64 28 68 Z" fill="#dc2626" />
-    <path d="M24 82 Q50 89 76 82 Q50 77 24 82 Z" fill="#dc2626" />
-    {/* Prominent Red Swastika */}
-    <g stroke="#b91c1c" strokeWidth="3.4" strokeLinecap="square">
-      <line x1="50" y1="84" x2="50" y2="102" />
-      <line x1="41" y1="93" x2="59" y2="93" />
-      <line x1="50" y1="84" x2="57" y2="84" />
-      <line x1="50" y1="102" x2="43" y2="102" />
-      <line x1="41" y1="93" x2="41" y2="86" />
-      <line x1="59" y1="93" x2="59" y2="100" />
-    </g>
-    {/* Base */}
-    <ellipse cx="50" cy="110" rx="21" ry="5" fill="#92400e" stroke="#78350f" strokeWidth="2" />
-  </svg>
+// 1. Realistic Sacred Mangal Kalash with Coconut, Mango Leaves & Sacred Swastika
+const MangalKalash: React.FC<{size?: number; style?: React.CSSProperties}> = ({size = 150, style}) => (
+  <div style={{position: 'relative', width: size, ...style}}>
+    {/* Divine golden radial aura */}
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: '10%',
+        right: '10%',
+        height: size * 0.45,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(250,204,21,0.35) 0%, transparent 70%)',
+        filter: 'blur(10px)',
+        pointerEvents: 'none'
+      }}
+    />
+    <Img
+      src={staticFile('assets/mangal_kalash.png')}
+      style={{
+        width: '100%',
+        height: 'auto',
+        display: 'block',
+        filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px rgba(250,204,21,0.25))'
+      }}
+    />
+  </div>
 );
 
-// 2. Hanging Temple Bell with organic noise sway
-const SwayingBell: React.FC<{frame: number; offset?: number; length?: number; style?: React.CSSProperties}> = ({
+// 2. Hanging 3D Brass Temple Bell with organic noise sway
+const SwayingBell: React.FC<{frame: number; offset?: number; length?: number; style?: React.CSSProperties; size?: number}> = ({
   frame,
   offset = 0,
-  length = 240,
-  style
+  length = 70,
+  style,
+  size = 56
 }) => {
   // Use @remotion/noise for natural temple bell sway physics
-  const sway = noise2D('bell-sway-' + offset, frame * 0.045, 0) * 5.5;
+  const sway = noise2D('bell-sway-' + offset, frame * 0.045, 0) * 6.5;
   return (
     <div
       style={{
@@ -141,32 +122,30 @@ const SwayingBell: React.FC<{frame: number; offset?: number; length?: number; st
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.65))',
+        filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.75))',
+        zIndex: 11,
         ...style
       }}
     >
       {/* Brass Chain */}
       <div
         style={{
-          width: 4,
+          width: 3.5,
           height: length,
-          background: 'repeating-linear-gradient(to bottom, #fde047 0px, #ca8a04 5px, #854d0e 10px)'
+          background: 'repeating-linear-gradient(to bottom, #fde047 0px, #ca8a04 5px, #854d0e 10px)',
+          boxShadow: '0 0 4px rgba(0,0,0,0.5)'
         }}
       />
-      {/* Brass Temple Bell */}
-      <svg width="54" height="64" viewBox="0 0 50 58">
-        <defs>
-          <linearGradient id="bellGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#fef08a" />
-            <stop offset="45%" stopColor="#eab308" />
-            <stop offset="90%" stopColor="#854d0e" />
-          </linearGradient>
-        </defs>
-        <ellipse cx="25" cy="5" rx="7" ry="3.5" fill="#ca8a04" />
-        <path d="M18 5 C18 18 10 38 5 46 C15 48 35 48 45 46 C40 38 32 18 32 5 Z" fill="url(#bellGoldGrad)" stroke="#78350f" strokeWidth="1.4" />
-        <ellipse cx="25" cy="46" rx="20" ry="5" fill="#eab308" stroke="#78350f" strokeWidth="1.4" />
-        <circle cx="25" cy="52" r="4.5" fill="#fef08a" stroke="#78350f" strokeWidth="1.2" />
-      </svg>
+      {/* 3D Realistic Temple Bell */}
+      <Img
+        src={staticFile('assets/temple_bell.png')}
+        style={{
+          width: size,
+          height: 'auto',
+          marginTop: -2,
+          display: 'block'
+        }}
+      />
     </div>
   );
 };
@@ -533,44 +512,163 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         );
       })}
 
-      {/* Layer 4: Ornate Gold Double Outer Border */}
+      {/* Layer 4: Victorian Gold Double Border & 4 Corner Flourishes */}
+      {/* Outer Border Line */}
       <div
         style={{
           position: 'absolute',
-          top: 32,
-          left: 32,
-          right: 32,
-          bottom: 32,
-          border: '4.5px solid #facc15',
-          borderRadius: 22,
-          boxShadow: 'inset 0 0 0 4px #78350f, 0 0 28px rgba(250,204,21,0.55)',
-          pointerEvents: 'none'
+          top: 26,
+          left: 26,
+          right: 26,
+          bottom: 26,
+          border: '2px solid #ca8a04',
+          boxShadow: '0 0 16px rgba(250,204,21,0.4), inset 0 0 16px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+          zIndex: 9
         }}
       />
+      {/* Inner Border Line */}
       <div
         style={{
           position: 'absolute',
-          top: 44,
-          left: 44,
-          right: 44,
-          bottom: 44,
-          border: '1.5px solid rgba(250,204,21,0.7)',
-          borderRadius: 15,
-          pointerEvents: 'none'
+          top: 36,
+          left: 36,
+          right: 36,
+          bottom: 36,
+          border: '1px solid rgba(254, 240, 138, 0.75)',
+          pointerEvents: 'none',
+          zIndex: 9
         }}
       />
 
-      {/* Layer 5: Top Floral Garlands & Swaying Temple Bells */}
-      {/* Left Garland & Bell */}
-      <div style={{position: 'absolute', top: 34, left: 65, zIndex: 10}}>
-        <MarigoldGarland count={8} />
-        <SwayingBell frame={frame} offset={0} length={130} style={{top: 270, left: -9}} />
+      {/* 4 Victorian Gold Corner Flourishes (from vecteezy vector) */}
+      {/* Top-Left Corner */}
+      <Img
+        src={staticFile('assets/corner_victorian.svg')}
+        style={{
+          position: 'absolute',
+          top: 24,
+          left: 24,
+          width: 140,
+          height: 'auto',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.8))'
+        }}
+      />
+      {/* Top-Right Corner */}
+      <Img
+        src={staticFile('assets/corner_victorian.svg')}
+        style={{
+          position: 'absolute',
+          top: 24,
+          right: 24,
+          width: 140,
+          height: 'auto',
+          transform: 'scaleX(-1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.8))'
+        }}
+      />
+      {/* Bottom-Left Corner */}
+      <Img
+        src={staticFile('assets/corner_victorian.svg')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 24,
+          width: 140,
+          height: 'auto',
+          transform: 'scaleY(-1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.8))'
+        }}
+      />
+      {/* Bottom-Right Corner */}
+      <Img
+        src={staticFile('assets/corner_victorian.svg')}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 24,
+          width: 140,
+          height: 'auto',
+          transform: 'scale(-1, -1)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.8))'
+        }}
+      />
+
+      {/* Layer 5: Authentic Marigold Garlands & Hanging Brass Temple Bells */}
+      {/* Left Side: Garlands & 2 Hanging Bells */}
+      <div style={{position: 'absolute', top: 26, left: 54, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland */}
+        <Img
+          src={staticFile('assets/marigold_garland.png')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 36,
+            height: 440,
+            objectFit: 'cover',
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+          }}
+        />
+        {/* Inner Medium Garland */}
+        <Img
+          src={staticFile('assets/marigold_garland.png')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 44,
+            width: 30,
+            height: 270,
+            objectFit: 'cover',
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+          }}
+        />
+        {/* Bell 1 (Inner, Higher up) */}
+        <SwayingBell frame={frame} offset={0} length={60} size={54} style={{top: 270, left: 34}} />
+        {/* Bell 2 (Outer, Lower down) */}
+        <SwayingBell frame={frame} offset={8} length={65} size={58} style={{top: 440, left: -10}} />
       </div>
 
-      {/* Right Garland & Bell */}
-      <div style={{position: 'absolute', top: 34, right: 65, zIndex: 10}}>
-        <MarigoldGarland count={8} />
-        <SwayingBell frame={frame} offset={12} length={130} style={{top: 270, right: 29}} />
+      {/* Right Side: Garlands & 2 Hanging Bells */}
+      <div style={{position: 'absolute', top: 26, right: 54, zIndex: 11, pointerEvents: 'none'}}>
+        {/* Outer Long Garland */}
+        <Img
+          src={staticFile('assets/marigold_garland.png')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 36,
+            height: 440,
+            objectFit: 'cover',
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+          }}
+        />
+        {/* Inner Medium Garland */}
+        <Img
+          src={staticFile('assets/marigold_garland.png')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 44,
+            width: 30,
+            height: 270,
+            objectFit: 'cover',
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))'
+          }}
+        />
+        {/* Bell 1 (Inner, Higher up) */}
+        <SwayingBell frame={frame} offset={14} length={60} size={54} style={{top: 270, right: 34}} />
+        {/* Bell 2 (Outer, Lower down) */}
+        <SwayingBell frame={frame} offset={22} length={65} size={58} style={{top: 440, right: -10}} />
       </div>
 
       {/* Layer 6: MAIN CONTENT POSTER (Centered & Symmetrical) */}
@@ -585,7 +683,8 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
         }}
       >
         {/* --- HEADER BLOCK (Remocn-inspired Kinetic Shimmer) --- */}
-        <div style={{textAlign: 'center', width: '100%', marginTop: 4}}>
+        <div style={{textAlign: 'center', width: '100%', marginTop: 2}}>
+          <VedicDivider width={360} />
           <ShimmerHeader text="॥ दैनिक पंचांग ॥" frame={frame} font={rozhaFont} />
           <div
             style={{
@@ -773,18 +872,18 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'space-between',
-            padding: '0 20px',
+            padding: '0 40px',
             marginTop: 4
           }}
         >
           {/* Left Mangal Kalash */}
-          <MangalKalash size={125} style={{filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.85))'}} />
+          <MangalKalash size={140} />
 
           {/* Center Glowing Diya with Noise Physics */}
           <GlowingDiya frame={frame} size={92} style={{marginBottom: 8}} />
 
           {/* Right Mangal Kalash */}
-          <MangalKalash size={125} style={{transform: 'scaleX(-1)', filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.85))'}} />
+          <MangalKalash size={140} style={{transform: 'scaleX(-1)'}} />
         </div>
       </AbsoluteFill>
 
