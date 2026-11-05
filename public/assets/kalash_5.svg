@@ -1,4 +1,4 @@
-<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" viewBox="-10.0 -10.0 861.4 912.6"><ns0:style type="text/css">
+<svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="479.2 504.0 391.0 394.6" width="100%" height="100%"><ns0:style type="text/css">
 	.st0{fill:#AF6A33;}
 	.st1{fill:#512011;}
 	.st2{fill:#C3CC55;}
@@ -474,4 +474,4 @@
 	</ns0:g>
 	<ns0:path class="st26" d="M697.8,790.4c-12.5,0-22.6-10.1-22.6-22.6s10.1-22.6,22.6-22.6c12.5,0,22.6,10.1,22.6,22.6   S710.3,790.4,697.8,790.4z M697.8,747.2c-11.4,0-20.6,9.3-20.6,20.6s9.3,20.6,20.6,20.6s20.6-9.3,20.6-20.6   S709.2,747.2,697.8,747.2z" />
 </ns0:g>
-</ns0:svg>
+</svg>

@@ -1,4 +1,4 @@
-<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" viewBox="-10.0 -10.0 435.0 473.3"><ns0:style type="text/css">
+<svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="52.8 64.6 391.0 394.7" width="100%" height="100%"><ns0:style type="text/css">
 	.st0{fill:#AF6A33;}
 	.st1{fill:#512011;}
 	.st2{fill:#C3CC55;}
@@ -109,4 +109,4 @@
 	</ns0:g>
 	<ns0:path class="st9" d="M148.8,360.2c0,0-10.4-55.7,37.4-91.2C186.2,269,116.5,305,148.8,360.2z" />
 </ns0:g>
-</ns0:svg>
+</svg>
