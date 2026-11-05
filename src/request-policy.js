@@ -29,18 +29,16 @@ export function assessCommentRequest({ parsed, commentText, channelKey, dailyCou
   if (dailyCount >= limits.maxRequestsPerChannelPerDay) return { accepted: false, status: "rate-limited", reason: "daily-request-limit" };
   if (queuedCount >= limits.maxQueuedRequests) return { accepted: false, status: "rate-limited", reason: "queue-capacity" };
 
-  // Location must be resolved against a trusted India location provider/registry first.
+  // Location must resolve to trusted coordinates and an IANA timezone before calculation.
   return { accepted: true, status: "awaiting-location-resolution", request: parsed.request, channelKey };
 }
 
 export function finalizeResolvedRequest({ admission, resolvedLocation, existingKeys = new Set() }) {
   if (!admission?.accepted) return admission || { accepted: false, status: "rejected", reason: "not-admitted" };
-  if (!resolvedLocation?.location_id || !resolvedLocation?.city || !resolvedLocation?.state ||
+  if (!resolvedLocation?.location_id || !resolvedLocation?.city || !resolvedLocation?.country ||
+      !resolvedLocation?.timezone || !resolvedLocation.timezone.includes("/") ||
       !Number.isFinite(resolvedLocation.latitude) || !Number.isFinite(resolvedLocation.longitude)) {
     return { accepted: false, status: "needs-details", reason: "location-not-resolved" };
-  }
-  if (resolvedLocation.country && resolvedLocation.country !== "India") {
-    return { accepted: false, status: "rejected", reason: "outside-supported-region" };
   }
   const key = makeRequestKey(admission.request, resolvedLocation.location_id);
   if (existingKeys.has(key)) return { accepted: false, status: "duplicate", reason: "duplicate-request", requestKey: key };
@@ -51,6 +49,7 @@ export function finalizeResolvedRequest({ admission, resolvedLocation, existingK
     publishVisibility: "public",
     request: admission.request,
     location: resolvedLocation,
+    calculationContext: { localDate: admission.request.date, timezone: resolvedLocation.timezone },
     workflow: ["calculate", "validate", "script", "render", "quality-check", "public-publish"],
   };
 }
