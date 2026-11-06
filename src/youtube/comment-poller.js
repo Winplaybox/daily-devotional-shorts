@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { google } from "googleapis";
+import { normalizeGoogleOAuthToken } from "./oauth-token.js";
 import { parsePanchangComment, buildPublicRequestReply } from "../request-parser.js";
 import { assessCommentRequest, finalizeResolvedRequest } from "../request-policy.js";
 import {
@@ -25,7 +26,7 @@ async function youtubeClient() {
   const token = JSON.parse(await readFile(process.env.TOKEN_PATH || "./token.json", "utf8"));
   const conf = clientSecret.installed || clientSecret.web || clientSecret;
   const oauth = new google.auth.OAuth2(conf.client_id, conf.client_secret, conf.redirect_uris?.[0] || "http://localhost");
-  oauth.setCredentials(token);
+  oauth.setCredentials(normalizeGoogleOAuthToken(token));
   const yt = google.youtube({ version: "v3", auth: oauth });
   const channel = await yt.channels.list({ part: ["id"], mine: true, maxResults: 1 });
   const channelId = channel.data.items?.[0]?.id;

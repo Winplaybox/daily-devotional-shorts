@@ -44,8 +44,10 @@ jobs:
           const client = JSON.parse(process.env.CLIENT_SECRET_JSON);
           const conf = client.installed || client.web || client;
           if (!conf.client_id || !conf.client_secret) throw new Error('OAuth client JSON is missing required fields');
-          const token = JSON.parse(process.env.TOKEN_JSON);
-          if (!token.refresh_token && !token.access_token && !token.token) throw new Error('OAuth token JSON has no usable token');
+          const rawToken = JSON.parse(process.env.TOKEN_JSON);
+          const candidates = [rawToken, rawToken.tokens, rawToken.credentials, rawToken.oauth2?.credentials, typeof rawToken.token === 'object' ? rawToken.token : null].filter(Boolean);
+          const token = candidates.find((item) => item.access_token || item.refresh_token || (typeof item.token === 'string' && item.token));
+          if (!token) throw new Error('TOKEN_JSON has no usable Google OAuth token. Do not use the Make.com API key here.');
           const scopes = String(token.scope || (Array.isArray(token.scopes) ? token.scopes.join(' ') : ''));
           if (!scopes.includes('yt-analytics.readonly')) throw new Error('TOKEN_JSON does not list yt-analytics.readonly; re-authorize locally and update the Actions secret.');
           console.log('OAuth JSON structure and Analytics scope are present.');

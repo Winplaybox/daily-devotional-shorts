@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { google } from 'googleapis';
+import { normalizeGoogleOAuthToken } from './oauth-token.js';
 
 export function getAnalyticsDateRange(now = new Date(), days = 28) {
   if (!Number.isInteger(days) || days < 1 || days > 90) {
@@ -27,21 +28,13 @@ function loadOAuthClient() {
     throw new Error('OAuth client JSON is missing client_id/client_secret.');
   }
   const token = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
-  if (!token.refresh_token && !token.access_token && !token.token) {
-    throw new Error('OAuth token JSON has no refresh_token or access_token.');
-  }
+  const normalizedToken = normalizeGoogleOAuthToken(token);
   const auth = new google.auth.OAuth2(
     config.client_id,
     config.client_secret,
     (config.redirect_uris || [])[0] || 'http://localhost',
   );
-  auth.setCredentials({
-    access_token: token.access_token || token.token,
-    refresh_token: token.refresh_token,
-    scope: token.scope || (Array.isArray(token.scopes) ? token.scopes.join(' ') : undefined),
-    token_type: token.token_type || 'Bearer',
-    expiry_date: token.expiry_date,
-  });
+  auth.setCredentials(normalizedToken);
   return auth;
 }
 
