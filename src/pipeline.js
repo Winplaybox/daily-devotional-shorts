@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
+import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 
 import { fileURLToPath } from 'url';
 
@@ -426,13 +427,7 @@ async function getYouTubeClient() {
   }
 
   const tokenData = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-  oauth2Client.setCredentials({
-    access_token: tokenData.access_token || tokenData.token,
-    refresh_token: tokenData.refresh_token,
-    scope: tokenData.scope || (Array.isArray(tokenData.scopes) ? tokenData.scopes.join(' ') : undefined),
-    token_type: tokenData.token_type || 'Bearer',
-    expiry_date: tokenData.expiry_date,
-  });
+  oauth2Client.setCredentials(normalizeGoogleOAuthToken(tokenData));
 
   return google.youtube({ version: 'v3', auth: oauth2Client });
 }
@@ -576,8 +571,8 @@ function hasValidCredentials() {
     const conf = secret.installed || secret.web || secret;
 
     const hasClient = Boolean(conf && conf.client_id && conf.client_secret);
-    const hasToken = Boolean(token && (token.access_token || token.refresh_token || token.token));
-    return hasClient && hasToken;
+    normalizeGoogleOAuthToken(token);
+    return hasClient;
   } catch (e) {
     return false;
   }
