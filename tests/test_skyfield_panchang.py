@@ -37,7 +37,9 @@ class SkyfieldEngineTests(unittest.TestCase):
     def test_virar_sunrise_and_sunset_are_localized(self):
         location = Location("Virar, Maharashtra, India", 19.4559, 72.8114, "Asia/Kolkata")
         result = self.engine.sunrise_sunset(date(2026, 11, 6), location)
-        self.assertIn("status", result)
+        self.assertIn(result["status"], {"normal", "polar_day_or_no_sunset", "polar_night_or_no_sunrise"})
+        self.assertTrue(result["sunrise_utc"] is None or result["sunrise_utc"].endswith("+00:00"))
+        self.assertTrue(result["sunset_utc"] is None or result["sunset_utc"].endswith("+00:00"))
         self.assertTrue(result["sunrise_local"] is None or result["sunrise_local"].endswith("+05:30"))
         self.assertTrue(result["sunset_local"] is None or result["sunset_local"].endswith("+05:30"))
 
