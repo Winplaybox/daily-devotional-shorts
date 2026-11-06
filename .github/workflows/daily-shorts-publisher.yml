@@ -39,8 +39,9 @@ jobs:
       PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
       PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Virar West, Maharashtra, India' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
-      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
-      REQUEST_UPLOAD: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && vars.AUTO_PUBLISH == 'true' }}
+      # Publishing is intentionally enabled for scheduled runs; manual runs still require publish=true.
+      AUTO_PUBLISH: 'true'
+      REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
@@ -132,8 +133,8 @@ jobs:
                   conf = value.get("installed") or value.get("web") or value
                   if not conf.get("client_id") or not conf.get("client_secret"):
                       raise SystemExit("CLIENT_SECRET_JSON must contain client_id and client_secret.")
-              elif not (value.get("refresh_token") or value.get("access_token") or value.get("token")):
-                  raise SystemExit("TOKEN_JSON must contain a refresh_token or access_token.")
+              elif not any((value.get(k) or (value.get("tokens") or {}).get(k) or (value.get("credentials") or {}).get(k)) for k in ("refresh_token", "access_token", "token")):
+                  raise SystemExit("TOKEN_JSON must contain a Google OAuth refresh_token or access_token (root, tokens, or credentials object).")
           PY
 
       - name: Write OAuth files
