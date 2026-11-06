@@ -66,7 +66,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-engine.txt edge-tts
 
+      - name: Validate production location configuration
+        if: env.REQUEST_UPLOAD == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$PANCHANG_LAT" && -n "$PANCHANG_LON" && -n "$PANCHANG_LOCATION" ]] || {
+            echo "::error::Production publishing requires explicit PANCHANG_LAT, PANCHANG_LON and PANCHANG_LOCATION repository variables. No default city will be assumed."
+            exit 1
+          }
+
       - name: Validate source
+        env:
+          # Fixed, explicit fixture coordinates keep offline tests deterministic.
+          # These values are never used for public publishing.
+          PANCHANG_LAT: "23.1765"
+          PANCHANG_LON: "75.7885"
+          PANCHANG_TZ: "5.5"
+          PANCHANG_LOCATION: "Ujjain, India (test fixture only)"
         run: |
           npm run check
           npm test
