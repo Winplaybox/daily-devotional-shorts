@@ -15,6 +15,10 @@ on:
         description: "Optional YYYY-MM-DD date for a one-time catch-up run (for example 2026-11-07)"
         required: false
         type: string
+      publish_at:
+        description: "Optional ISO-8601 timestamp for same-day catch-up, e.g. 2026-11-06T13:30:00Z (19:00 IST)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -29,10 +33,11 @@ jobs:
     timeout-minutes: 90
     env:
       PANCHANG_DATE: ${{ inputs.panchang_date || '' }}
-      PANCHANG_LAT: ${{ vars.PANCHANG_LAT }}
-      PANCHANG_LON: ${{ vars.PANCHANG_LON }}
+      PANCHANG_PUBLISH_AT: ${{ inputs.publish_at || '' }}
+      PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '19.4559' }}
+      PANCHANG_LON: ${{ vars.PANCHANG_LON || '72.8114' }}
       PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
-      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION }}
+      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Virar West, Maharashtra, India' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
       REQUEST_UPLOAD: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && vars.AUTO_PUBLISH == 'true' }}
@@ -90,9 +95,19 @@ jobs:
           python -m py_compile engine/*.py
           python -m unittest discover -s tests -p 'test_*.py'
 
-      - name: Validate optional catch-up date
-        if: env.PANCHANG_DATE != ''
-        run: python -c "import datetime, os; datetime.date.fromisoformat(os.environ['PANCHANG_DATE'])"
+      - name: Validate optional catch-up date and publish time
+        if: env.PANCHANG_DATE != '' || env.PANCHANG_PUBLISH_AT != ''
+        run: |
+          python - <<'PY'
+          import datetime, os
+          if os.environ.get('PANCHANG_DATE'):
+              datetime.date.fromisoformat(os.environ['PANCHANG_DATE'])
+          value = os.environ.get('PANCHANG_PUBLISH_AT', '').strip()
+          if value:
+              parsed = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+              if parsed.tzinfo is None:
+                  raise SystemExit('PANCHANG_PUBLISH_AT must include Z or an explicit UTC offset')
+          PY
 
       - name: Validate publishing configuration
         if: env.REQUEST_UPLOAD == 'true'
