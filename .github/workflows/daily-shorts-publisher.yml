@@ -109,7 +109,6 @@ jobs:
           python -m unittest discover -s tests -p 'test_*.py'
 
       - name: Validate resolved date and publish time
-        if: env.PANCHANG_DATE != '' || env.PANCHANG_PUBLISH_AT != ''
         run: |
           python - <<'PY'
           import datetime, os
