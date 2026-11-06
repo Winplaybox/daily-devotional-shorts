@@ -42,6 +42,21 @@ async function main() {
     if (!tokenRes.token) throw new Error('Token refresh returned empty access token');
 
     console.log('✅ Google OAuth Validation: PASSED! (Refresh Token is 100% active)\n');
+
+    const scopes = String(tokenJson.scope || (Array.isArray(tokenJson.scopes) ? tokenJson.scopes.join(' ') : ''));
+    const requiredScopes = [
+      { id: 'yt-analytics.readonly', name: 'YouTube Analytics (yt-analytics.readonly)' },
+      { id: 'youtube', name: 'YouTube Data (youtube / youtube.force-ssl)' },
+      { id: 'youtube.upload', name: 'YouTube Upload (youtube.upload)' },
+    ];
+    const missingScopes = requiredScopes.filter(s => !scopes.includes(s.id));
+    if (missingScopes.length > 0) {
+      console.warn('⚠️  WARNING: Missing recommended scopes in token:');
+      for (const m of missingScopes) console.warn(`   - ${m.name}`);
+      console.warn('Run "npm run auth:fresh" to grant all permissions in browser.\n');
+    } else {
+      console.log('✅ Required Scopes Validation: PASSED! (All YouTube & Analytics scopes present)\n');
+    }
   } catch (err) {
     console.error('❌ Google OAuth Validation: FAILED!');
     console.error('Error:', err.message);

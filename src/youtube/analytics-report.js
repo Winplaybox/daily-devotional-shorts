@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './oauth-token.js';
 
@@ -60,16 +61,19 @@ async function main() {
   if (!channel) throw new Error('OAuth token did not resolve to a YouTube channel.');
 
   const base = { ids: 'channel==MINE', ...range };
+  const dailyMetrics = 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost';
+  const videoMetrics = 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,likes,comments,shares';
+
   const [dailyResponse, videosResponse] = await Promise.all([
     analytics.reports.query({
       ...base,
-      metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost,estimatedRevenue',
+      metrics: dailyMetrics,
       dimensions: 'day',
       sort: 'day',
     }),
     analytics.reports.query({
       ...base,
-      metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,likes,comments,shares',
+      metrics: videoMetrics,
       dimensions: 'video',
       sort: '-views',
       maxResults: 200,
@@ -110,7 +114,7 @@ async function main() {
     notes: [
       'YouTube Analytics data can be delayed; the report ends yesterday in UTC.',
       'Video rows include all channel videos returned by the API, not Shorts-only filtering.',
-      'estimatedRevenue is reported only when the channel/account is eligible and the metric is available.',
+      'Core engagement metrics are collected; estimatedRevenue requires monetization (YPP) and monetary scope.',
     ],
   };
 
@@ -137,12 +141,13 @@ async function main() {
   console.log(`[ANALYTICS] Wrote ${jsonPath} and ${csvPath}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isMain) {
   main().catch((error) => {
     const status = error?.response?.status;
     const detail = error?.response?.data?.error?.message || error.message;
     console.error(`[ANALYTICS] Failed${status ? ` (HTTP ${status})` : ''}: ${detail}`);
-    if (status === 403) {
+    if (status === 403 || status === 401) {
       console.error('[ANALYTICS] Confirm yt-analytics.readonly is granted to this OAuth token and YouTube Analytics API is enabled.');
     }
     process.exitCode = 1;
