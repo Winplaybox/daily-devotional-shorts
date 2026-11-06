@@ -127,6 +127,22 @@ def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
     ist_tz = timezone(timedelta(hours=5.5))
     now_ist = datetime.now(ist_tz)
 
+    # Explicit one-off override for same-day catch-up publishing. Require an
+    # offset-aware timestamp so the workflow cannot silently schedule in UTC.
+    override = os.getenv("PANCHANG_PUBLISH_AT", "").strip()
+    if override:
+        try:
+            target = datetime.fromisoformat(override.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("PANCHANG_PUBLISH_AT must be a valid ISO-8601 timestamp") from exc
+        if target.tzinfo is None:
+            raise ValueError("PANCHANG_PUBLISH_AT must include Z or an explicit UTC offset")
+        target = target.astimezone(ist_tz)
+        min_buffer = now_ist + timedelta(minutes=30)
+        if target < min_buffer:
+            raise ValueError("PANCHANG_PUBLISH_AT must be at least 30 minutes in the future")
+        return target.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
     if slot == "morning":
         slot_hour, slot_minute = 7, 0
     elif slot == "afternoon":
