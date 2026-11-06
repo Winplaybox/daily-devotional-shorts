@@ -24,6 +24,29 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       REQUEST_HASH_SALT: ${{ secrets.REQUEST_HASH_SALT }}
     steps:
+      # Validate before installing dependencies so a missing configuration
+      # fails fast and reports every missing value in one actionable message.
+      - name: Validate required configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in CLIENT_SECRET_JSON TOKEN_JSON SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY REQUEST_HASH_SALT; do
+            [[ -n "${!key:-}" ]] || missing+=("$key")
+          done
+          if (( ${#missing[@]} )); then
+            printf '::error::Missing required GitHub Actions secrets: %s\\n' "${missing[*]}"
+            echo "::error::Set these in Settings → Secrets and variables → Actions. See docs/worldwide-panchang-automation.md for Supabase setup. No comments were polled and no requests were queued."
+            exit 1
+          fi
+          if [[ "${#REQUEST_HASH_SALT}" -lt 32 ]]; then
+            echo "::error::REQUEST_HASH_SALT must be at least 32 characters. Generate a random secret and store it in GitHub Actions Secrets."
+            exit 1
+          fi
+          if [[ "$SUPABASE_URL" != https://* ]]; then
+            echo "::error::SUPABASE_URL must be the HTTPS project URL from Supabase Settings → API."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -34,13 +57,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-engine.txt
-      - name: Validate required secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          for key in CLIENT_SECRET_JSON TOKEN_JSON SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY REQUEST_HASH_SALT; do
-            [[ -n "${!key}" ]] || { echo "::error::Missing required secret: $key"; exit 1; }
-          done
       - name: Write OAuth files
         shell: bash
         run: |
