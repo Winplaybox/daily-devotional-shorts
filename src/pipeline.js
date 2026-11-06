@@ -535,12 +535,34 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
     });
 
     const videoId = res.data.id;
-    console.log(`\n==========================================================`);
-    console.log(`🎉 Successfully uploaded and scheduled on YouTube!`);
-    console.log(`URL: https://youtube.com/shorts/${videoId}`);
-    if (statusConfig.publishAt) {
-      console.log(`Status: Scheduled (Private until ${statusConfig.publishAt})`);
+    if (!videoId) throw new Error('YouTube upload response did not include a video ID.');
+
+    // Read the uploaded video back from YouTube so a successful HTTP upload
+    // cannot be mistaken for a successfully scheduled publication.
+    const verification = await yt.videos.list({
+      part: ['snippet', 'status'],
+      id: [videoId],
+      maxResults: 1,
+    });
+    const uploaded = verification.data.items?.[0];
+    if (!uploaded) throw new Error(`YouTube accepted upload ${videoId}, but the video could not be read back for verification.`);
+    if (uploaded.status?.privacyStatus !== 'private') {
+      throw new Error(`YouTube video ${videoId} is not private while awaiting its scheduled publish time.`);
     }
+    const actualPublishAt = Date.parse(uploaded.status?.publishAt || '');
+    const expectedPublishAt = Date.parse(publishAtIso);
+    if (!Number.isFinite(actualPublishAt) || Math.abs(actualPublishAt - expectedPublishAt) > 60_000) {
+      throw new Error(`YouTube video ${videoId} was uploaded but its scheduled publishAt could not be verified.`);
+    }
+    if (uploaded.snippet?.title !== metadata.yt_title) {
+      throw new Error(`YouTube video ${videoId} title does not match the requested metadata.`);
+    }
+
+    console.log(`\n==========================================================`);
+    console.log(`🎉 YouTube upload and schedule verified!`);
+    console.log(`URL: https://youtube.com/shorts/${videoId}`);
+    console.log(`Title: ${uploaded.snippet.title}`);
+    console.log(`Status: Private until ${uploaded.status.publishAt}`);
     console.log(`==========================================================\n`);
 
     // Playlist Automation: Add video to its respective themed playlist
