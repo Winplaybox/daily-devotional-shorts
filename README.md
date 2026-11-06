@@ -54,6 +54,10 @@ The 40-second edition is scheduled for 07:00 IST; the 60-second edition is sched
 - `Daily Shorts Publisher` runs one daily batch at 06:00 IST and can also be started manually. A manual catch-up run accepts an optional `panchang_date` (YYYY-MM-DD).
 - Each batch renders both 40-second and 60-second versions. Scheduled workflow runs do not upload unless `AUTO_PUBLISH=true` is deliberately configured in the workflow.
 
+## Three-day automatic publishing buffer
+
+The daily publisher resolves the Panchang date three local calendar days ahead (default: `PANCHANG_PUBLISH_BUFFER_DAYS=3`, `PANCHANG_SCHEDULE_TIMEZONE=Asia/Kolkata`). Both rendered editions use that exact same Panchang date and configured location. The 40-second edition remains scheduled for 07:00 IST and the 60-second edition for 19:00 IST. See [the buffer implementation and validation notes](docs/three-day-publishing-buffer.md). An explicit manual `panchang_date` is treated as the final target date and is not offset again.
+
 ## Monetization-readiness principles
 
 Automation is a production aid, not a monetization shortcut. Avoid interchangeable daily videos. Each upload should add distinct viewer value: explain a Panchang concept, interpret a verified festival observance, answer a viewer question, compare a tradition across regions, or explain why timings differ by location. Include original narration and meaningful editorial context, verify sources, and keep an archive of calculation inputs and sources.
