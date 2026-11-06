@@ -80,7 +80,7 @@ async function main() {
   const token = need('META_PAGE_ACCESS_TOKEN');
   const pageId = need('META_PAGE_ID');
   const igId = need('META_IG_USER_ID');
-  const caption = process.env.META_CAPTION || 'आज का संपूर्ण वैदिक पंचांग 🙏\\nतिथि, नक्षत्र, शुभ मुहूर्त और दैनिक पंचांग की जानकारी के लिए जुड़े रहें।\\n#PavitraPanchang365 #Panchang #DailyPanchang';
+  const caption = process.env.META_CAPTION || 'आज का संपूर्ण वैदिक पंचांग 🙏\nतिथि, नक्षत्र, शुभ मुहूर्त और दैनिक पंचांग की जानकारी के लिए जुड़े रहें।\n#PavitraPanchang365 #Panchang #DailyPanchang';
   const runKey = process.env.META_RUN_KEY || 'manual-' + Date.now();
   const url = await storeVideo(file, runKey);
   console.log('[Supabase] Uploaded video for Meta ingestion');
