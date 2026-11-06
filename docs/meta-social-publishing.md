@@ -8,7 +8,7 @@ This is a separate publishing lane. It does not modify or invoke src/pipeline.js
 3. The video is uploaded to Supabase Storage.
 4. The same hosted MP4 is published as an Instagram Reel and a Facebook Page Reel.
 
-Manual dispatch is also supported: provide the run ID of a successful Daily Shorts Publisher run and set publish=true.
+Manual dispatch is also supported: provide both the run ID and run number of a successful Daily Shorts Publisher run, then set publish=true. The run number identifies the artifact name; the run ID identifies the source workflow execution.
 
 ## Meta prerequisites
 A Meta Developer App has not yet been created. Create/configure a Business app in Meta for Developers and configure the Instagram and Facebook Page products/use cases.
