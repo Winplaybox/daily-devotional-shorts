@@ -48,7 +48,7 @@ test("queues public video only after trusted location resolution", () => {
 });
 
 test("deduplicates the same content, date, location and time", () => {
-  const key = makeRequestKey({ contentType: "panchang", date: "2026-11-07" }, "miraroad");
+  const key = makeRequestKey({ contentType: "panchang", date: "2026-11-07" }, "geo-miraroad");
   const result = finalizeResolvedRequest({
     admission: { accepted: true, request: { contentType: "panchang", date: "2026-11-07" } },
     resolvedLocation: { location_id: "geo-miraroad", city: "Mira Road", country: "India", timezone: "Asia/Kolkata", latitude: 19.28, longitude: 72.87 },
@@ -58,7 +58,7 @@ test("deduplicates the same content, date, location and time", () => {
 });
 
 test("accepts worldwide locations only with a valid IANA timezone", () => {
-  const parsed = parsePanchangComment("panchang\\nDate: 07-11-2026\\nLocation: New York, NY, USA");
+  const parsed = parsePanchangComment("panchang\nDate: 07-11-2026\nLocation: New York, NY, USA");
   const admission = assessCommentRequest({ parsed, commentText: "panchang", channelKey: "hash", now: new Date("2026-11-06T00:00:00Z") });
   const resolved = finalizeResolvedRequest({ admission, resolvedLocation: {
     location_id: "geo-new-york", city: "New York", admin1: "New York", country: "United States",
