@@ -30,6 +30,32 @@ date-line, polar and high-latitude cases. Do not claim global accuracy until tho
 - IANA timezone/date offset resolver using Python zoneinfo.
 - Scheduled GitHub Actions comment intake workflow (15-minute cadence).
 
+## GitHub Actions setup checklist
+
+The scheduled comment-intake worker is intentionally blocked until durable storage
+is configured. In the repository, open **Settings → Secrets and variables → Actions**
+and add these repository secrets:
+
+- `CLIENT_SECRET_JSON`: existing Google OAuth client JSON.
+- `TOKEN_JSON`: OAuth token JSON with YouTube Data API comment-read and reply scopes.
+- `SUPABASE_URL`: HTTPS project URL from Supabase **Project Settings → API**.
+- `SUPABASE_SERVICE_ROLE_KEY`: service-role key from Supabase **Project Settings → API**.
+  Keep this secret server-side only; never expose it in a browser or commit it to Git.
+- `REQUEST_HASH_SALT`: a randomly generated secret of at least 32 characters. Keep it
+  stable after deployment so viewer pseudonyms and rate limits remain consistent.
+
+Before adding the Supabase secrets:
+
+1. Create a private Supabase project.
+2. Run `db/supabase/panchang-automation.sql` in the Supabase SQL Editor.
+3. Enable row-level security for all three tables and deny anon/authenticated access.
+4. Copy the project URL and service-role key into GitHub Actions Secrets.
+5. Configure the remaining OAuth and salt secrets, then run **YouTube Panchang Comment Intake**
+   manually and confirm the poll finishes successfully.
+
+Until these steps are complete, the intake workflow must fail closed. It must not silently
+use in-memory storage, drop deduplication/rate limiting, or claim that comments were queued.
+
 ## Required configuration
 GitHub Actions secrets:
 - `CLIENT_SECRET_JSON`
