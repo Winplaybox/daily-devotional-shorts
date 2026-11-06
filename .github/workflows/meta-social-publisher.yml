@@ -40,6 +40,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Checkout publishing code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate publisher script syntax
+        run: node --check scripts/publish_meta.js
+
       - name: Download the source run's render artifact
         uses: actions/download-artifact@v4
         with:
