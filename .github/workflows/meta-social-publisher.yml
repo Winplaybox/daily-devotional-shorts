@@ -11,6 +11,10 @@ on:
         description: "Successful Daily Shorts Publisher run ID"
         required: true
         type: string
+      run_number:
+        description: "Source Daily Shorts Publisher run number (used in the artifact name)"
+        required: true
+        type: string
       publish:
         description: "Confirm publishing to Instagram and Facebook"
         required: true
@@ -22,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: meta-publisher-\${{ github.event.workflow_run.id || inputs.run_id }}
+  group: meta-publisher-${{ github.event.workflow_run.id || inputs.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -39,9 +43,9 @@ jobs:
       - name: Download the source run's render artifact
         uses: actions/download-artifact@v4
         with:
-          name: pavitra-panchang-\${{ github.event.workflow_run.run_number || inputs.run_id }}
-          run-id: \${{ github.event.workflow_run.id || inputs.run_id }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
+          name: pavitra-panchang-${{ github.event.workflow_run.run_number || inputs.run_number }}
+          run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: out
 
       - name: Verify the 40-second MP4
@@ -51,13 +55,13 @@ jobs:
       - name: Publish to Instagram and Facebook
         env:
           META_VIDEO_PATH: out/pavitra-panchang-40s.mp4
-          META_RUN_KEY: \${{ github.event.workflow_run.id || inputs.run_id }}-attempt-\${{ github.run_attempt }}
-          META_GRAPH_API_VERSION: \${{ vars.META_GRAPH_API_VERSION || 'v25.0' }}
-          META_CAPTION: \${{ vars.META_CAPTION || '' }}
-          META_PAGE_ACCESS_TOKEN: \${{ secrets.META_PAGE_ACCESS_TOKEN }}
-          META_PAGE_ID: \${{ secrets.META_PAGE_ID }}
-          META_IG_USER_ID: \${{ secrets.META_IG_USER_ID }}
-          SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_BUCKET: \${{ vars.SUPABASE_META_BUCKET || 'meta-publishing' }}
+          META_RUN_KEY: ${{ github.event.workflow_run.id || inputs.run_id }}-attempt-${{ github.run_attempt }}
+          META_GRAPH_API_VERSION: ${{ vars.META_GRAPH_API_VERSION || 'v25.0' }}
+          META_CAPTION: ${{ vars.META_CAPTION || '' }}
+          META_PAGE_ACCESS_TOKEN: ${{ secrets.META_PAGE_ACCESS_TOKEN }}
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_BUCKET: ${{ vars.SUPABASE_META_BUCKET || 'meta-publishing' }}
         run: node scripts/publish_meta.js
