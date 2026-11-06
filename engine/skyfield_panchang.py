@@ -147,12 +147,12 @@ class SkyfieldPanchangAstronomy:
         sunrise = next((event for event, state in zip(events, states) if bool(state)), None)
         sunset = next((event for event, state in zip(events, states) if not bool(state)), None)
         return {
-            "sunrise_utc": sunrise.utc_datetime().isoformat() if sunrise else None,
-            "sunset_utc": sunset.utc_datetime().isoformat() if sunset else None,
-            "sunrise_local": sunrise.astimezone(zone).isoformat() if sunrise else None,
-            "sunset_local": sunset.astimezone(zone).isoformat() if sunset else None,
-            "status": "normal" if sunrise and sunset else (
-                "polar_day_or_no_sunset" if sunrise else "polar_night_or_no_sunrise"
+            "sunrise_utc": sunrise.utc_datetime().isoformat() if sunrise is not None else None,
+            "sunset_utc": sunset.utc_datetime().isoformat() if sunset is not None else None,
+            "sunrise_local": sunrise.astimezone(zone).isoformat() if sunrise is not None else None,
+            "sunset_local": sunset.astimezone(zone).isoformat() if sunset is not None else None,
+            "status": "normal" if sunrise is not None and sunset is not None else (
+                "polar_day_or_no_sunset" if sunrise is not None else "polar_night_or_no_sunrise"
             ),
         }
 
