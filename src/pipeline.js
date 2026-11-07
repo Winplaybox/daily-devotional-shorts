@@ -619,7 +619,8 @@ async function run() {
       const data = await getDailyPanchangData(item.slot);
       console.log(`Topic: [${item.slot}] [${data.religion}] ${data.title}`);
       await generateHindiNarration(data, item.durationSeconds);
-      const videoPath = path.join(OUT_DIR, `pavitra-panchang-${item.slot}-${item.durationSeconds}s.mp4`);
+      const outputName = item.slot === 'morning' ? 'pavitra-panchang-40s.mp4' : item.slot === 'evening' ? 'pavitra-panchang-60s.mp4' : 'pavitra-panchang-afternoon-40s.mp4';
+      const videoPath = path.join(OUT_DIR, outputName);
       await renderRemotionVideo(data, videoPath, item.durationSeconds);
       outputs.push({ ...item, data, videoPath });
     }
