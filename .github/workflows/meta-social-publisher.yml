@@ -35,6 +35,8 @@ jobs:
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'schedule' &&
+       vars.AUTO_PUBLISH == 'true' &&
        vars.META_AUTO_PUBLISH == 'true') ||
       (github.event_name == 'workflow_dispatch' && inputs.publish == true)
     runs-on: ubuntu-latest
@@ -53,10 +55,18 @@ jobs:
       - name: Validate publisher script syntax
         run: node --check scripts/publish_meta.js
 
+      - name: Verify source YouTube uploads before distribution
+        id: verify-source
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+          SOURCE_RUN_NUMBER: ${{ github.event.workflow_run.run_number || inputs.run_number }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-youtube-source-run.js
+
       - name: Download the source run's render artifact
         uses: actions/download-artifact@v4
         with:
-          name: pavitra-panchang-${{ github.event.workflow_run.run_number || inputs.run_number }}
+          name: pavitra-panchang-${{ steps.verify-source.outputs.run_number }}
           run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: out
