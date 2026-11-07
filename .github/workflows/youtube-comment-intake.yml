@@ -35,7 +35,7 @@ jobs:
             [[ -n "${!key:-}" ]] || missing+=("$key")
           done
           if (( ${#missing[@]} )); then
-            printf '::error::Missing required GitHub Actions secrets: %s\\n' "${missing[*]}"
+            printf '::error::Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
             echo "::error::Set these in Settings → Secrets and variables → Actions. See docs/worldwide-panchang-automation.md for Supabase setup. No comments were polled and no requests were queued."
             exit 1
           fi
