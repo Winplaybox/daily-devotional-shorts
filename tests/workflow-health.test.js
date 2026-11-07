@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { evaluateWorkflowHealth, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const expectation = {
@@ -173,4 +174,17 @@ test('marks a daily analytics run missing when no scheduled run follows today\'s
   });
   assert.equal(result.state, 'stale');
   assert.equal(result.expectedAt, '2026-11-07T04:00:00.000Z');
+});
+
+
+test('keeps scheduled and manual YouTube publishing disabled until owner approval', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/daily-shorts-publisher.yml', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(workflow, /^\\s+AUTO_PUBLISH:\\s*['\"]false['\"]\\s*$/m);
+  assert.match(workflow, /^\\s+REQUEST_UPLOAD:\\s*['\"]false['\"]\\s*$/m);
+  assert.doesNotMatch(workflow, /^\\s+AUTO_PUBLISH:\\s*\\$\\{\\{\\s*vars\\.AUTO_PUBLISH/m);
+  assert.doesNotMatch(workflow, /^\\s+REQUEST_UPLOAD:\\s*\\$\\{\\{/m);
 });
