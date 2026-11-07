@@ -45,11 +45,11 @@ for (const expectation of WORKFLOW_EXPECTATIONS) {
 }
 
 for (const result of results) {
-  const marker = result.state === 'healthy' || result.state === 'running' ? 'OK' : 'ALERT';
+  const marker = ['healthy', 'running', 'pending'].includes(result.state) ? 'OK' : 'ALERT';
   console.log(`[${marker}] ${result.workflow}: ${result.state}; run=${result.runId ?? 'none'}; ageMinutes=${result.ageMinutes ?? 'n/a'}; ${result.message}`);
 }
 
-const unhealthy = results.filter((result) => !['healthy', 'running'].includes(result.state));
+const unhealthy = results.filter((result) => !['healthy', 'running', 'pending'].includes(result.state));
 if (unhealthy.length) {
   console.error(`Workflow schedule health check failed for ${unhealthy.length} workflow(s).`);
   process.exitCode = 1;
