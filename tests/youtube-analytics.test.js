@@ -27,7 +27,7 @@ test('analytics date range handles Pacific DST and month/year boundaries', () =>
   );
   assert.deepEqual(
     getAnalyticsDateRange(new Date('2026-03-09T07:00:00.000Z'), 1),
-    { startDate: '2026-03-07', endDate: '2026-03-07' },
+    { startDate: '2026-03-08', endDate: '2026-03-08' },
   );
 });
 
