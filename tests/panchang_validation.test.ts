@@ -297,3 +297,17 @@ describe('7. Full-Poster Structure & Approved Visual Ornaments Regression Test',
     assert.ok(src.includes('SECTION 7: DEVOTIONAL ORNAMENTS'));
   });
 });
+
+describe('8. YouTube publishing opt-in safety', () => {
+  test('scheduled uploads fail closed unless AUTO_PUBLISH is explicitly opted in', () => {
+    const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
+    const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
+
+    assert.ok(
+      workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}"),
+      'AUTO_PUBLISH must default to false when the repository variable is absent',
+    );
+    assert.ok(!workflow.includes("AUTO_PUBLISH: 'true'"));
+    assert.ok(pipeline.includes('if (uploadRequested && autoPublishEnabled)'));
+  });
+});
