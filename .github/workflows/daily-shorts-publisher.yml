@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Upload both rendered Shorts to the authenticated YouTube channel"
+        description: "Upload all three rendered Shorts to the authenticated YouTube channel"
         required: true
         default: false
         type: boolean
@@ -36,11 +36,12 @@ jobs:
       PANCHANG_PUBLISH_AT: ${{ inputs.publish_at || '' }}
       PANCHANG_PUBLISH_BUFFER_DAYS: ${{ vars.PANCHANG_PUBLISH_BUFFER_DAYS || '3' }}
       PANCHANG_SCHEDULE_TIMEZONE: ${{ vars.PANCHANG_SCHEDULE_TIMEZONE || 'Asia/Kolkata' }}
-      PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '' }}
-      PANCHANG_LON: ${{ vars.PANCHANG_LON || '' }}
+      PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
+      PANCHANG_LON: ${{ vars.PANCHANG_LON || '75.7885' }}
       PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
-      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || '' }}
+      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
+      PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
       # Existing automatic publishing behavior is preserved on the default branch.
       AUTO_PUBLISH: 'true'
       REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
@@ -84,16 +85,6 @@ jobs:
             --date-override "$PANCHANG_DATE" \
             --github-env "$GITHUB_ENV"
 
-      - name: Validate production location configuration
-        if: env.REQUEST_UPLOAD == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -n "$PANCHANG_LAT" && -n "$PANCHANG_LON" && -n "$PANCHANG_LOCATION" ]] || {
-            echo "::error::Production publishing requires explicit PANCHANG_LAT, PANCHANG_LON and PANCHANG_LOCATION repository variables. No default city will be assumed."
-            exit 1
-          }
-
       - name: Validate source
         env:
           # Fixed, explicit fixture coordinates keep offline tests deterministic.
@@ -128,10 +119,6 @@ jobs:
           [[ -n "$CLIENT_SECRET_JSON" ]] || { echo "::error::Missing Actions secret CLIENT_SECRET_JSON"; exit 1; }
           [[ -n "$TOKEN_JSON" ]] || { echo "::error::Missing Actions secret TOKEN_JSON"; exit 1; }
           [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Edge TTS fallback will be used."
-          [[ -n "$PANCHANG_LAT" && -n "$PANCHANG_LON" && -n "$PANCHANG_LOCATION" ]] || {
-            echo "::error::Set PANCHANG_LAT, PANCHANG_LON and PANCHANG_LOCATION repository variables before public publishing."
-            exit 1
-          }
           python - <<'PY'
           import json, os
           for key in ("CLIENT_SECRET_JSON", "TOKEN_JSON"):
@@ -155,7 +142,7 @@ jobs:
           printf '%s' "$CLIENT_SECRET_JSON" > client_secret.json
           printf '%s' "$TOKEN_JSON" > token.json
 
-      - name: Render and optionally publish both editions
+      - name: Render and optionally publish all three daily slots
         run: npm start
 
       - name: Upload render artifacts

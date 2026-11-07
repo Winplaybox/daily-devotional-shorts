@@ -40,9 +40,9 @@ export function getAudioDuration(filePath) {
 }
 
 // Step 1: Real-Time Astronomical Panchang & Festival Engine
-async function getDailyPanchangData() {
+async function getDailyPanchangData(slot = 'morning') {
   console.log('[1/3] Running Real-Time Astronomical Panchang Engine (Python)...');
-  const propsPath = path.join(OUT_DIR, 'daily_props.json');
+  const propsPath = path.join(OUT_DIR, `daily_props_${slot}.json`);
 
   const pythonCmds = process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python'];
   let engineSuccess = false;
@@ -51,11 +51,15 @@ async function getDailyPanchangData() {
   const dateArg = process.env.PANCHANG_DATE || (dateIdx !== -1 ? process.argv[dateIdx + 1] : '');
   const dateParam = dateArg ? ` --date ${dateArg}` : '';
   const slotIdx = process.argv.indexOf('--slot');
-  const slotArg = process.env.SLOT || (slotIdx !== -1 ? process.argv[slotIdx + 1] : 'morning');
+  const slotArg = slot || process.env.SLOT || (slotIdx !== -1 ? process.argv[slotIdx + 1] : 'morning');
+  if (!['morning', 'afternoon', 'evening'].includes(slotArg)) {
+    throw new Error(`Unsupported publishing slot: ${slotArg}`);
+  }
+  process.env.PANCHANG_PUBLISH_SLOT = slotArg;
 
   for (const cmd of pythonCmds) {
     try {
-      execSync(`${cmd} engine/panchang_engine.py --slot ${slotArg}${dateParam}`, { stdio: 'inherit' });
+      execSync(`${cmd} engine/panchang_engine.py --slot ${slotArg}${dateParam} --out ${JSON.stringify(propsPath)}`, { stdio: 'inherit' });
       if (fs.existsSync(propsPath)) {
         engineSuccess = true;
         break;
@@ -602,17 +606,25 @@ function hasValidCredentials() {
 
 async function run() {
   try {
-    const data = await getDailyPanchangData();
-    console.log(`Topic: [${data.religion}] ${data.title}`);
-
+    const slotPlan = [
+      { slot: 'morning', durationSeconds: 40 },
+      { slot: 'afternoon', durationSeconds: 40 },
+      { slot: 'evening', durationSeconds: 60 },
+    ];
     fs.mkdirSync(path.resolve('./public'), { recursive: true });
     const outputs = [];
-    for (const durationSeconds of [40, 60]) {
-      await generateHindiNarration(data, durationSeconds);
-      const videoPath = path.join(OUT_DIR, 'pavitra-panchang-' + durationSeconds + 's.mp4');
-      await renderRemotionVideo(data, videoPath, durationSeconds);
-      outputs.push(videoPath);
+
+    // Each slot gets its own calculation payload, narration, metadata and schedule.
+    for (const item of slotPlan) {
+      const data = await getDailyPanchangData(item.slot);
+      console.log(`Topic: [${item.slot}] [${data.religion}] ${data.title}`);
+      await generateHindiNarration(data, item.durationSeconds);
+      const outputName = item.slot === 'morning' ? 'pavitra-panchang-40s.mp4' : item.slot === 'evening' ? 'pavitra-panchang-60s.mp4' : 'pavitra-panchang-afternoon-40s.mp4';
+      const videoPath = path.join(OUT_DIR, outputName);
+      await renderRemotionVideo(data, videoPath, item.durationSeconds);
+      outputs.push({ ...item, data, videoPath });
     }
+
     // Publishing requires both an explicit run request and the repository-level opt-in.
     const uploadRequested = process.env.REQUEST_UPLOAD === 'true';
     const autoPublishEnabled = process.env.AUTO_PUBLISH === 'true';
@@ -622,21 +634,18 @@ async function run() {
       const channel = await yt.channels.list({ part: ['snippet'], mine: true, maxResults: 1 });
       if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
       console.log('[YOUTUBE] Authenticated channel: ' + channel.data.items[0].snippet.title);
-      const firstPublishAt = new Date(data.publish_at);
-      if (!Number.isFinite(firstPublishAt.getTime())) throw new Error('Panchang engine returned invalid publish_at.');
-      const secondOverride = process.env.PANCHANG_SECOND_PUBLISH_AT;
-      const secondPublishAt = secondOverride
-        ? new Date(secondOverride)
-        : new Date(firstPublishAt.getTime() + 12 * 60 * 60 * 1000);
-      if (!Number.isFinite(secondPublishAt.getTime()) || secondPublishAt.getTime() < Date.now() + 5 * 60 * 1000) {
-        throw new Error('PANCHANG_SECOND_PUBLISH_AT must be a valid timestamp at least 5 minutes in the future.');
+
+      for (const output of outputs) {
+        const publishAt = new Date(output.data.publish_at);
+        if (!Number.isFinite(publishAt.getTime())) {
+          throw new Error(`Panchang engine returned invalid publish_at for ${output.slot}.`);
+        }
+        await uploadToYouTube(yt, output.videoPath, output.data, publishAt.toISOString());
       }
-      await uploadToYouTube(yt, outputs[0], data, firstPublishAt.toISOString());
-      await uploadToYouTube(yt, outputs[1], data, secondPublishAt.toISOString());
     } else {
-      console.log('\n[REVIEW] Render completed. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
-      for (const videoPath of outputs) console.log('[REVIEW] ' + videoPath);
-      console.log('[REVIEW] Enable repository variable AUTO_PUBLISH=true and use workflow_dispatch with publish=true after reviewing the outputs.');
+      console.log('\n[REVIEW] All three slots rendered. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
+      for (const output of outputs) console.log(`[REVIEW] ${output.slot}: ${output.videoPath} -> ${output.data.publish_at}`);
+      console.log('[REVIEW] Publishing remains gated by REQUEST_UPLOAD and AUTO_PUBLISH.');
     }
 
     console.log('Daily automation workflow finished successfully.');

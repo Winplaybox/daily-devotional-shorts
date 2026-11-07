@@ -130,7 +130,8 @@ def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
     # Explicit one-off override for same-day catch-up publishing. Require an
     # offset-aware timestamp so the workflow cannot silently schedule in UTC.
     override = os.getenv("PANCHANG_PUBLISH_AT", "").strip()
-    if override:
+    override_slot = os.getenv("PANCHANG_PUBLISH_SLOT", "").strip().lower()
+    if override and (not override_slot or override_slot == slot):
         try:
             target = datetime.fromisoformat(override.replace("Z", "+00:00"))
         except ValueError as exc:
@@ -174,17 +175,21 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
     # Evening slot calculates advance panchang for tomorrow
     eval_date = target_date + timedelta(days=1) if slot == "evening" else target_date
 
-    # Empty GitHub Actions variables are present-but-empty, so os.getenv(key,
-    # default) does not apply the default. Keep deterministic legacy defaults
-    # for explicit offline validation only; production publishing validates
-    # that a real location was configured before this engine is invoked.
+    # India-wide edition uses an explicitly labelled Ujjain reference profile
+    # when no city coordinates are configured. This is a reproducible reference,
+    # not a claim that local sunrise/Muhurat timings are identical across India.
     lat_raw = os.getenv('PANCHANG_LAT') or '23.1765'
     lon_raw = os.getenv('PANCHANG_LON') or '75.7885'
     tz_raw = os.getenv('PANCHANG_TZ') or '5.5'
     lat = float(lat_raw)
     lon = float(lon_raw)
     tz = float(tz_raw)
-    location_name = os.getenv('PANCHANG_LOCATION') or 'Ujjain, India (legacy offline default)'
+    location_mode = os.getenv('PANCHANG_LOCATION_MODE', 'india_reference').strip().lower()
+    location_name = os.getenv('PANCHANG_LOCATION') or (
+        'Ujjain, Madhya Pradesh, India (India reference)'
+        if location_mode == 'india_reference'
+        else 'Ujjain, Madhya Pradesh, India'
+    )
     timezone_label = os.getenv('PANCHANG_TIMEZONE_LABEL', f'UTC{tz:+g}')
     panchang = get_complete_panchang(eval_date, lat=lat, lon=lon, tz=tz)
     panchang['location_name'] = location_name
@@ -357,6 +362,7 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         "card_5_jyotish": card_5_jyotish,
         "panchang_raw": panchang,
         "locationName": location_name,
+        "locationMode": location_mode,
         "timezoneLabel": timezone_label,
         **seo,
     }
