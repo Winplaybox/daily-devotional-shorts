@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { evaluateWorkflowHealth, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const expectation = {
@@ -173,4 +174,11 @@ test('marks a daily analytics run missing when no scheduled run follows today\'s
   });
   assert.equal(result.state, 'stale');
   assert.equal(result.expectedAt, '2026-11-07T04:00:00.000Z');
+});
+
+
+test('formats missing comment-intake secrets with a single newline escape', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/youtube-comment-intake.yml', import.meta.url), 'utf8');
+  assert.ok(workflow.includes(String.raw\`%s\n'\`));
+  assert.ok(!workflow.includes(String.raw\`%s\\n'\`));
 });
