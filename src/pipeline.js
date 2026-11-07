@@ -296,6 +296,11 @@ export function buildHindiNarration(data, durationSeconds = 60) {
   return parts.join(' ');
 }
 
+export function resolveHindiTtsVoice(configuredVoice = '') {
+  const candidate = String(configuredVoice || '').trim();
+  return /^hi-IN-[A-Za-z]+Neural$/.test(candidate) ? candidate : 'hi-IN-SwaraNeural';
+}
+
 export async function generateHindiNarration(data, durationSeconds = 60) {
   const sourcePath = path.join(OUT_DIR, `narration_source_${durationSeconds}.wav`);
   const narrationPath = path.resolve(`./public/narration${durationSeconds}.wav`);
@@ -303,67 +308,22 @@ export async function generateHindiNarration(data, durationSeconds = 60) {
 
   // Always generate duration-specific narration text
   const text = buildHindiNarration(data, durationSeconds);
-  const apiKey = process.env.GEMINI_API_KEY;
-  let generated = false;
-
-  if (apiKey) {
-    try {
-      console.log(`[TTS] Trying Gemini TTS for ${durationSeconds}s...`);
-      const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Speak the following Hindi Panchang narration clearly, warmly and naturally in a calm devotional presenter style. Do not add, omit or translate any information. Text: ' + text }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const detail = await response.text();
-        console.warn(`[TTS] Gemini returned HTTP ${response.status}; trying Edge TTS fallback. ` + detail.slice(0, 300));
-      } else {
-        const result = await response.json();
-        const part = result.candidates?.[0]?.content?.parts?.find(x => x.inlineData?.data);
-        if (!part) throw new Error('Gemini TTS returned no audio data.');
-        const pcm = Buffer.from(part.inlineData.data, 'base64');
-        const mime = part.inlineData.mimeType || 'audio/pcm;rate=24000';
-        const rate = Number(mime.match(/rate=(\d+)/)?.[1] || 24000);
-        const wavHeader = Buffer.alloc(44);
-        wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(36 + pcm.length, 4);
-        wavHeader.write('WAVE', 8); wavHeader.write('fmt ', 12);
-        wavHeader.writeUInt32LE(16, 16); wavHeader.writeUInt16LE(1, 20);
-        wavHeader.writeUInt16LE(1, 22); wavHeader.writeUInt32LE(rate, 24);
-        wavHeader.writeUInt32LE(rate * 2, 28); wavHeader.writeUInt16LE(2, 32);
-        wavHeader.writeUInt16LE(16, 34); wavHeader.write('data', 36);
-        wavHeader.writeUInt32LE(pcm.length, 40);
-        fs.writeFileSync(sourcePath, Buffer.concat([wavHeader, pcm]));
-        generated = true;
-        console.log(`[TTS] Gemini narration generated successfully for ${durationSeconds}s.`);
-      }
-    } catch (error) {
-      console.warn(`[TTS] Gemini failed for ${durationSeconds}s; trying Edge TTS fallback. ` + error.message);
-    }
-  }
-
-  if (!generated) {
-    const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
-    const python = process.platform === 'win32' ? 'python' : 'python3';
-    const voice = process.env.EDGE_TTS_VOICE || 'hi-IN-SwaraNeural';
-    const ttsRate = durationSeconds === 40 ? '+18%' : '+20%';
-    try {
-      execSync(`${python} -m edge_tts --voice "${voice}" --rate="${ttsRate}" --text ${JSON.stringify(text)} --write-media "${mp3Path}"`, {
-        stdio: 'inherit',
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      execSync(`${ffmpeg} -y -i "${mp3Path}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'inherit' });
-      console.log(`[TTS] Edge TTS fallback generated Hindi narration for ${durationSeconds}s using ${voice} at rate ${ttsRate}.`);
-    } catch (error) {
-      throw new Error(`TTS generation failed for ${durationSeconds}s. Details: ` + error.message);
-    }
+  // Hindi narration uses a Hindi-only Edge voice. Gemini TTS previously
+  // returned English speech for Hindi-script input when its language was
+  // inferred; do not allow that silent language fallback in production.
+  const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const voice = resolveHindiTtsVoice(process.env.EDGE_TTS_VOICE);
+  const ttsRate = durationSeconds === 40 ? '+18%' : '+20%';
+  try {
+    execSync(`${python} -m edge_tts --voice "${voice}" --rate="${ttsRate}" --text ${JSON.stringify(text)} --write-media "${mp3Path}"`, {
+      stdio: 'inherit',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    execSync(`${ffmpeg} -y -i "${mp3Path}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'inherit' });
+    console.log(`[TTS] Hindi narration generated using ${voice} at rate ${ttsRate}.`);
+  } catch (error) {
+    throw new Error(`Hindi TTS generation failed for ${durationSeconds}s using ${voice}. Details: ` + error.message);
   }
 
   // Measure actual audio duration and adjust tempo gracefully if needed
