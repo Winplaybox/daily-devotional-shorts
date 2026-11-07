@@ -39,7 +39,7 @@ def generate_seo_metadata(event: dict, panchang: dict, slot: str = "morning") ->
     description = f"""
 🙏 {event['title']} — {date_disp}
 
-सटीक दैनिक पंचांग, शुभ मुहूर्त व आज के विशेष समय:
+दैनिक पंचांग, शुभ मुहूर्त व आज के विशेष समय:
 ═══════════════════════════════════════════
 ✦ {event['label1']}: {event['val1']}
 ✦ {event['label2']}: {event['val2']}
@@ -74,7 +74,7 @@ def generate_seo_metadata(event: dict, panchang: dict, slot: str = "morning") ->
 उत्तर: आज दिशाशूल {panchang.get('disha_shool', 'पश्चिम दिशा')} में रहेगा।
 ═══════════════════════════════════════════
 
-🔔 प्रतिदिन सबसे पहले प्रामाणिक दैनिक पंचांग, चौघड़िया एवं शुभ मुहूर्त देखने के लिए हमारे चैनल @PavitraPanchang365 को अभी SUBSCRIBE करें!
+🔔 प्रतिदिन सबसे पहले दैनिक पंचांग, चौघड़िया एवं शुभ मुहूर्त देखने के लिए हमारे चैनल @PavitraPanchang365 को अभी SUBSCRIBE करें!
 
 📍 गणना संदर्भ: ${panchang.get('location_name', 'निर्दिष्ट संदर्भ स्थान')} | समय क्षेत्र: ${panchang.get('timezone_label', 'स्थानीय समय')}
 
