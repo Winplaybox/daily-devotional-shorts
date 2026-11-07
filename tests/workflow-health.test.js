@@ -115,3 +115,62 @@ test('sorts by scheduled run creation time, not API response order', () => {
   });
   assert.equal(result.runId, 2);
 });
+
+
+const publisherExpectation = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'daily-shorts-publisher.yml');
+const dailyNow = new Date('2026-11-07T10:30:00.000Z');
+
+test('configures the publisher expected UTC cron and a two-hour grace window', () => {
+  assert.deepEqual(publisherExpectation.dailyScheduleUtc, { hour: 0, minute: 30 });
+  assert.equal(publisherExpectation.graceMinutes, 120);
+});
+
+test('marks a daily publisher run late when it starts several hours after cron', () => {
+  const result = evaluateWorkflowHealth({
+    expectation: publisherExpectation,
+    runs: [run({ created_at: '2026-11-07T06:18:00.000Z' })],
+    now: dailyNow,
+  });
+  assert.equal(result.state, 'late');
+  assert.equal(result.scheduleDelayMinutes, 348);
+});
+
+test('marks a daily workflow missing after the expected cron grace expires', () => {
+  const result = evaluateWorkflowHealth({
+    expectation: publisherExpectation,
+    runs: [run({ created_at: '2026-11-06T00:30:00.000Z' })],
+    now: dailyNow,
+  });
+  assert.equal(result.state, 'stale');
+  assert.equal(result.expectedAt, '2026-11-07T00:30:00.000Z');
+});
+
+test('keeps a daily workflow pending while the expected cron is inside its grace window', () => {
+  const result = evaluateWorkflowHealth({
+    expectation: publisherExpectation,
+    runs: [run({ created_at: '2026-11-06T00:30:00.000Z' })],
+    now: new Date('2026-11-07T01:30:00.000Z'),
+  });
+  assert.equal(result.state, 'pending');
+});
+
+test('marks an on-time daily run healthy', () => {
+  const result = evaluateWorkflowHealth({
+    expectation: publisherExpectation,
+    runs: [run({ created_at: '2026-11-07T00:35:00.000Z' })],
+    now: dailyNow,
+  });
+  assert.equal(result.state, 'healthy');
+  assert.equal(result.scheduleDelayMinutes, 5);
+});
+
+test('marks a daily analytics run missing when no scheduled run follows today\'s cron', () => {
+  const analyticsExpectation = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'youtube-analytics.yml');
+  const result = evaluateWorkflowHealth({
+    expectation: analyticsExpectation,
+    runs: [run({ created_at: '2026-11-06T04:00:00.000Z' })],
+    now: new Date('2026-11-07T10:30:00.000Z'),
+  });
+  assert.equal(result.state, 'stale');
+  assert.equal(result.expectedAt, '2026-11-07T04:00:00.000Z');
+});
