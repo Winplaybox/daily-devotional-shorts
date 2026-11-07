@@ -46,6 +46,12 @@ class PanchangMetadataDisclosureTests(unittest.TestCase):
         description = generate_seo_metadata(self.event, self.panchang)["yt_description"]
         self.assertIn("डिजिटल टेक्स्ट-टू-स्पीच (TTS)", description)
 
+
+    def test_description_does_not_claim_unverified_precision_or_authenticity(self):
+        description = generate_seo_metadata(self.event, self.panchang)["yt_description"]
+        self.assertNotIn("सटीक दैनिक पंचांग", description)
+        self.assertNotIn("प्रामाणिक दैनिक पंचांग", description)
+
     def test_description_does_not_claim_unverified_accuracy_or_non_ai_media(self):
         description = generate_seo_metadata(self.event, self.panchang)["yt_description"]
         self.assertNotIn("100% मौलिक वैदिक खगोलीय गणना", description)
