@@ -1,9 +1,17 @@
 # India-wide, location-aware Panchang architecture
 
 ## Decision
-The engine has no single India-wide calculation location. Each video job must carry one
-explicit location with city, district, state, latitude, longitude, IANA timezone and
-date-specific UTC offset. No location may be inferred from the machine running the job.
+The engine supports two explicit modes:
+
+- `india_reference`: a no-configuration India-wide editorial edition using Ujjain,
+  Madhya Pradesh (23.1765 N, 75.7885 E; IST) as a clearly labelled reference city.
+- `city`: a location-specific edition using the configured city coordinates and timezone.
+
+The India reference mode prevents the daily production workflow from failing merely
+because optional location variables are unset. It does not claim that Ujjain sunrise,
+sunset, moonrise, Rahukaal or Muhurat timings apply across every Indian city. Every
+published asset must show its reference location. For precise local observance, use
+city mode with verified coordinates.
 
 ## Hybrid location strategy
 - Curated representative Indian cities are the default coverage pool.
@@ -42,7 +50,7 @@ coordinates. For neighbourhood-specific Muhurat, use locality coordinates rather
 than a state/city centroid.
 
 ## Safety and correctness gates
-1. Reject missing/unknown/inactive location IDs; do not fall back to Ujjain.
+1. In city mode, reject missing/unknown/inactive location IDs; in India reference mode, use the explicitly named Ujjain reference profile.
 2. Validate coordinate ranges and required location labels.
 3. Use the selected location's sunrise to anchor the sunrise-based Panchang day.
 4. Keep IANA timezone as canonical metadata; resolve a date-specific offset for the
@@ -55,7 +63,7 @@ than a state/city centroid.
    differs from the calculation input.
 
 ## Current scope
-This PR introduces the location registry, deterministic job manifest and unit tests.
+The daily production workflow defaults to the explicitly labelled India reference profile when city variables are absent. Existing repository variables override the reference coordinates and label. The location registry supports curated Indian cities and custom entries.
 The subsequent integration step must fan the manifest out into independent render/upload
 jobs, pass each location to `generate_daily_payload`, and ensure each output has a
 unique video ID and schedule. Do not enable nationwide auto-publishing until that
