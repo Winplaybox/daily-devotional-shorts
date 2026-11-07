@@ -130,8 +130,11 @@ def compute_scheduled_publish_time(slot: str, target_date: date) -> str:
     # Explicit one-off override for same-day catch-up publishing. Require an
     # offset-aware timestamp so the workflow cannot silently schedule in UTC.
     override = os.getenv("PANCHANG_PUBLISH_AT", "").strip()
-    override_slot = os.getenv("PANCHANG_PUBLISH_SLOT", "").strip().lower()
-    if override and (not override_slot or override_slot == slot):
+    # A manual timestamp is scoped to one explicitly selected publishing slot.
+    # The per-iteration PANCHANG_PUBLISH_SLOT is internal pipeline state and must
+    # not be confused with the operator's requested override target.
+    override_slot = os.getenv("PANCHANG_PUBLISH_OVERRIDE_SLOT", "").strip().lower()
+    if override and override_slot == slot:
         try:
             target = datetime.fromisoformat(override.replace("Z", "+00:00"))
         except ValueError as exc:

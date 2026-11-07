@@ -16,9 +16,18 @@ on:
         required: false
         type: string
       publish_at:
-        description: "Optional ISO-8601 timestamp for one-off catch-up scheduling"
+        description: "Optional ISO-8601 timestamp for one-off catch-up scheduling of the selected slot"
         required: false
         type: string
+      publish_slot:
+        description: "Slot that receives the one-off publish_at override"
+        required: false
+        default: morning
+        type: choice
+        options:
+          - morning
+          - afternoon
+          - evening
 
 permissions:
   contents: read
@@ -34,6 +43,7 @@ jobs:
     env:
       PANCHANG_DATE: ${{ inputs.panchang_date || '' }}
       PANCHANG_PUBLISH_AT: ${{ inputs.publish_at || '' }}
+      PANCHANG_PUBLISH_OVERRIDE_SLOT: ${{ inputs.publish_slot || 'morning' }}
       PANCHANG_PUBLISH_BUFFER_DAYS: ${{ vars.PANCHANG_PUBLISH_BUFFER_DAYS || '3' }}
       PANCHANG_SCHEDULE_TIMEZONE: ${{ vars.PANCHANG_SCHEDULE_TIMEZONE || 'Asia/Kolkata' }}
       PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
