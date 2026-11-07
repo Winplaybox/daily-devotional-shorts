@@ -52,6 +52,8 @@ jobs:
       PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
       PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
+      # Defaults are allowed for review renders, but production publishing requires explicit city coordinates and label.
+      PANCHANG_LOCATION_CONFIGURED: ${{ vars.PANCHANG_LAT != '' && vars.PANCHANG_LON != '' && vars.PANCHANG_LOCATION != '' }}
       # Fail closed by default; scheduled uploads require an explicit repository-variable opt-in.
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
       REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
@@ -143,6 +145,10 @@ jobs:
               elif not any((value.get(k) or (value.get("tokens") or {}).get(k) or (value.get("credentials") or {}).get(k)) for k in ("refresh_token", "access_token", "token")):
                   raise SystemExit("TOKEN_JSON must contain a Google OAuth refresh_token or access_token (root, tokens, or credentials object).")
           PY
+
+      - name: Validate explicit production Panchang location
+        if: env.REQUEST_UPLOAD == 'true' && env.AUTO_PUBLISH == 'true'
+        run: python -m engine.publish_location
 
       - name: Write OAuth files
         if: env.REQUEST_UPLOAD == 'true'
