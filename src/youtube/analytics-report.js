@@ -88,35 +88,99 @@ function rowsToObjects(report) {
   );
 }
 
-function numeric(value) {
-  if (value === null || value === undefined || value === '') return 0;
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function numeric(value) {
+  return numericOrNull(value) ?? 0;
 }
 
 function sumMetric(rows, key) {
   if (!rows.length) return null;
-  return rows.reduce((total, row) => total + numeric(row[key]), 0);
+  const values = rows.map((row) => numericOrNull(row[key])).filter((value) => value !== null);
+  if (!values.length) return null;
+  return values.reduce((total, value) => total + value, 0);
 }
 
 function weightedAverage(rows, valueKey, weightKey) {
-  const usable = rows.filter((row) =>
-    row[valueKey] !== null && row[valueKey] !== undefined &&
-    numeric(row[weightKey]) > 0 && Number.isFinite(Number(row[valueKey])),
-  );
+  const usable = rows
+    .map((row) => ({ value: numericOrNull(row[valueKey]), weight: numericOrNull(row[weightKey]) }))
+    .filter((row) => row.value !== null && row.weight !== null && row.weight > 0);
   if (!usable.length) return null;
-  const weight = usable.reduce((total, row) => total + numeric(row[weightKey]), 0);
-  return usable.reduce((total, row) => total + Number(row[valueKey]) * numeric(row[weightKey]), 0) / weight;
+  const weight = usable.reduce((total, row) => total + row.weight, 0);
+  return usable.reduce((total, row) => total + row.value * row.weight, 0) / weight;
+}
+
+function normalizeAnalyticsDay(value) {
+  const raw = String(value ?? '').trim();
+  if (/^\\d{8}$/.test(raw)) return raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8);
+  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return raw;
+  return null;
+}
+
+export function assessDailyCoverage(daily = [], range) {
+  if (!Array.isArray(daily) || !range?.startDate || !range?.endDate) {
+    throw new TypeError('Daily rows and a valid startDate/endDate range are required.');
+  }
+  const start = new Date(range.startDate + 'T00:00:00.000Z');
+  const end = new Date(range.endDate + 'T00:00:00.000Z');
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end < start ||
+      start.toISOString().slice(0, 10) !== range.startDate || end.toISOString().slice(0, 10) !== range.endDate) {
+    throw new RangeError('Analytics range must contain valid ordered YYYY-MM-DD dates.');
+  }
+
+  const expectedDates = [];
+  for (const cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    expectedDates.push(cursor.toISOString().slice(0, 10));
+  }
+  const counts = new Map();
+  for (const row of daily) {
+    const day = normalizeAnalyticsDay(row?.day);
+    if (day) counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  const expected = new Set(expectedDates);
+  const noRowDates = expectedDates.filter((day) => !counts.has(day));
+  const duplicateDates = [...counts.entries()].filter(([, count]) => count > 1).map(([day]) => day).sort();
+  const unexpectedDates = [...counts.keys()].filter((day) => !expected.has(day)).sort();
+  const returnedDays = expectedDates.length - noRowDates.length;
+
+  return {
+    expectedDays: expectedDates.length,
+    returnedDays,
+    noRowDates,
+    duplicateDates,
+    unexpectedDates,
+    coveragePercent: expectedDates.length ? Number((returnedDays / expectedDates.length * 100).toFixed(1)) : null,
+  };
+}
+
+export function assessMetricCoverage(rows = [], keys = []) {
+  if (!Array.isArray(rows) || !Array.isArray(keys)) {
+    throw new TypeError('Metric coverage requires row and metric arrays.');
+  }
+  return Object.fromEntries(keys.map((key) => {
+    const availableRows = rows.filter((row) => numericOrNull(row?.[key]) !== null).length;
+    return [key, {
+      availableRows,
+      missingRows: rows.length - availableRows,
+      totalRows: rows.length,
+      coveragePercent: rows.length ? Number((availableRows / rows.length * 100).toFixed(1)) : null,
+    }];
+  }));
 }
 
 function shortScore(row) {
-  return numeric(row.engagedViews ?? row.views);
+  return numericOrNull(row.engagedViews ?? row.views);
 }
 
 export function buildAnalyticsSummary({ daily = [], videos = [], trafficSources = [], revenue = null, currentSubscribers = null }) {
   const shorts = videos.filter((row) => row.creatorContentType === 'SHORTS');
-  const byEngagedViewsDesc = [...shorts].sort((a, b) => shortScore(b) - shortScore(a));
-  const byEngagedViewsAsc = [...shorts].sort((a, b) => shortScore(a) - shortScore(b));
+  const rankedShorts = shorts.filter((row) => shortScore(row) !== null);
+  const byEngagedViewsDesc = [...rankedShorts].sort((a, b) => shortScore(b) - shortScore(a));
+  const byEngagedViewsAsc = [...rankedShorts].sort((a, b) => shortScore(a) - shortScore(b));
   const shortsFeed = trafficSources.find((row) => row.insightTrafficSourceType === 'SHORTS');
   const views = sumMetric(daily, 'views');
   const engagedViews = sumMetric(daily, 'engagedViews');
@@ -135,7 +199,7 @@ export function buildAnalyticsSummary({ daily = [], videos = [], trafficSources 
     currentSubscribers: currentSubscribers === null || currentSubscribers === undefined ? null : numeric(currentSubscribers),
     averageViewDurationSeconds: weightedAverage(daily, 'averageViewDuration', 'views'),
     averageViewPercentage: weightedAverage(daily, 'averageViewPercentage', 'views'),
-    shortsFeedViews: shortsFeed ? numeric(shortsFeed.views) : (trafficSources.length ? 0 : null),
+    shortsFeedViews: shortsFeed ? numericOrNull(shortsFeed.views) : (trafficSources.length ? 0 : null),
     estimatedRevenue: revenue,
     shortsCount: shorts.length,
     topShorts: byEngagedViewsDesc.slice(0, 10),
@@ -167,6 +231,16 @@ async function main() {
   const daily = rowsToObjects(dailyResponse.data);
   const videoRows = rowsToObjects(videosResponse.data);
   const trafficSources = rowsToObjects(trafficResponse.data);
+  const dailyCoverage = assessDailyCoverage(daily, range);
+  const dailyMetricCoverage = assessMetricCoverage(daily, [
+    'views',
+    'engagedViews',
+    'estimatedMinutesWatched',
+    'averageViewDuration',
+    'averageViewPercentage',
+    'subscribersGained',
+    'subscribersLost',
+  ]);
   const videoIds = videoRows.map((row) => row.video).filter(Boolean);
   const metadata = new Map();
   for (let index = 0; index < videoIds.length; index += 50) {
@@ -198,6 +272,20 @@ async function main() {
     'Average view percentage is an average playback metric, not the full audience-retention curve.',
     'The SHORTS traffic-source row reports views referred from the Shorts feed; it is not the shown-in-feed or viewed-versus-swiped rate.',
   ];
+  if (dailyCoverage.noRowDates.length) {
+    notes.push(
+      'No daily row was returned for ' + dailyCoverage.noRowDates.length + ' of ' + dailyCoverage.expectedDays +
+      ' calendar dates; this can reflect no activity or reporting delay and is not treated as a confirmed zero.',
+    );
+  }
+  for (const [metric, coverage] of Object.entries(dailyMetricCoverage)) {
+    if (coverage.missingRows > 0) {
+      notes.push(
+        'Daily metric ' + metric + ' is present on ' + coverage.availableRows + ' of ' + coverage.totalRows +
+        ' returned rows; totals include available values only.',
+      );
+    }
+  }
 
   let revenue = null;
   if (hasMonetaryScope) {
@@ -231,6 +319,16 @@ async function main() {
     reportingTimeZone: ANALYTICS_TIME_ZONE,
     days,
     summary,
+    coverage: {
+      daily: dailyCoverage,
+      dailyMetrics: dailyMetricCoverage,
+      videoRows: {
+        returned: videoRows.length,
+        shorts: shorts.length,
+        unclassified: videoRows.filter((row) => !row.creatorContentType).length,
+      },
+      trafficSourceRows: trafficSources.length,
+    },
     daily,
     trafficSources,
     topVideos,
@@ -266,6 +364,8 @@ async function main() {
   console.log('[ANALYTICS] Views: ' + (summary.totalViews ?? 'unavailable') + '; engaged views: ' + (summary.engagedViews ?? 'unavailable'));
   console.log('[ANALYTICS] Watch hours: ' + (summary.watchHours ?? 'unavailable') + '; net subscribers: ' + (summary.netSubscribers ?? 'unavailable'));
   console.log('[ANALYTICS] Shorts: ' + shorts.length + '; traffic sources: ' + trafficSources.length);
+  console.log('[ANALYTICS] Daily rows: ' + dailyCoverage.returnedDays + '/' + dailyCoverage.expectedDays +
+    ' dates (' + dailyCoverage.coveragePercent + '%); metric coverage is recorded in the JSON report.');
   console.log('[ANALYTICS] Wrote ' + jsonPath + ' and ' + csvPath);
 }
 
