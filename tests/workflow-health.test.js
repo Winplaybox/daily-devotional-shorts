@@ -183,8 +183,8 @@ test('keeps scheduled and manual YouTube publishing disabled until owner approva
     'utf8',
   );
 
-  assert.match(workflow, /^\\s+AUTO_PUBLISH:\\s*['\"]false['\"]\\s*$/m);
-  assert.match(workflow, /^\\s+REQUEST_UPLOAD:\\s*['\"]false['\"]\\s*$/m);
-  assert.doesNotMatch(workflow, /^\\s+AUTO_PUBLISH:\\s*\\$\\{\\{\\s*vars\\.AUTO_PUBLISH/m);
-  assert.doesNotMatch(workflow, /^\\s+REQUEST_UPLOAD:\\s*\\$\\{\\{/m);
+  assert.match(workflow, /^\s+AUTO_PUBLISH:\s*['"]false['"]\s*$/m);
+  assert.match(workflow, /^\s+REQUEST_UPLOAD:\s*['"]false['"]\s*$/m);
+  assert.doesNotMatch(workflow, /^\s+AUTO_PUBLISH:\s*\$\{\{\s*vars\.AUTO_PUBLISH/m);
+  assert.doesNotMatch(workflow, /^\s+REQUEST_UPLOAD:\s*\$\{\{/m);
 });
