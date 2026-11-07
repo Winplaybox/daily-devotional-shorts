@@ -14,7 +14,8 @@
     "test": "npx tsx --test tests/panchang_validation.test.ts && node --test tests/request-intake.test.js tests/youtube-analytics.test.js tests/youtube-publish-idempotency.test.js tests/render-qc.test.js tests/hindi-tts-voice.test.js",
     "analytics:report": "node src/youtube/analytics-report.js",
     "render:40": "remotion render src/index.ts DailyShort40 out/short-40s.mp4",
-    "render:60": "remotion render src/index.ts DailyShort60 out/short-60s.mp4"
+    "render:60": "remotion render src/index.ts DailyShort60 out/short-60s.mp4",
+    "editorial:preview": "node scripts/preview-weekly-editorial-plan.js"
   },
   "dependencies": {
     "@google/genai": "^0.2.0",
