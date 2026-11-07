@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Upload both rendered Shorts to the authenticated YouTube channel"
+        description: "Upload all three rendered Shorts to the authenticated YouTube channel"
         required: true
         default: false
         type: boolean
@@ -119,10 +119,6 @@ jobs:
           [[ -n "$CLIENT_SECRET_JSON" ]] || { echo "::error::Missing Actions secret CLIENT_SECRET_JSON"; exit 1; }
           [[ -n "$TOKEN_JSON" ]] || { echo "::error::Missing Actions secret TOKEN_JSON"; exit 1; }
           [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Edge TTS fallback will be used."
-          [[ -n "$PANCHANG_LAT" && -n "$PANCHANG_LON" && -n "$PANCHANG_LOCATION" ]] || {
-            echo "::error::Set PANCHANG_LAT, PANCHANG_LON and PANCHANG_LOCATION repository variables before public publishing."
-            exit 1
-          }
           python - <<'PY'
           import json, os
           for key in ("CLIENT_SECRET_JSON", "TOKEN_JSON"):
