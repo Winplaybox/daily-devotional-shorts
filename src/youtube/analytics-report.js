@@ -196,7 +196,7 @@ export function buildAnalyticsSummary({ daily = [], videos = [], trafficSources 
     subscribersGained: gained,
     subscribersLost: lost,
     netSubscribers: gained === null || lost === null ? null : gained - lost,
-    currentSubscribers: currentSubscribers === null || currentSubscribers === undefined ? null : numeric(currentSubscribers),
+    currentSubscribers: numericOrNull(currentSubscribers),
     averageViewDurationSeconds: weightedAverage(daily, 'averageViewDuration', 'views'),
     averageViewPercentage: weightedAverage(daily, 'averageViewPercentage', 'views'),
     shortsFeedViews: shortsFeed ? numericOrNull(shortsFeed.views) : (trafficSources.length ? 0 : null),
