@@ -1,9 +1,10 @@
 """
-Astronomical Panchang Calculator
-Accurate real-time calculations based on Jean Meeus Astronomical Algorithms.
-Computes Tithi, Nakshatra, Yoga, Karana, Sunrise, Sunset, Rahukaal, Abhijit Muhurat,
-Brahma Muhurat, Godhuli Muhurat, and Choghadiya for any date and location.
-Zero external dependencies (uses standard math and datetime).
+Legacy Panchang calculator using Meeus-inspired astronomical approximations.
+
+This module currently supplies production Panchang values, but its outputs have
+not been independently validated against an approved reference corpus. Do not
+describe these values as exact, official, or universally applicable. The
+calculator uses a fixed UTC offset rather than an IANA timezone.
 """
 
 import sys
