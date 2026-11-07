@@ -112,9 +112,17 @@ function weightedAverage(rows, valueKey, weightKey) {
 
 function normalizeAnalyticsDay(value) {
   const raw = String(value ?? '').trim();
-  if (/^\d{8}$/.test(raw)) return raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  return null;
+  let normalized = null;
+  if (/^\d{8}$/.test(raw)) {
+    normalized = raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    normalized = raw;
+  }
+  if (!normalized) return null;
+  const parsed = new Date(normalized + 'T00:00:00.000Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === normalized
+    ? normalized
+    : null;
 }
 
 export function assessDailyCoverage(daily = [], range) {
@@ -133,9 +141,15 @@ export function assessDailyCoverage(daily = [], range) {
     expectedDates.push(cursor.toISOString().slice(0, 10));
   }
   const counts = new Map();
+  const invalidDayValues = [];
   for (const row of daily) {
-    const day = normalizeAnalyticsDay(row?.day);
-    if (day) counts.set(day, (counts.get(day) ?? 0) + 1);
+    const rawDay = row?.day;
+    const day = normalizeAnalyticsDay(rawDay);
+    if (!day) {
+      invalidDayValues.push(rawDay === null || rawDay === undefined || String(rawDay).trim() === '' ? '(missing)' : String(rawDay));
+      continue;
+    }
+    counts.set(day, (counts.get(day) ?? 0) + 1);
   }
   const expected = new Set(expectedDates);
   const noRowDates = expectedDates.filter((day) => !counts.has(day));
@@ -149,6 +163,8 @@ export function assessDailyCoverage(daily = [], range) {
     noRowDates,
     duplicateDates,
     unexpectedDates,
+    invalidDayRows: invalidDayValues.length,
+    invalidDayValues,
     coveragePercent: expectedDates.length ? Number((returnedDays / expectedDates.length * 100).toFixed(1)) : null,
   };
 }
@@ -169,7 +185,8 @@ export function assessMetricCoverage(rows = [], keys = []) {
 }
 
 function shortScore(row) {
-  return numericOrNull(row.engagedViews ?? row.views);
+  const engagedViews = numericOrNull(row.engagedViews);
+  return engagedViews !== null ? engagedViews : numericOrNull(row.views);
 }
 
 export function buildAnalyticsSummary({ daily = [], videos = [], trafficSources = [], revenue = null, currentSubscribers = null }) {
@@ -272,6 +289,11 @@ async function main() {
     notes.push(
       'No daily row was returned for ' + dailyCoverage.noRowDates.length + ' of ' + dailyCoverage.expectedDays +
       ' calendar dates; this can reflect no activity or reporting delay and is not treated as a confirmed zero.',
+    );
+  }
+  if (dailyCoverage.invalidDayRows > 0) {
+    notes.push(
+      dailyCoverage.invalidDayRows + ' daily row(s) had a missing or invalid date and were excluded from date coverage.',
     );
   }
   for (const [metric, coverage] of Object.entries(dailyMetricCoverage)) {
