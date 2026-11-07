@@ -45,12 +45,13 @@ def resolve_target_date(
 def parse_date_override(value: str) -> date:
     """Parse only a real ISO calendar date in the required YYYY-MM-DD format."""
     raw = value.strip() if isinstance(value, str) else ""
-    if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", raw):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
         raise ValueError("--date-override must use YYYY-MM-DD")
     try:
         return date.fromisoformat(raw)
     except ValueError as exc:
         raise ValueError("--date-override must be a valid calendar date in YYYY-MM-DD format") from exc
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
