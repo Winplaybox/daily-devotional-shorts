@@ -179,6 +179,6 @@ test('marks a daily analytics run missing when no scheduled run follows today\'s
 
 test('formats missing comment-intake secrets with a single newline escape', () => {
   const workflow = readFileSync(new URL('../.github/workflows/youtube-comment-intake.yml', import.meta.url), 'utf8');
-  assert.ok(workflow.includes(String.raw\`%s\n'\`));
-  assert.ok(!workflow.includes(String.raw\`%s\\n'\`));
+  assert.match(workflow, /printf '::error::Missing required GitHub Actions secrets: %s\\n'/);
+  assert.doesNotMatch(workflow, /printf '::error::Missing required GitHub Actions secrets: %s\\\\n'/);
 });
