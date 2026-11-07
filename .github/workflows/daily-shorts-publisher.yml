@@ -52,8 +52,8 @@ jobs:
       PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
       PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
-      # Existing automatic publishing behavior is preserved on the default branch.
-      AUTO_PUBLISH: 'true'
+      # Fail closed by default; scheduled uploads require an explicit repository-variable opt-in.
+      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
       REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
