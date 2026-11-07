@@ -5,6 +5,7 @@ import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
+import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
 
 import { fileURLToPath } from 'url';
 
@@ -501,7 +502,7 @@ async function addVideoToPlaylist(yt, playlistId, videoId) {
   }
 }
 
-async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
+async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContext) {
   console.log('[3/3] Uploading Short to YouTube (Scheduled Mode)...');
   try {
     const rawPublishAt = publishAt || metadata.publish_at || metadata.publishAt;
@@ -511,6 +512,30 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
     if (!Number.isFinite(targetPublishAt.getTime())) throw new Error('Invalid YouTube publishAt timestamp.');
     if (targetPublishAt.getTime() < Date.now() + 5 * 60 * 1000) throw new Error('Scheduled publish time must be at least 5 minutes in the future.');
     const publishAtIso = targetPublishAt.toISOString();
+    const jobTag = buildPublishJobTag(publishContext.panchangDate, publishContext.slot);
+    const tags = [...new Set([...(Array.isArray(metadata.yt_tags) ? metadata.yt_tags : []), jobTag])];
+
+    // Search the channel's uploads playlist before inserting. Retries must
+    // reuse an existing upload rather than create a second scheduled Short.
+    const existing = await findExistingUploadByJobTag(yt, publishContext.uploadsPlaylistId, jobTag);
+    if (existing) {
+      if (existing.snippet?.channelId !== publishContext.channelId) {
+        throw new Error(`Idempotency key ${jobTag} was found on an unexpected YouTube channel.`);
+      }
+      if (existing.snippet?.title !== metadata.yt_title) {
+        throw new Error(`Idempotency key ${jobTag} exists with a different title; refusing duplicate upload.`);
+      }
+      if (existing.status?.privacyStatus === "private") {
+        const existingPublishAt = Date.parse(existing.status?.publishAt || "");
+        if (!Number.isFinite(existingPublishAt) || Math.abs(existingPublishAt - targetPublishAt.getTime()) > 60_000) {
+          throw new Error(`Existing video for ${jobTag} has a different or unverifiable schedule; manual reconciliation required.`);
+        }
+      } else if (existing.status?.privacyStatus !== "public" || targetPublishAt.getTime() > Date.now()) {
+        throw new Error(`Existing video for ${jobTag} has unexpected privacy status; refusing duplicate upload.`);
+      }
+      console.log(`[IDEMPOTENCY] Existing upload found for ${jobTag}; skipping duplicate. URL: https://youtube.com/shorts/${existing.id}`);
+      return { videoId: existing.id, url: `https://youtube.com/shorts/${existing.id}`, skipped: true };
+    }
 
     console.log(`[SCHEDULE] Video will publish at: ${publishAtIso}`);
     console.log(`[SCHEDULE] Privacy: private until the scheduled publish time.`);
@@ -527,7 +552,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
         snippet: {
           title: metadata.yt_title,
           description: metadata.yt_description,
-          tags: metadata.yt_tags,
+          tags,
           categoryId: '22',
           defaultLanguage: 'hi',
         },
@@ -560,6 +585,12 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt) {
     }
     if (uploaded.snippet?.title !== metadata.yt_title) {
       throw new Error(`YouTube video ${videoId} title does not match the requested metadata.`);
+    }
+    if (uploaded.snippet?.channelId !== publishContext.channelId) {
+      throw new Error(`YouTube video ${videoId} is on an unexpected destination channel.`);
+    }
+    if (!Array.isArray(uploaded.snippet?.tags) || !uploaded.snippet.tags.includes(jobTag)) {
+      throw new Error(`YouTube video ${videoId} is missing its idempotency tag after upload read-back.`);
     }
 
     console.log(`\n==========================================================`);
@@ -631,16 +662,25 @@ async function run() {
     if (uploadRequested && autoPublishEnabled) {
       if (!hasValidCredentials()) throw new Error('Publishing requested but YouTube OAuth files are missing or invalid.');
       const yt = await getYouTubeClient();
-      const channel = await yt.channels.list({ part: ['snippet'], mine: true, maxResults: 1 });
+      const channel = await yt.channels.list({ part: ['snippet', 'contentDetails'], mine: true, maxResults: 1 });
       if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
-      console.log('[YOUTUBE] Authenticated channel: ' + channel.data.items[0].snippet.title);
+      const authenticatedChannel = channel.data.items[0];
+      const channelId = authenticatedChannel.id;
+      const uploadsPlaylistId = authenticatedChannel.contentDetails?.relatedPlaylists?.uploads;
+      if (!channelId || !uploadsPlaylistId) throw new Error('Authenticated YouTube channel is missing its channel ID or uploads playlist.');
+      console.log('[YOUTUBE] Authenticated channel: ' + authenticatedChannel.snippet.title);
 
       for (const output of outputs) {
         const publishAt = new Date(output.data.publish_at);
         if (!Number.isFinite(publishAt.getTime())) {
           throw new Error(`Panchang engine returned invalid publish_at for ${output.slot}.`);
         }
-        await uploadToYouTube(yt, output.videoPath, output.data, publishAt.toISOString());
+        await uploadToYouTube(yt, output.videoPath, output.data, publishAt.toISOString(), {
+          channelId,
+          uploadsPlaylistId,
+          slot: output.slot,
+          panchangDate: process.env.PANCHANG_DATE,
+        });
       }
     } else {
       console.log('\n[REVIEW] All three slots rendered. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
