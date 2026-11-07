@@ -89,8 +89,12 @@ function rowsToObjects(report) {
 }
 
 function numericOrNull(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const parsed = Number(value);
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
