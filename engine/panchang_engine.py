@@ -76,7 +76,11 @@ def generate_seo_metadata(event: dict, panchang: dict, slot: str = "morning") ->
 
 🔔 प्रतिदिन सबसे पहले प्रामाणिक दैनिक पंचांग, चौघड़िया एवं शुभ मुहूर्त देखने के लिए हमारे चैनल @PavitraPanchang365 को अभी SUBSCRIBE करें!
 
-✨ Content Policy Notice: यह वीडियो 100% मौलिक वैदिक खगोलीय गणना (Jean Meeus Astronomical Ephemeris) और Remotion 2D मोशन ग्राफ़िक्स द्वारा निर्मित है। No AI synthetic media used (Self-Declared Non-AI).
+📍 गणना संदर्भ: ${panchang.get('location_name', 'निर्दिष्ट संदर्भ स्थान')} | समय क्षेत्र: ${panchang.get('timezone_label', 'स्थानीय समय')}
+
+⚠️ सूचना: पंचांग समय चुने गए संदर्भ-स्थान और वर्तमान गणना पद्धति पर आधारित हैं। अन्य शहरों और क्षेत्रीय परंपराओं में अंतर हो सकता है। शुभ कार्य से पहले स्थानीय पंचांग/परंपरा से पुष्टि करें।
+
+🎙️ वाचन: डिजिटल टेक्स्ट-टू-स्पीच (TTS) आवाज़; दृश्य Remotion से तैयार किए गए हैं।
 
 #PavitraPanchang365 #Shorts #AajKaPanchang #Panchang #ShubhMuhurat #Bhakti #DailyMuhurat #SanatanaDharma #Devotional #Choghadiya #KalKaPanchang #Tithi
 """.strip()
