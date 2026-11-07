@@ -20,7 +20,7 @@ const threeUploads = [
   "🎉 YouTube upload and schedule verified!",
   "🎉 YouTube upload and schedule verified!",
   "🎉 YouTube upload and schedule verified!",
-].join("\\n");
+].join("\n");
 
 test("accepts only a successful canonical publisher run on main", () => {
   assert.equal(validatePublisherRunMetadata(validRun, "Winplaybox/daily-devotional-shorts"), true);
@@ -34,8 +34,8 @@ test("accepts only a successful canonical publisher run on main", () => {
 test("counts exactly three YouTube upload read-back confirmations", () => {
   assert.equal(countVerifiedUploadOutcomes(threeUploads), 3);
   assert.equal(assertThreeVerifiedUploadOutcomes(threeUploads), 3);
-  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads.split("\\n").slice(0, 2).join("\\n")), /found 2/);
-  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads + "\\n" + threeUploads), /found 6/);
+  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads.split("\n").slice(0, 2).join("\n")), /found 2/);
+  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads + "\n" + threeUploads), /found 6/);
 });
 
 test("counts idempotently reused uploads only when their deterministic slot tag is present", () => {
@@ -43,7 +43,7 @@ test("counts idempotently reused uploads only when their deterministic slot tag 
     "🎉 YouTube upload and schedule verified!",
     "🎉 YouTube upload and schedule verified!",
     "[IDEMPOTENCY] Existing upload found for pp365_job_20261110_evening; skipping duplicate.",
-  ].join("\\n");
+  ].join("\n");
   assert.equal(assertThreeVerifiedUploadOutcomes(mixed), 3);
   assert.equal(countVerifiedUploadOutcomes("[IDEMPOTENCY] Existing upload found for arbitrary-job; skipping duplicate."), 0);
 });
