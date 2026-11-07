@@ -303,12 +303,11 @@ describe('8. YouTube publishing opt-in safety', () => {
     const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
     const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
 
-    assert.match(
-      workflow,
-      /AUTO_PUBLISH:\\s*\\$\\{\\{\\s*vars\\.AUTO_PUBLISH\\s*\\|\\|\\s*'false'\\s*\\}\\}/,
+    assert.ok(
+      workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}"),
       'AUTO_PUBLISH must default to false when the repository variable is absent',
     );
-    assert.doesNotMatch(workflow, /AUTO_PUBLISH:\\s*'true'/);
-    assert.match(pipeline, /if\\s*\\(uploadRequested\\s*&&\\s*autoPublishEnabled\\)/);
+    assert.ok(!workflow.includes("AUTO_PUBLISH: 'true'"));
+    assert.ok(pipeline.includes('if (uploadRequested && autoPublishEnabled)'));
   });
 });
