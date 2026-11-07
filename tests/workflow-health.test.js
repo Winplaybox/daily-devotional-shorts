@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateWorkflowHealth } from '../src/ops/workflow-health.js';
+import { evaluateWorkflowHealth, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const expectation = {
   file: 'youtube-comment-intake.yml',
@@ -20,6 +20,12 @@ function run(overrides = {}) {
     ...overrides,
   };
 }
+
+test('configures a 45-minute freshness threshold for the 15-minute comment intake schedule', () => {
+  const configured = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'youtube-comment-intake.yml');
+  assert.ok(configured);
+  assert.equal(configured.maxAgeMinutes, 45);
+});
 
 test('marks a recent successful main-branch scheduled run healthy', () => {
   const result = evaluateWorkflowHealth({ expectation, runs: [run()], now });
