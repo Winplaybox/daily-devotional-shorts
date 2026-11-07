@@ -5,7 +5,7 @@ import { evaluateWorkflowHealth } from '../src/ops/workflow-health.js';
 const expectation = {
   file: 'youtube-comment-intake.yml',
   label: 'YouTube Comment Intake',
-  maxAgeMinutes: 90,
+  maxAgeMinutes: 45,
 };
 const now = new Date('2026-11-07T07:30:00.000Z');
 
@@ -53,11 +53,22 @@ test('ignores scheduled runs from feature branches', () => {
 test('marks a missed scheduled run stale after its freshness threshold', () => {
   const result = evaluateWorkflowHealth({
     expectation,
-    runs: [run({ created_at: '2026-11-07T05:59:00.000Z' })],
+    runs: [run({ created_at: '2026-11-07T06:44:00.000Z' })],
     now,
   });
   assert.equal(result.state, 'stale');
-  assert.equal(result.ageMinutes, 91);
+  assert.equal(result.ageMinutes, 46);
+});
+
+
+test('keeps a comment-intake run healthy at the 45-minute grace boundary', () => {
+  const result = evaluateWorkflowHealth({
+    expectation,
+    runs: [run({ created_at: '2026-11-07T06:45:00.000Z' })],
+    now,
+  });
+  assert.equal(result.state, 'healthy');
+  assert.equal(result.ageMinutes, 45);
 });
 
 test('marks the latest failed scheduled run as failed even when an older run succeeded', () => {
