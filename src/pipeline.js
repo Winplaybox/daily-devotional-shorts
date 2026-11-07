@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { validateRenderedVideoMetadata } from './video/render-qc.js';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
@@ -27,6 +28,20 @@ export function getBinaryPaths() {
   if (!cachedFfmpeg) cachedFfmpeg = 'ffmpeg';
   if (!cachedFfprobe) cachedFfprobe = 'ffprobe';
   return { ffmpeg: cachedFfmpeg, ffprobe: cachedFfprobe };
+}
+
+function validateRenderedVideo(videoPath, expectedDurationSeconds) {
+  if (!fs.existsSync(videoPath)) throw new Error(`Rendered video is missing: ${videoPath}`);
+  const fileSize = fs.statSync(videoPath).size;
+  const { ffprobe } = getBinaryPaths();
+  const output = execSync(`${ffprobe} -v error -show_entries format=duration:stream=codec_type,width,height -of json "${videoPath}"`, { encoding: 'utf8' });
+  const result = validateRenderedVideoMetadata({
+    fileSize,
+    probe: JSON.parse(output),
+    expectedDurationSeconds,
+  });
+  console.log(`[QC] Passed: ${videoPath} (${result.width}x${result.height}, ${result.durationSeconds.toFixed(2)}s, audio present, ${result.fileSize} bytes)`);
+  return result;
 }
 
 export function getAudioDuration(filePath) {
@@ -653,6 +668,7 @@ async function run() {
       const outputName = item.slot === 'morning' ? 'pavitra-panchang-40s.mp4' : item.slot === 'evening' ? 'pavitra-panchang-60s.mp4' : 'pavitra-panchang-afternoon-40s.mp4';
       const videoPath = path.join(OUT_DIR, outputName);
       await renderRemotionVideo(data, videoPath, item.durationSeconds);
+      validateRenderedVideo(videoPath, item.durationSeconds);
       outputs.push({ ...item, data, videoPath });
     }
 
