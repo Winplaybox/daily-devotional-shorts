@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { validateRenderedVideoMetadata } from './video/render-qc.js';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
@@ -296,9 +296,33 @@ export function buildHindiNarration(data, durationSeconds = 60) {
   return parts.join(' ');
 }
 
+const HINDI_TTS_VOICES = new Set(['hi-IN-SwaraNeural', 'hi-IN-MadhurNeural']);
+
 export function resolveHindiTtsVoice(configuredVoice = '') {
   const candidate = String(configuredVoice || '').trim();
-  return /^hi-IN-[A-Za-z]+Neural$/.test(candidate) ? candidate : 'hi-IN-SwaraNeural';
+  return HINDI_TTS_VOICES.has(candidate) ? candidate : 'hi-IN-SwaraNeural';
+}
+
+export function buildHindiTtsArgs({ configuredVoice = '', text, rate, outputPath }) {
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new TypeError('Hindi TTS text must be a non-empty string.');
+  }
+  if (typeof outputPath !== 'string' || !outputPath.trim()) {
+    throw new TypeError('Hindi TTS outputPath must be a non-empty string.');
+  }
+  if (!['+18%', '+20%'].includes(rate)) {
+    throw new TypeError('Hindi TTS rate must be one of the configured safe rates.');
+  }
+
+  // Return argv rather than a shell command: narration text can contain
+  // punctuation and must never be interpreted as shell syntax.
+  return [
+    '-m', 'edge_tts',
+    '--voice', resolveHindiTtsVoice(configuredVoice),
+    `--rate=${rate}`,
+    '--text', text,
+    '--write-media', outputPath,
+  ];
 }
 
 export async function generateHindiNarration(data, durationSeconds = 60) {
@@ -313,10 +337,16 @@ export async function generateHindiNarration(data, durationSeconds = 60) {
   // inferred; do not allow that silent language fallback in production.
   const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
   const python = process.platform === 'win32' ? 'python' : 'python3';
-  const voice = resolveHindiTtsVoice(process.env.EDGE_TTS_VOICE);
   const ttsRate = durationSeconds === 40 ? '+18%' : '+20%';
+  const ttsArgs = buildHindiTtsArgs({
+    configuredVoice: process.env.EDGE_TTS_VOICE,
+    text,
+    rate: ttsRate,
+    outputPath: mp3Path,
+  });
+  const voice = ttsArgs[3];
   try {
-    execSync(`${python} -m edge_tts --voice "${voice}" --rate="${ttsRate}" --text ${JSON.stringify(text)} --write-media "${mp3Path}"`, {
+    execFileSync(python, ttsArgs, {
       stdio: 'inherit',
       maxBuffer: 10 * 1024 * 1024,
     });
