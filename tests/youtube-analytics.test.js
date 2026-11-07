@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  assessDailyCoverage,
+  assessMetricCoverage,
   buildAnalyticsQueries,
   buildAnalyticsSummary,
   getAnalyticsDateRange,
@@ -80,4 +82,112 @@ test('analytics summary separates Shorts, computes watch hours and ranks top/wea
   assert.equal(summary.topShorts[0].video, 'top');
   assert.equal(summary.weakShorts[0].video, 'weak');
   assert.equal(summary.estimatedRevenue, null);
+});
+
+
+test('analytics totals preserve unavailable values instead of converting them to zero', () => {
+  const summary = buildAnalyticsSummary({
+    daily: [{
+      views: null,
+      engagedViews: null,
+      estimatedMinutesWatched: null,
+      subscribersGained: null,
+      subscribersLost: null,
+      averageViewDuration: null,
+      averageViewPercentage: null,
+    }],
+    videos: [{ video: 'unknown', creatorContentType: 'SHORTS', views: null, engagedViews: null }],
+    trafficSources: [],
+    revenue: null,
+    currentSubscribers: '0',
+  });
+
+  assert.equal(summary.totalViews, null);
+  assert.equal(summary.engagedViews, null);
+  assert.equal(summary.watchHours, null);
+  assert.equal(summary.subscribersGained, null);
+  assert.equal(summary.subscribersLost, null);
+  assert.equal(summary.netSubscribers, null);
+  assert.equal(summary.averageViewDurationSeconds, null);
+  assert.equal(summary.averageViewPercentage, null);
+  assert.equal(summary.currentSubscribers, 0);
+  assert.equal(summary.topShorts.length, 0);
+  assert.equal(summary.weakShorts.length, 0);
+});
+
+test('analytics totals preserve real zero values', () => {
+  const summary = buildAnalyticsSummary({
+    daily: [{
+      views: '0',
+      engagedViews: '0',
+      estimatedMinutesWatched: '0',
+      subscribersGained: '0',
+      subscribersLost: '0',
+      averageViewDuration: null,
+      averageViewPercentage: null,
+    }],
+    videos: [],
+    trafficSources: [],
+    revenue: 0,
+    currentSubscribers: '0',
+  });
+
+  assert.equal(summary.totalViews, 0);
+  assert.equal(summary.engagedViews, 0);
+  assert.equal(summary.watchHours, 0);
+  assert.equal(summary.subscribersGained, 0);
+  assert.equal(summary.subscribersLost, 0);
+  assert.equal(summary.netSubscribers, 0);
+  assert.equal(summary.estimatedRevenue, 0);
+});
+
+test('daily coverage reports absent, duplicate and unexpected dates without inventing zeros', () => {
+  const coverage = assessDailyCoverage([
+    { day: '2026-11-01', views: '10' },
+    { day: '20261103', views: '0' },
+    { day: '2026-11-03', views: '2' },
+    { day: '2026-11-04', views: '4' },
+  ], {
+    startDate: '2026-11-01',
+    endDate: '2026-11-03',
+  });
+
+  assert.equal(coverage.expectedDays, 3);
+  assert.equal(coverage.returnedDays, 2);
+  assert.deepEqual(coverage.noRowDates, ['2026-11-02']);
+  assert.deepEqual(coverage.duplicateDates, ['2026-11-03']);
+  assert.deepEqual(coverage.unexpectedDates, ['2026-11-04']);
+  assert.equal(coverage.coveragePercent, 66.7);
+});
+
+test('metric coverage exposes partial and unavailable metric rows', () => {
+  const coverage = assessMetricCoverage([
+    { views: '10', estimatedMinutesWatched: null },
+    { views: null, estimatedMinutesWatched: '0' },
+    { views: '0', estimatedMinutesWatched: '5' },
+  ], ['views', 'estimatedMinutesWatched', 'subscribersGained']);
+
+  assert.deepEqual(coverage.views, {
+    availableRows: 2,
+    missingRows: 1,
+    totalRows: 3,
+    coveragePercent: 66.7,
+  });
+  assert.deepEqual(coverage.estimatedMinutesWatched, {
+    availableRows: 2,
+    missingRows: 1,
+    totalRows: 3,
+    coveragePercent: 66.7,
+  });
+  assert.deepEqual(coverage.subscribersGained, {
+    availableRows: 0,
+    missingRows: 3,
+    totalRows: 3,
+    coveragePercent: 0,
+  });
+});
+
+test('daily coverage rejects malformed or reversed date ranges', () => {
+  assert.throws(() => assessDailyCoverage([], { startDate: '2026-02-30', endDate: '2026-03-01' }), RangeError);
+  assert.throws(() => assessDailyCoverage([], { startDate: '2026-11-03', endDate: '2026-11-01' }), RangeError);
 });
