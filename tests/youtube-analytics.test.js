@@ -115,6 +115,48 @@ test('analytics totals preserve unavailable values instead of converting them to
   assert.equal(summary.weakShorts.length, 0);
 });
 
+test('analytics parser treats whitespace and non-scalar values as unavailable', () => {
+  const summary = buildAnalyticsSummary({
+    daily: [{
+      views: '  ',
+      engagedViews: ' ',
+      estimatedMinutesWatched: ' ',
+      subscribersGained: ' ',
+      subscribersLost: ' ',
+      averageViewDuration: ' ',
+      averageViewPercentage: ' ',
+    }],
+    videos: [
+      { video: 'blank', creatorContentType: 'SHORTS', views: ' ', engagedViews: ' ' },
+      { video: 'fallback', creatorContentType: 'SHORTS', views: '4', engagedViews: ' ' },
+    ],
+    trafficSources: [{ insightTrafficSourceType: 'SHORTS', views: '  ' }],
+    revenue: null,
+    currentSubscribers: ' ',
+  });
+
+  assert.equal(summary.totalViews, null);
+  assert.equal(summary.engagedViews, null);
+  assert.equal(summary.watchHours, null);
+  assert.equal(summary.subscribersGained, null);
+  assert.equal(summary.subscribersLost, null);
+  assert.equal(summary.netSubscribers, null);
+  assert.equal(summary.averageViewDurationSeconds, null);
+  assert.equal(summary.averageViewPercentage, null);
+  assert.equal(summary.currentSubscribers, null);
+  assert.equal(summary.shortsFeedViews, null);
+  assert.deepEqual(summary.topShorts.map((row) => row.video), ['fallback']);
+  assert.deepEqual(summary.weakShorts.map((row) => row.video), ['fallback']);
+
+  const coverage = assessMetricCoverage([{ views: '  ' }, { views: '0' }], ['views']);
+  assert.deepEqual(coverage.views, {
+    availableRows: 1,
+    missingRows: 1,
+    totalRows: 2,
+    coveragePercent: 50,
+  });
+});
+
 test('analytics totals preserve real zero values', () => {
   const summary = buildAnalyticsSummary({
     daily: [{
