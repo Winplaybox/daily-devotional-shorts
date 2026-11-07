@@ -2,3 +2,4 @@
 skyfield==1.53
 jplephem==2.23
 numpy==2.2.6
+tzdata==2026.6
