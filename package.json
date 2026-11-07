@@ -11,7 +11,7 @@
     "dev": "remotion preview src/index.ts",
     "render": "remotion render src/index.ts DailyShort60 out/short-60s.mp4",
     "check": "node --check src/pipeline.js && npx tsc --noEmit",
-    "test": "npx tsx --test tests/panchang_validation.test.ts && node --test tests/request-intake.test.js tests/youtube-analytics.test.js",
+    "test": "npx tsx --test tests/panchang_validation.test.ts && node --test tests/request-intake.test.js tests/youtube-analytics.test.js tests/youtube-publish-idempotency.test.js",
     "analytics:report": "node src/youtube/analytics-report.js",
     "render:40": "remotion render src/index.ts DailyShort40 out/short-40s.mp4",
     "render:60": "remotion render src/index.ts DailyShort60 out/short-60s.mp4"
