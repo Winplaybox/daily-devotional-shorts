@@ -1,20 +1,17 @@
 /**
  * YouTube-native idempotency for scheduled Panchang Shorts.
- * The deterministic tag is stored in the video's tags, so it survives
- * GitHub Actions retries without requiring an additional secret or database.
+ * A deterministic video tag survives GitHub Actions retries without new secrets.
  */
-
 const VALID_SLOTS = new Set(["morning", "afternoon", "evening"]);
 
 export function buildPublishJobTag(panchangDate, slot) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(panchangDate))) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(panchangDate))) {
     throw new Error("Panchang date must use YYYY-MM-DD for the publish job key.");
   }
   if (!VALID_SLOTS.has(slot)) {
     throw new Error(`Unsupported publish slot for idempotency key: ${slot}`);
   }
-  const compactDate = panchangDate.replaceAll("-", "");
-  return `pp365_job_${compactDate}_${slot}`;
+  return `pp365_job_${panchangDate.replaceAll("-", "")}_${slot}`;
 }
 
 export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag) {
@@ -49,9 +46,7 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag) 
       );
       if (match) return match;
     }
-
     pageToken = page.data.nextPageToken || undefined;
   } while (pageToken);
-
   return null;
 }
