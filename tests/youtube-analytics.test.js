@@ -191,3 +191,35 @@ test('daily coverage rejects malformed or reversed date ranges', () => {
   assert.throws(() => assessDailyCoverage([], { startDate: '2026-02-30', endDate: '2026-03-01' }), RangeError);
   assert.throws(() => assessDailyCoverage([], { startDate: '2026-11-03', endDate: '2026-11-01' }), RangeError);
 });
+
+
+test('daily coverage reports invalid and missing day values', () => {
+  const coverage = assessDailyCoverage([
+    { day: '2026-02-30', views: '1' },
+    { day: 'not-a-date', views: '2' },
+    { views: '3' },
+    { day: '20261101', views: '0' },
+  ], {
+    startDate: '2026-11-01',
+    endDate: '2026-11-01',
+  });
+
+  assert.equal(coverage.returnedDays, 1);
+  assert.equal(coverage.invalidDayRows, 3);
+  assert.deepEqual(coverage.invalidDayValues, ['2026-02-30', 'not-a-date', '(missing)']);
+});
+
+test('Short ranking falls back to views when engaged views are blank or unavailable', () => {
+  const summary = buildAnalyticsSummary({
+    daily: [],
+    videos: [
+      { video: 'fallback', creatorContentType: 'SHORTS', views: '8', engagedViews: '' },
+      { video: 'unavailable', creatorContentType: 'SHORTS', views: null, engagedViews: null },
+    ],
+    trafficSources: [],
+  });
+
+  assert.equal(summary.topShorts.length, 1);
+  assert.equal(summary.topShorts[0].video, 'fallback');
+  assert.equal(summary.weakShorts[0].video, 'fallback');
+});
