@@ -12,7 +12,7 @@ export const WORKFLOW_EXPECTATIONS = [
   {
     file: 'youtube-comment-intake.yml',
     label: 'YouTube Comment Intake',
-    maxAgeMinutes: 90,
+    maxAgeMinutes: 45,
   },
 ];
 
