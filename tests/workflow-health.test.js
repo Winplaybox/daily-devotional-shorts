@@ -181,3 +181,16 @@ test('runs the schedule monitor every 30 minutes so intake staleness is checked 
   );
   assert.match(workflow, /cron:\s*["']\*\/30 \* \* \* \*["']/);
 });
+
+for (const [file, job] of [
+  ['make-social-publisher.yml', 'dispatch'],
+  ['meta-social-publisher.yml', 'publish'],
+]) {
+  test(`keeps ${file} hard-disabled until a separately approved publishing change`, () => {
+    const workflow = readFileSync(
+      new URL(`../.github/workflows/${file}`, import.meta.url),
+      'utf8',
+    );
+    assert.match(workflow, new RegExp(`^  ${job}:\\r?\\n    if:\\s*false\\b`, 'm'));
+  });
+}
