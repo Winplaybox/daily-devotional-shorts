@@ -2,8 +2,8 @@ name: Workflow Schedule Health Monitor
 
 on:
   schedule:
-    # Check cron freshness hourly without invoking any publishing workflow.
-    - cron: "45 * * * *"
+    # Run twice per hour so the 45-minute comment-intake threshold is not hidden by an hourly check.
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:

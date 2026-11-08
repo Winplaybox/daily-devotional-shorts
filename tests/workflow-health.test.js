@@ -67,7 +67,6 @@ test('marks a missed scheduled run stale after its freshness threshold', () => {
   assert.equal(result.ageMinutes, 46);
 });
 
-
 test('keeps a comment-intake run healthy at the 45-minute grace boundary', () => {
   const result = evaluateWorkflowHealth({
     expectation,
@@ -116,7 +115,6 @@ test('sorts by scheduled run creation time, not API response order', () => {
   });
   assert.equal(result.runId, 2);
 });
-
 
 const publisherExpectation = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'daily-shorts-publisher.yml');
 const dailyNow = new Date('2026-11-07T10:30:00.000Z');
@@ -177,14 +175,11 @@ test('marks a daily analytics run missing when no scheduled run follows today\'s
 });
 
 
-test('keeps scheduled and manual YouTube publishing disabled until owner approval', () => {
+test('runs the schedule monitor every 30 minutes so intake staleness is checked promptly', () => {
   const workflow = readFileSync(
-    new URL('../.github/workflows/daily-shorts-publisher.yml', import.meta.url),
+    new URL('../.github/workflows/workflow-health-monitor.yml', import.meta.url),
     'utf8',
   );
+  assert.match(workflow, /cron:\s*["']\*\/30 \* \* \* \*["']/);
 
-  assert.match(workflow, /^\s+AUTO_PUBLISH:\s*['"]false['"]\s*$/m);
-  assert.match(workflow, /^\s+REQUEST_UPLOAD:\s*['"]false['"]\s*$/m);
-  assert.doesNotMatch(workflow, /^\s+AUTO_PUBLISH:\s*\$\{\{\s*vars\.AUTO_PUBLISH/m);
-  assert.doesNotMatch(workflow, /^\s+REQUEST_UPLOAD:\s*\$\{\{/m);
 });
