@@ -7,9 +7,11 @@ back to a different city when a requested location cannot be resolved.
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import asdict, dataclass
 from typing import Iterable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,46 @@ class PanchangLocation:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+def _validate_timezone_and_offset(location: PanchangLocation) -> None:
+    """Validate the IANA zone and legacy reference offset for a registry entry.
+
+    The offset is bounded metadata only; date-specific offsets (including DST)
+    must be resolved from the IANA zone at the calculation instant.
+    """
+    timezone_name = location.timezone
+    if (
+        not isinstance(timezone_name, str)
+        or not timezone_name
+        or timezone_name != timezone_name.strip()
+    ):
+        raise ValueError(f"Location {location.location_id} needs a valid IANA timezone")
+
+    try:
+        ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid IANA timezone for {location.location_id}: {timezone_name!r}"
+        ) from exc
+
+    offset = location.timezone_offset_hours
+    try:
+        numeric_offset = float(offset)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            f"Invalid timezone_offset_hours for {location.location_id}"
+        ) from exc
+
+    if (
+        isinstance(offset, bool)
+        or not math.isfinite(numeric_offset)
+        or not -14 <= numeric_offset <= 14
+    ):
+        raise ValueError(
+            f"Invalid timezone_offset_hours for {location.location_id}: "
+            "expected a finite value between -14 and 14"
+        )
 
 
 # Representative city-centre reference coordinates. These are defaults for
@@ -65,6 +107,13 @@ def _custom_locations() -> list[PanchangLocation]:
         missing = [key for key in required if key not in item]
         if missing:
             raise ValueError(f"Custom location missing fields: {', '.join(missing)}")
+        raw_offset = item.get("timezone_offset_hours", 5.5)
+        if isinstance(raw_offset, bool):
+            raise ValueError("Custom timezone_offset_hours must be a finite number between -14 and 14")
+        try:
+            timezone_offset = float(raw_offset)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Custom timezone_offset_hours must be a finite number between -14 and 14") from exc
         result.append(PanchangLocation(
             location_id=str(item["location_id"]).strip().lower(),
             city=str(item["city"]).strip(),
@@ -73,7 +122,7 @@ def _custom_locations() -> list[PanchangLocation]:
             latitude=float(item["latitude"]),
             longitude=float(item["longitude"]),
             timezone=str(item.get("timezone", "Asia/Kolkata")),
-            timezone_offset_hours=float(item.get("timezone_offset_hours", 5.5)),
+            timezone_offset_hours=timezone_offset,
             active=bool(item.get("active", True)),
             source="custom",
         ))
@@ -88,6 +137,7 @@ def get_location_registry() -> dict[str, PanchangLocation]:
             raise ValueError(f"Duplicate or empty location_id: {location.location_id!r}")
         if not (-90 <= location.latitude <= 90 and -180 <= location.longitude <= 180):
             raise ValueError(f"Invalid coordinates for {location.location_id}")
+        _validate_timezone_and_offset(location)
         if not location.city or not location.state:
             raise ValueError(f"Location {location.location_id} needs city and state")
         registry[location.location_id] = location
