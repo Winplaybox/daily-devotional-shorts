@@ -31,8 +31,7 @@ concurrency:
 
 jobs:
   dispatch:
-    # Fail closed until a separate owner-approved change re-enables social publishing.
-    if: false
+    if: false # Fail closed until a separate owner-approved change re-enables social publishing.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
