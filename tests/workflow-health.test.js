@@ -174,10 +174,12 @@ test('marks a daily analytics run missing when no scheduled run follows today\'s
   assert.equal(result.expectedAt, '2026-11-07T04:00:00.000Z');
 });
 
+
 test('runs the schedule monitor every 30 minutes so intake staleness is checked promptly', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/workflow-health-monitor.yml', import.meta.url),
     'utf8',
   );
   assert.match(workflow, /cron:\s*["']\*\/30 \* \* \* \*["']/);
+
 });

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Upload all three rendered Shorts to the authenticated YouTube channel"
+        description: "Temporarily disabled. Selecting true has no effect until a separately reviewed owner-approved change re-enables publishing."
         required: true
         default: false
         type: boolean
@@ -54,9 +54,10 @@ jobs:
       PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
       # Defaults are allowed for review renders, but production publishing requires explicit city coordinates and label.
       PANCHANG_LOCATION_CONFIGURED: ${{ vars.PANCHANG_LAT != '' && vars.PANCHANG_LON != '' && vars.PANCHANG_LOCATION != '' }}
-      # Fail closed by default; scheduled uploads require an explicit repository-variable opt-in.
-      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}
-      REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+      # Public uploads are disabled until a separate owner-approved code change is reviewed.
+      # Do not derive these gates from repository variables while the approval state is unresolved.
+      AUTO_PUBLISH: 'false'
+      REQUEST_UPLOAD: 'false'
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
