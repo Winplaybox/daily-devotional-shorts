@@ -23,10 +23,10 @@ const validRun = {
 };
 
 const threeUploads = [
-  "🎉 YouTube upload and schedule verified!",
-  "🎉 YouTube upload and schedule verified!",
-  "🎉 YouTube upload and schedule verified!",
-].join("\n");
+  "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+  "[UPLOAD VERIFIED] pp365_job_20261110_afternoon: YouTube upload and schedule verified!",
+  "[UPLOAD VERIFIED] pp365_job_20261110_evening: YouTube upload and schedule verified!",
+].join("\\n");
 
 test("Make workflow invokes the existing YouTube source-run verifier entrypoint", () => {
   const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
@@ -77,19 +77,44 @@ test("accepts only a successful canonical publisher run on main", () => {
   assert.throws(() => validatePublisherRunMetadata(validRun, "someone/else"), /different repository/);
 });
 
-test("counts exactly three YouTube upload read-back confirmations", () => {
+test("requires one distinct YouTube upload read-back confirmation for each daily slot", () => {
   assert.equal(countVerifiedUploadOutcomes(threeUploads), 3);
   assert.equal(assertThreeVerifiedUploadOutcomes(threeUploads), 3);
-  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads.split("\n").slice(0, 2).join("\n")), /found 2/);
-  assert.throws(() => assertThreeVerifiedUploadOutcomes(threeUploads + "\n" + threeUploads), /found 6/);
+  assert.throws(
+    () => assertThreeVerifiedUploadOutcomes(threeUploads.split("\\n").slice(0, 2).join("\\n")),
+    /found 2 distinct slot tags/,
+  );
+
+  const repeatedMorning = [
+    "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+  ].join("\\n");
+  assert.equal(countVerifiedUploadOutcomes(repeatedMorning), 1);
+  assert.throws(() => assertThreeVerifiedUploadOutcomes(repeatedMorning), /found 1 distinct slot tags/);
+
+  const mixedDates = [
+    "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261110_afternoon: YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261111_evening: YouTube upload and schedule verified!",
+  ].join("\\n");
+  assert.throws(() => assertThreeVerifiedUploadOutcomes(mixedDates), /one Panchang date/);
+
+  // Repeated log fragments for the same three deterministic slot tags do not inflate the count.
+  assert.equal(assertThreeVerifiedUploadOutcomes(threeUploads + "\\n" + threeUploads), 3);
+});
+
+test("publisher success logs include the deterministic date-and-slot tag", () => {
+  const pipeline = readFileSync(path.join(repositoryRoot, "src", "pipeline.js"), "utf8");
+  assert.match(pipeline, /\\[UPLOAD VERIFIED\\] \\$\\{jobTag\\}: YouTube upload and schedule verified!/);
 });
 
 test("counts idempotently reused uploads only when their deterministic slot tag is present", () => {
   const mixed = [
-    "🎉 YouTube upload and schedule verified!",
-    "🎉 YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261110_morning: YouTube upload and schedule verified!",
+    "[UPLOAD VERIFIED] pp365_job_20261110_afternoon: YouTube upload and schedule verified!",
     "[IDEMPOTENCY] Existing upload found for pp365_job_20261110_evening; skipping duplicate.",
-  ].join("\n");
+  ].join("\\n");
   assert.equal(assertThreeVerifiedUploadOutcomes(mixed), 3);
   assert.equal(countVerifiedUploadOutcomes("[IDEMPOTENCY] Existing upload found for arbitrary-job; skipping duplicate."), 0);
 });
