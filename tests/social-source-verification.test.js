@@ -1,11 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertThreeVerifiedUploadOutcomes,
   countVerifiedUploadOutcomes,
   validatePublisherRunMetadata,
   verifyPublisherSourceRun,
 } from "../src/social/source-run-verifier.js";
+
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const validRun = {
   path: ".github/workflows/daily-shorts-publisher.yml",
@@ -21,6 +26,16 @@ const threeUploads = [
   "🎉 YouTube upload and schedule verified!",
   "🎉 YouTube upload and schedule verified!",
 ].join("\n");
+
+test("Make workflow invokes the existing YouTube source-run verifier entrypoint", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
+  const verifierPath = path.join(repositoryRoot, "src", "social", "source-run-verifier.js");
+  const workflow = readFileSync(workflowPath, "utf8");
+
+  assert.equal(existsSync(verifierPath), true);
+  assert.match(workflow, /run:\s*node\s+src\/social\/source-run-verifier\.js/);
+  assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
+});
 
 test("accepts only a successful canonical publisher run on main", () => {
   assert.equal(validatePublisherRunMetadata(validRun, "Winplaybox/daily-devotional-shorts"), true);
