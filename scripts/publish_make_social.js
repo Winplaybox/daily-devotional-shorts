@@ -54,16 +54,17 @@ async function main() {
   const metadataPath = process.env.PANCHANG_METADATA_PATH || 'out/daily_props.json';
   await fs.access(videoPath);
   const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+  // Validate all metadata needed for distribution before creating an external storage object.
+  const publishDate = resolvePanchangDate(metadata);
   const sourceRunId = required('SOURCE_RUN_ID');
   const sourceRunNumber = required('SOURCE_RUN_NUMBER');
   const runKey = `panchang-${sourceRunId}`;
-  const videoUrl = await uploadToSupabase(videoPath, runKey);
 
   const title = String(metadata.yt_title || metadata.title || 'आज का पंचांग | Pavitra Panchang 365');
   const youtubeDescription = String(metadata.yt_description || metadata.description || '');
   const tags = Array.isArray(metadata.yt_tags) ? metadata.yt_tags : [];
   const caption = String(process.env.MAKE_SOCIAL_CAPTION || youtubeDescription).slice(0, 2200);
-  const publishDate = resolvePanchangDate(metadata);
+  const videoUrl = await uploadToSupabase(videoPath, runKey);
   const payload = {
     event_id: runKey,
     source: 'github-actions',
