@@ -8,7 +8,7 @@ function required(name) {
 }
 
 async function uploadToSupabase(videoPath, runKey) {
-  const baseUrl = required('SUPABASE_URL').replace(/\\/$/, '');
+  const baseUrl = required('SUPABASE_URL').replace(/\/+$/, '');
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const bucket = process.env.SUPABASE_SOCIAL_BUCKET || 'social-publishing';
   const safeKey = runKey.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -39,7 +39,7 @@ async function main() {
   const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
   const sourceRunId = required('SOURCE_RUN_ID');
   const sourceRunNumber = required('SOURCE_RUN_NUMBER');
-  const runKey = `panchang-${sourceRunId}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`;
+  const runKey = `panchang-${sourceRunId}`;
   const videoUrl = await uploadToSupabase(videoPath, runKey);
 
   const title = String(metadata.yt_title || metadata.title || 'आज का पंचांग | Pavitra Panchang 365');
@@ -62,7 +62,7 @@ async function main() {
     caption,
     description: youtubeDescription,
     hashtags: tags.filter((tag) => typeof tag === 'string').slice(0, 30),
-    platforms: ['instagram_reels', 'facebook_reels', 'pinterest_video_pin'],
+    platforms: ['instagram_reels', 'facebook_reels'],
     requested_at: new Date().toISOString(),
     publish_mode: process.env.MAKE_SOCIAL_PUBLISH_MODE || 'publish_now',
   };
