@@ -1,5 +1,22 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+export function resolvePanchangDate(metadata, fallbackDate = process.env.PANCHANG_DATE || '') {
+  const value = String(
+    metadata?.date ||
+    metadata?.panchang_date ||
+    metadata?.date_meta?.gregorian_date ||
+    metadata?.panchang_raw?.date ||
+    fallbackDate ||
+    ''
+  ).trim();
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value + 'T00:00:00.000Z') : null;
+  if (!parsed || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new Error('Panchang metadata is missing a valid Gregorian date; refusing social dispatch.');
+  }
+  return value;
+}
 
 function required(name) {
   const value = process.env[name];
@@ -37,16 +54,17 @@ async function main() {
   const metadataPath = process.env.PANCHANG_METADATA_PATH || 'out/daily_props.json';
   await fs.access(videoPath);
   const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+  // Validate all metadata needed for distribution before creating an external storage object.
+  const publishDate = resolvePanchangDate(metadata);
   const sourceRunId = required('SOURCE_RUN_ID');
   const sourceRunNumber = required('SOURCE_RUN_NUMBER');
   const runKey = `panchang-${sourceRunId}`;
-  const videoUrl = await uploadToSupabase(videoPath, runKey);
 
   const title = String(metadata.yt_title || metadata.title || 'आज का पंचांग | Pavitra Panchang 365');
   const youtubeDescription = String(metadata.yt_description || metadata.description || '');
   const tags = Array.isArray(metadata.yt_tags) ? metadata.yt_tags : [];
   const caption = String(process.env.MAKE_SOCIAL_CAPTION || youtubeDescription).slice(0, 2200);
-  const publishDate = String(metadata.date || metadata.panchang_date || process.env.PANCHANG_DATE || '');
+  const videoUrl = await uploadToSupabase(videoPath, runKey);
   const payload = {
     event_id: runKey,
     source: 'github-actions',
@@ -92,7 +110,10 @@ async function main() {
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error('[MAKE SOCIAL PUBLISHER] Failed:', error.message);
-  process.exitCode = 1;
-});
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  main().catch((error) => {
+    console.error('[MAKE SOCIAL PUBLISHER] Failed:', error.message);
+    process.exitCode = 1;
+  });
+}

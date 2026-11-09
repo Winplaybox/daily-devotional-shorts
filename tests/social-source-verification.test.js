@@ -1,11 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolvePanchangDate } from "../scripts/publish_make_social.js";
 import {
   assertThreeVerifiedUploadOutcomes,
   countVerifiedUploadOutcomes,
   validatePublisherRunMetadata,
   verifyPublisherSourceRun,
 } from "../src/social/source-run-verifier.js";
+
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const validRun = {
   path: ".github/workflows/daily-shorts-publisher.yml",
@@ -21,6 +27,46 @@ const threeUploads = [
   "🎉 YouTube upload and schedule verified!",
   "🎉 YouTube upload and schedule verified!",
 ].join("\n");
+
+test("Make workflow invokes the existing YouTube source-run verifier entrypoint", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
+  const verifierPath = path.join(repositoryRoot, "src", "social", "source-run-verifier.js");
+  const workflow = readFileSync(workflowPath, "utf8");
+
+  assert.equal(existsSync(verifierPath), true);
+  assert.match(workflow, /run:\s*node\s+src\/social\/source-run-verifier\.js/);
+  assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
+});
+
+test("Make workflow consumes the morning metadata artifact produced by the publisher", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
+  const pipelinePath = path.join(repositoryRoot, "src", "pipeline.js");
+  const workflow = readFileSync(workflowPath, "utf8");
+  const pipeline = readFileSync(pipelinePath, "utf8");
+
+  assert.match(pipeline, /daily_props_\$\{slot\}\.json/);
+  assert.match(workflow, /test -s out\/daily_props_morning\.json/);
+  assert.match(workflow, /PANCHANG_METADATA_PATH:\s*out\/daily_props_morning\.json/);
+  assert.doesNotMatch(workflow, /out\/daily_props\.json/);
+});
+
+test("social payload date resolves from the publisher's canonical date metadata", () => {
+  assert.equal(resolvePanchangDate({ date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-10");
+  assert.equal(resolvePanchangDate({ date: "2026-11-09", date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-09");
+  assert.equal(resolvePanchangDate({}, "2026-11-12"), "2026-11-12");
+  assert.throws(() => resolvePanchangDate({}), /valid Gregorian date/);
+  assert.throws(() => resolvePanchangDate({ date_meta: { gregorian_date: "2026-99-99" } }), /valid Gregorian date/);
+});
+
+test("Panchang date validation occurs before the external Supabase upload", () => {
+  const publisherScript = readFileSync(path.join(repositoryRoot, "scripts", "publish_make_social.js"), "utf8");
+  const dateValidation = publisherScript.indexOf("const publishDate = resolvePanchangDate(metadata);");
+  const storageUpload = publisherScript.indexOf("const videoUrl = await uploadToSupabase(videoPath, runKey);");
+
+  assert.notEqual(dateValidation, -1);
+  assert.notEqual(storageUpload, -1);
+  assert.ok(dateValidation < storageUpload, "invalid Panchang metadata must fail before an external storage write");
+});
 
 test("accepts only a successful canonical publisher run on main", () => {
   assert.equal(validatePublisherRunMetadata(validRun, "Winplaybox/daily-devotional-shorts"), true);
