@@ -31,7 +31,9 @@ concurrency:
 
 jobs:
   dispatch:
-    if: false # Fail closed until a separate owner-approved change re-enables social publishing.
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish == true)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
