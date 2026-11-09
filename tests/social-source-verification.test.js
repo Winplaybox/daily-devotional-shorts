@@ -58,6 +58,16 @@ test("social payload date resolves from the publisher's canonical date metadata"
   assert.throws(() => resolvePanchangDate({ date_meta: { gregorian_date: "2026-99-99" } }), /valid Gregorian date/);
 });
 
+test("Panchang date validation occurs before the external Supabase upload", () => {
+  const publisherScript = readFileSync(path.join(repositoryRoot, "scripts", "publish_make_social.js"), "utf8");
+  const dateValidation = publisherScript.indexOf("const publishDate = resolvePanchangDate(metadata);");
+  const storageUpload = publisherScript.indexOf("const videoUrl = await uploadToSupabase(videoPath, runKey);");
+
+  assert.notEqual(dateValidation, -1);
+  assert.notEqual(storageUpload, -1);
+  assert.ok(dateValidation < storageUpload, "invalid Panchang metadata must fail before an external storage write");
+});
+
 test("accepts only a successful canonical publisher run on main", () => {
   assert.equal(validatePublisherRunMetadata(validRun, "Winplaybox/daily-devotional-shorts"), true);
   assert.throws(() => validatePublisherRunMetadata({ ...validRun, path: ".github/workflows/other.yml" }), /canonical/);
