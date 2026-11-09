@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolvePanchangDate } from "../scripts/publish_make_social.js";
 import {
   assertThreeVerifiedUploadOutcomes,
   countVerifiedUploadOutcomes,
@@ -47,6 +48,14 @@ test("Make workflow consumes the morning metadata artifact produced by the publi
   assert.match(workflow, /test -s out\/daily_props_morning\.json/);
   assert.match(workflow, /PANCHANG_METADATA_PATH:\s*out\/daily_props_morning\.json/);
   assert.doesNotMatch(workflow, /out\/daily_props\.json/);
+});
+
+test("social payload date resolves from the publisher's canonical date metadata", () => {
+  assert.equal(resolvePanchangDate({ date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-10");
+  assert.equal(resolvePanchangDate({ date: "2026-11-09", date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-09");
+  assert.equal(resolvePanchangDate({}, "2026-11-12"), "2026-11-12");
+  assert.throws(() => resolvePanchangDate({}), /valid Gregorian date/);
+  assert.throws(() => resolvePanchangDate({ date_meta: { gregorian_date: "2026-99-99" } }), /valid Gregorian date/);
 });
 
 test("accepts only a successful canonical publisher run on main", () => {
