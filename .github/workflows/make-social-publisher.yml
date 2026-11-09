@@ -71,13 +71,13 @@ jobs:
         run: |
           set -euo pipefail
           test -s out/pavitra-panchang-40s.mp4
-          test -s out/daily_props.json
-          node -e "JSON.parse(require('fs').readFileSync('out/daily_props.json','utf8'));"
+          test -s out/daily_props_morning.json
+          node -e "JSON.parse(require('fs').readFileSync('out/daily_props_morning.json','utf8'));"
 
       - name: Upload media and dispatch Make scenario
         env:
           META_VIDEO_PATH: out/pavitra-panchang-40s.mp4
-          PANCHANG_METADATA_PATH: out/daily_props.json
+          PANCHANG_METADATA_PATH: out/daily_props_morning.json
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
           SOURCE_RUN_NUMBER: ${{ github.event.workflow_run.run_number || inputs.run_number }}
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
