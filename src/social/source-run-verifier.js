@@ -36,8 +36,8 @@ function collectVerifiedUploadTags(logText) {
   const log = String(logText || "");
   const tags = new Set();
   const patterns = [
-    /\\[UPLOAD VERIFIED\\]\\s+(pp365_job_(\\d{8})_(morning|afternoon|evening)):\\s+YouTube upload and schedule verified!/g,
-    /\\[IDEMPOTENCY\\] Existing upload found for (pp365_job_(\\d{8})_(morning|afternoon|evening)); skipping duplicate\\./g,
+    /\[UPLOAD VERIFIED\]\s+(pp365_job_(\d{8})_(morning|afternoon|evening)):\s+YouTube upload and schedule verified!/g,
+    /\[IDEMPOTENCY\] Existing upload found for (pp365_job_(\d{8})_(morning|afternoon|evening)); skipping duplicate\./g,
   ];
 
   for (const pattern of patterns) {
@@ -52,7 +52,7 @@ export function countVerifiedUploadOutcomes(logText) {
 
 export function assertThreeVerifiedUploadOutcomes(logText) {
   const tags = collectVerifiedUploadTags(logText);
-  const parsed = tags.map((tag) => /^pp365_job_(\\d{8})_(morning|afternoon|evening)$/.exec(tag));
+  const parsed = tags.map((tag) => /^pp365_job_(\d{8})_(morning|afternoon|evening)$/.exec(tag));
   const dates = new Set(parsed.map((match) => match[1]));
   const slots = new Set(parsed.map((match) => match[2]));
   const expectedSlots = ["morning", "afternoon", "evening"];
