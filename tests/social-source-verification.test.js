@@ -37,6 +37,18 @@ test("Make workflow invokes the existing YouTube source-run verifier entrypoint"
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
 });
 
+test("Make workflow consumes the morning metadata artifact produced by the publisher", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
+  const pipelinePath = path.join(repositoryRoot, "src", "pipeline.js");
+  const workflow = readFileSync(workflowPath, "utf8");
+  const pipeline = readFileSync(pipelinePath, "utf8");
+
+  assert.match(pipeline, /daily_props_\$\{slot\}\.json/);
+  assert.match(workflow, /test -s out\/daily_props_morning\.json/);
+  assert.match(workflow, /PANCHANG_METADATA_PATH:\s*out\/daily_props_morning\.json/);
+  assert.doesNotMatch(workflow, /out\/daily_props\.json/);
+});
+
 test("accepts only a successful canonical publisher run on main", () => {
   assert.equal(validatePublisherRunMetadata(validRun, "Winplaybox/daily-devotional-shorts"), true);
   assert.throws(() => validatePublisherRunMetadata({ ...validRun, path: ".github/workflows/other.yml" }), /canonical/);
