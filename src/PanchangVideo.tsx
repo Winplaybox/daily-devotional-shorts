@@ -12,6 +12,7 @@ import {loadFont as loadRozha} from '@remotion/google-fonts/RozhaOne';
 import {loadFont as loadNotoSans} from '@remotion/google-fonts/NotoSansDevanagari';
 import {noise2D} from '@remotion/noise';
 import {Star} from '@remotion/shapes';
+import { getAfternoonSlotContent } from './editorial/slot-content.js';
 
 // Load authentic Google Fonts natively via @remotion/google-fonts
 const {fontFamily: rozhaFont} = loadRozha();
@@ -357,6 +358,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
     festivalTitle,
     dishaGuidance
   } = mapPanchangData(props);
+  const afternoonSlotContent = getAfternoonSlotContent(props);
 
   // Animation values using @remotion/noise for organic movement
   const entrance = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
@@ -678,36 +680,38 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           </div>
         </div>
 
-        {/* --- SECTION 5: CHOGHADIYA MUHURAT (Remocn-inspired GlowGlassCard) --- */}
-        <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 900,
-              color: GOLD_LIGHT,
-              marginBottom: 8,
-              letterSpacing: 1.5,
-              fontFamily: notoFont,
-              textShadow: '0 2px 6px #000'
-            }}
-          >
-            चौघड़िया मुहूर्त
-          </div>
-          <div
-            style={{
-              fontSize: 25,
-              fontWeight: 750,
-              color: WHITE,
-              lineHeight: 1.45,
-              fontFamily: notoFont,
-              textShadow: '0 2px 6px #000'
-            }}
-          >
-            {choghadiyaLines.map((line, idx) => (
-              <div key={idx}>{line}</div>
-            ))}
-          </div>
-        </GlowGlassCard>
+        {/* --- SECTION 5: SLOT-SPECIFIC HIGHLIGHTS --- */}
+        {afternoonSlotContent ? (
+          <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
+            <div style={{fontSize: 28, fontWeight: 900, color: GOLD_LIGHT, marginBottom: 6, letterSpacing: 1, fontFamily: notoFont, textShadow: '0 2px 6px #000'}}>
+              दोपहर का विशेष समय
+            </div>
+            <div style={{fontSize: 27, fontWeight: 900, color: GOLD_MID, marginBottom: 8, fontFamily: notoFont, textShadow: '0 2px 6px #000'}}>
+              {afternoonSlotContent.title}
+            </div>
+            <div style={{fontSize: 24, fontWeight: 800, color: WHITE, lineHeight: 1.4, fontFamily: notoFont, textShadow: '0 2px 6px #000'}}>
+              {afternoonSlotContent.highlights.map(({label, value}, idx) => (
+                <div key={idx}>{label} – {value}</div>
+              ))}
+            </div>
+            {afternoonSlotContent.footer && (
+              <div style={{marginTop: 6, fontSize: 18, fontWeight: 700, color: CREAM, lineHeight: 1.3, fontFamily: notoFont}}>
+                {afternoonSlotContent.footer}
+              </div>
+            )}
+          </GlowGlassCard>
+        ) : (
+          <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
+            <div style={{fontSize: 30, fontWeight: 900, color: GOLD_LIGHT, marginBottom: 8, letterSpacing: 1.5, fontFamily: notoFont, textShadow: '0 2px 6px #000'}}>
+              चौघड़िया मुहूर्त
+            </div>
+            <div style={{fontSize: 25, fontWeight: 750, color: WHITE, lineHeight: 1.45, fontFamily: notoFont, textShadow: '0 2px 6px #000'}}>
+              {choghadiyaLines.map((line, idx) => (
+                <div key={idx}>{line}</div>
+              ))}
+            </div>
+          </GlowGlassCard>
+        )}
 
         {/* --- SECTION 6: DISHA SHOOL & VISHESH PARV --- */}
         <div style={{textAlign: 'center', width: '92%', maxWidth: 860}}>
