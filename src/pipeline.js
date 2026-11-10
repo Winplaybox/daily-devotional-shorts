@@ -599,7 +599,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
     }
 
     console.log(`\n==========================================================`);
-    console.log(`🎉 YouTube upload and schedule verified!`);
+    console.log(`[UPLOAD VERIFIED] ${jobTag}: YouTube upload and schedule verified!`);
     console.log(`URL: https://youtube.com/shorts/${videoId}`);
     console.log(`Title: ${uploaded.snippet.title}`);
     console.log(`Status: Private until ${uploaded.status.publishAt}`);

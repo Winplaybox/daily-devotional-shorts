@@ -32,19 +32,41 @@ export function validatePublisherRunMetadata(run, expectedRepository) {
   return true;
 }
 
-export function countVerifiedUploadOutcomes(logText) {
+function collectVerifiedUploadTags(logText) {
   const log = String(logText || "");
-  const uploaded = (log.match(/YouTube upload and schedule verified!/g) || []).length;
-  const reused = (log.match(/\[IDEMPOTENCY\] Existing upload found for pp365_job_\d{8}_(?:morning|afternoon|evening)\b/g) || []).length;
-  return uploaded + reused;
+  const tags = new Set();
+  const patterns = [
+    /\[UPLOAD VERIFIED\]\s+(pp365_job_(\d{8})_(morning|afternoon|evening)):\s+YouTube upload and schedule verified!/g,
+    /\[IDEMPOTENCY\] Existing upload found for (pp365_job_(\d{8})_(morning|afternoon|evening)); skipping duplicate\./g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of log.matchAll(pattern)) tags.add(match[1]);
+  }
+  return [...tags];
+}
+
+export function countVerifiedUploadOutcomes(logText) {
+  return collectVerifiedUploadTags(logText).length;
 }
 
 export function assertThreeVerifiedUploadOutcomes(logText) {
-  const count = countVerifiedUploadOutcomes(logText);
-  if (count !== 3) {
-    throw new Error("Expected 3 YouTube upload/read-back confirmations from the source run; found " + count + ". Social distribution is blocked.");
+  const tags = collectVerifiedUploadTags(logText);
+  const parsed = tags.map((tag) => /^pp365_job_(\d{8})_(morning|afternoon|evening)$/.exec(tag));
+  const dates = new Set(parsed.map((match) => match[1]));
+  const slots = new Set(parsed.map((match) => match[2]));
+  const expectedSlots = ["morning", "afternoon", "evening"];
+  const complete = tags.length === 3
+    && dates.size === 1
+    && expectedSlots.every((slot) => slots.has(slot));
+
+  if (!complete) {
+    throw new Error(
+      "Expected one verified YouTube upload/read-back outcome for each morning, afternoon, and evening slot on one Panchang date; found " +
+      tags.length + " distinct slot tags. Social distribution is blocked."
+    );
   }
-  return count;
+  return 3;
 }
 
 async function fetchJson(fetchImpl, url, headers) {
