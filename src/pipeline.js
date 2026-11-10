@@ -7,6 +7,7 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
+import { buildAfternoonNarration } from './editorial/slot-content.js';
 
 import { fileURLToPath } from 'url';
 
@@ -118,6 +119,12 @@ export function buildHindiNarration(data, durationSeconds = 60) {
   const dateStr = data.dateDisplay || p.date_display || data.date || '';
   const weekday = meta.day_of_week_hi || p.weekday || '';
   const dateGreeting = weekday && dateStr ? `${dateStr}, ${weekday}` : (dateStr || weekday);
+
+  // The afternoon slot has its own Choghadiya/muhurat editorial brief. Do not
+  // reuse the generic morning narration for a differently titled publication.
+  if (durationSeconds === 40 && String(data.slot || '').toLowerCase() === 'afternoon') {
+    return buildAfternoonNarration(data, dateGreeting);
+  }
 
   // Month & Paksha & Tithi
   const rawMonth = p.hindu_month_clean || meta.month_amanta || p.hindu_month || '';
