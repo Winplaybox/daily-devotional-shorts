@@ -182,15 +182,32 @@ test('runs the schedule monitor every 30 minutes so intake staleness is checked 
   assert.match(workflow, /cron:\s*["']\*\/30 \* \* \* \*["']/);
 });
 
-for (const [file, job] of [
-  ['make-social-publisher.yml', 'dispatch'],
-  ['meta-social-publisher.yml', 'publish'],
-]) {
-  test(`keeps ${file} hard-disabled until a separately approved publishing change`, () => {
-    const workflow = readFileSync(
-      new URL(`../.github/workflows/${file}`, import.meta.url),
-      'utf8',
-    );
-    assert.match(workflow, new RegExp(`^  ${job}:\\r?\\n    if:\\s*false\\b`, 'm'));
-  });
-}
+test('keeps Make distribution gated by a successful publisher run or explicit manual confirmation', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/make-social-publisher.yml', import.meta.url),
+    'utf8',
+  );
+  const verifier = readFileSync(
+    new URL('../src/social/source-run-verifier.js', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(workflow, /github\\.event_name == 'workflow_run' && github\\.event\\.workflow_run\\.conclusion == 'success'/);
+  assert.match(workflow, /github\\.event_name == 'workflow_dispatch' && inputs\\.publish == true/);
+  assert.doesNotMatch(workflow, /^  dispatch:\\r?\\n    if:\\s*false\\b/m);
+
+  const verificationStep = workflow.indexOf('node src/social/source-run-verifier.js');
+  const dispatchStep = workflow.indexOf('node scripts/publish_make_social.js');
+  assert.notEqual(verificationStep, -1);
+  assert.notEqual(dispatchStep, -1);
+  assert.ok(verificationStep < dispatchStep, 'source upload read-back must precede Make distribution');
+  assert.match(verifier, /assertThreeVerifiedUploadOutcomes\\(logText\\)/);
+});
+
+test('keeps Meta publishing hard-disabled until a separately approved change', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/meta-social-publisher.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(workflow, /^  publish:\\r?\\n    if:\\s*false\\b/m);
+});
