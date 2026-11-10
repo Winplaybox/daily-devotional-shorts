@@ -298,16 +298,22 @@ describe('7. Full-Poster Structure & Approved Visual Ornaments Regression Test',
   });
 });
 
-describe('8. YouTube publishing opt-in safety', () => {
-  test('scheduled uploads fail closed unless AUTO_PUBLISH is explicitly opted in', () => {
+describe('8. YouTube publishing hard-disable safety', () => {
+  test('scheduled and manual workflow inputs cannot enable YouTube uploads', () => {
     const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
     const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
 
-    assert.ok(
-      workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH || 'false' }}"),
-      'AUTO_PUBLISH must default to false when the repository variable is absent',
-    );
+    // Publishing stays hard-disabled in the workflow until a separate,
+    // owner-approved code change explicitly restores the upload path.
+    assert.ok(workflow.includes("AUTO_PUBLISH: 'false'"));
+    assert.ok(workflow.includes("REQUEST_UPLOAD: 'false'"));
+    assert.ok(!workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH"));
+    assert.ok(!workflow.includes("REQUEST_UPLOAD: ${{ vars.REQUEST_UPLOAD"));
     assert.ok(!workflow.includes("AUTO_PUBLISH: 'true'"));
+    assert.ok(!workflow.includes("REQUEST_UPLOAD: 'true'"));
+
+    // Even if these values are changed in a future approved workflow edit,
+    // the application still requires both gates before calling YouTube.
     assert.ok(pipeline.includes('if (uploadRequested && autoPublishEnabled)'));
   });
 });
