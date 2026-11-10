@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { buildHindiNarration, buildHindiTtsArgs, resolveHindiTtsVoice } from '../src/pipeline.js';
 import { getAfternoonSlotContent } from '../src/editorial/slot-content.js';
 
@@ -90,6 +91,13 @@ test('afternoon narration speaks its slot-specific title and values instead of t
   assert.ok(afternoonText.includes('शुभ अभिजीत मुहूर्त'));
   assert.ok(afternoonText.includes('11:48 AM से 12:32 PM'));
   assert.ok(!morningText.includes('अमृत चौघड़िया'));
+});
+
+test('afternoon poster component renders the validated slot-specific content', () => {
+  const source = fs.readFileSync(new URL('../src/PanchangVideo.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('getAfternoonSlotContent(props)'));
+  assert.ok(source.includes('afternoonSlotContent.title'));
+  assert.ok(source.includes('afternoonSlotContent.highlights.map'));
 });
 
 test('afternoon slot fails closed when its three labelled time highlights are incomplete', () => {
