@@ -192,16 +192,16 @@ test('keeps Make distribution gated by a successful publisher run or explicit ma
     'utf8',
   );
 
-  assert.match(workflow, /github\\.event_name == 'workflow_run' && github\\.event\\.workflow_run\\.conclusion == 'success'/);
-  assert.match(workflow, /github\\.event_name == 'workflow_dispatch' && inputs\\.publish == true/);
-  assert.doesNotMatch(workflow, /^  dispatch:\\r?\\n    if:\\s*false\\b/m);
+  assert.match(workflow, /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch' && inputs\.publish == true/);
+  assert.doesNotMatch(workflow, /^  dispatch:\r?\n    if:\s*false\b/m);
 
   const verificationStep = workflow.indexOf('node src/social/source-run-verifier.js');
   const dispatchStep = workflow.indexOf('node scripts/publish_make_social.js');
   assert.notEqual(verificationStep, -1);
   assert.notEqual(dispatchStep, -1);
   assert.ok(verificationStep < dispatchStep, 'source upload read-back must precede Make distribution');
-  assert.match(verifier, /assertThreeVerifiedUploadOutcomes\\(logText\\)/);
+  assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
 
 test('keeps Meta publishing hard-disabled until a separately approved change', () => {
@@ -209,5 +209,5 @@ test('keeps Meta publishing hard-disabled until a separately approved change', (
     new URL('../.github/workflows/meta-social-publisher.yml', import.meta.url),
     'utf8',
   );
-  assert.match(workflow, /^  publish:\\r?\\n    if:\\s*false\\b/m);
+  assert.match(workflow, /^  publish:\r?\n    if:\s*false\b/m);
 });
