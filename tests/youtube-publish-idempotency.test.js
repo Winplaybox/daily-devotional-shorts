@@ -33,3 +33,17 @@ test("fails closed if the channel uploads playlist is missing", async () => {
   const yt = { playlistItems: { list() {} }, videos: { list() {} } };
   await assert.rejects(() => findExistingUploadByJobTag(yt, null, "job"), /no uploads playlist/);
 });
+
+test("falls back to an exact title match when YouTube drops the job tag", async () => {
+  const yt = {
+    playlistItems: { list: async () => ({ data: { items: [{ contentDetails: { videoId: "v1" } }, { contentDetails: { videoId: "v2" } }] } }) },
+    videos: { list: async () => ({ data: { items: [
+      { id: "v1", snippet: { title: "Other title", tags: [] } },
+      { id: "v2", snippet: { title: "आज का पंचांग 12 नवंबर" } },
+    ] } }) },
+  };
+  const result = await findExistingUploadByJobTag(yt, "uploads-1", "pp365_job_20261112_morning", { title: "आज का पंचांग 12 नवंबर" });
+  assert.equal(result.id, "v2");
+  assert.equal(await findExistingUploadByJobTag(yt, "uploads-1", "pp365_job_20261112_morning", { title: "missing" }), null);
+  assert.equal(await findExistingUploadByJobTag(yt, "uploads-1", "pp365_job_20261112_morning"), null);
+});
