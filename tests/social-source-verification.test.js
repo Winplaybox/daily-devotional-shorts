@@ -143,8 +143,8 @@ test("counts idempotently reused uploads only when their deterministic slot tag 
 test("automatic Make distribution requires an explicit opt-in while manual dispatch remains confirmed", () => {
   const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
   const workflow = readFileSync(workflowPath, "utf8");
-  const dispatchJob = workflow.split("\\n  dispatch:\\n")[1] || "";
-  const jobCondition = dispatchJob.split("\\n    runs-on:", 1)[0] || "";
+  const dispatchJob = workflow.split("\n  dispatch:\n")[1] || "";
+  const jobCondition = dispatchJob.split("\n    runs-on:", 1)[0] || "";
 
   assert.ok(jobCondition.includes("github.event_name == 'workflow_run'"));
   assert.ok(jobCondition.includes("github.event.workflow_run.conclusion == 'success'"));
