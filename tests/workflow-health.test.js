@@ -204,10 +204,18 @@ test('keeps Make distribution gated by a successful publisher run or explicit ma
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
 
-test('keeps Meta publishing hard-disabled until a separately approved change', () => {
+test('keeps Meta publishing hard-disabled and points its future verifier step at the existing fail-closed entrypoint', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/meta-social-publisher.yml', import.meta.url),
     'utf8',
   );
+  const verifier = readFileSync(
+    new URL('../src/social/source-run-verifier.js', import.meta.url),
+    'utf8',
+  );
+
   assert.match(workflow, /^  publish:\r?\n    if:\s*false\b/m);
+  assert.match(workflow, /run:\s*node src\/social\/source-run-verifier\.js/);
+  assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
+  assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
