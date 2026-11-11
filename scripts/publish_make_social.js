@@ -24,6 +24,24 @@ function required(name) {
   return value;
 }
 
+export function resolveMakeWebhookUrl(value) {
+  const webhookUrl = String(value || "").trim();
+  if (!webhookUrl) {
+    throw new Error("Missing required environment variable: MAKE_SOCIAL_WEBHOOK_URL");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(webhookUrl);
+  } catch {
+    throw new Error("MAKE_SOCIAL_WEBHOOK_URL must be a valid HTTPS URL.");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("MAKE_SOCIAL_WEBHOOK_URL must use HTTPS.");
+  }
+  return webhookUrl;
+}
+
 async function uploadToSupabase(videoPath, runKey) {
   const baseUrl = required('SUPABASE_URL').replace(/\/+$/, '');
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
@@ -64,6 +82,14 @@ async function main() {
   const youtubeDescription = String(metadata.yt_description || metadata.description || '');
   const tags = Array.isArray(metadata.yt_tags) ? metadata.yt_tags : [];
   const caption = String(process.env.MAKE_SOCIAL_CAPTION || youtubeDescription).slice(0, 2200);
+
+  // Validate the destination before creating an external Supabase object.
+  const webhookUrl = resolveMakeWebhookUrl(process.env.MAKE_SOCIAL_WEBHOOK_URL);
+  const headers = { 'Content-Type': 'application/json' };
+  if (process.env.MAKE_SOCIAL_WEBHOOK_API_KEY) {
+    headers['x-make-apikey'] = process.env.MAKE_SOCIAL_WEBHOOK_API_KEY;
+  }
+
   const videoUrl = await uploadToSupabase(videoPath, runKey);
   const payload = {
     event_id: runKey,
@@ -85,11 +111,6 @@ async function main() {
     publish_mode: process.env.MAKE_SOCIAL_PUBLISH_MODE || 'publish_now',
   };
 
-  const webhookUrl = required('MAKE_SOCIAL_WEBHOOK_URL');
-  const headers = { 'Content-Type': 'application/json' };
-  if (process.env.MAKE_SOCIAL_WEBHOOK_API_KEY) {
-    headers['x-make-apikey'] = process.env.MAKE_SOCIAL_WEBHOOK_API_KEY;
-  }
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers,
