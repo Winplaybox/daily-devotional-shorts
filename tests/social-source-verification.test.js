@@ -140,6 +140,17 @@ test("counts idempotently reused uploads only when their deterministic slot tag 
   assert.equal(countVerifiedUploadOutcomes("[IDEMPOTENCY] Existing upload found for arbitrary-job; skipping duplicate."), 0);
 });
 
+test("automatic Make distribution requires an explicit opt-in while manual dispatch remains confirmed", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
+  const workflow = readFileSync(workflowPath, "utf8");
+
+  assert.match(
+    workflow,
+    /github\\.event_name == 'workflow_run'[\\s\\S]*github\\.event\\.workflow_run\\.conclusion == 'success'[\\s\\S]*vars\\.MAKE_SOCIAL_AUTO_PUBLISH == 'true'/,
+  );
+  assert.match(workflow, /github\\.event_name == 'workflow_dispatch' && inputs\\.publish == true/);
+});
+
 test("verifies run metadata, successful publisher job and read-back log before allowing distribution", async () => {
   const responses = [
     { ok: true, json: async () => validRun },
