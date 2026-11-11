@@ -31,7 +31,7 @@ test("rejects past dates and dates beyond request horizon", () => {
 
 test("requires explicit command and enforces per-viewer daily limits", () => {
   const parsed = parsePanchangComment("panchang\nDate: 07-11-2026\nLocation: Mira Road, Maharashtra");
-  assert.equal(assessCommentRequest({ parsed, commentText: "x", channelKey: "hash", dailyCount: 3 }).reason, "daily-request-limit");
+  assert.equal(assessCommentRequest({ parsed, commentText: "x", channelKey: "hash", dailyCount: 3, now: new Date("2026-11-06T00:00:00Z") }).reason, "daily-request-limit");
   assert.equal(parsePanchangComment("hello everyone").matched, false);
 });
 
