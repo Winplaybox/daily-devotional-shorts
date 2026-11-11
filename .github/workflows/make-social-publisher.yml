@@ -32,7 +32,9 @@ concurrency:
 jobs:
   dispatch:
     if: >-
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       vars.MAKE_SOCIAL_AUTO_PUBLISH == 'true') ||
       (github.event_name == 'workflow_dispatch' && inputs.publish == true)
     runs-on: ubuntu-latest
     timeout-minutes: 15
