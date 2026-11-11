@@ -54,8 +54,8 @@ test("social payload date resolves from the publisher's canonical date metadata"
   assert.equal(resolvePanchangDate({ date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-10");
   assert.equal(resolvePanchangDate({ date: "2026-11-09", date_meta: { gregorian_date: "2026-11-10" } }), "2026-11-09");
   assert.equal(resolvePanchangDate({}, "2026-11-12"), "2026-11-12");
-  assert.throws(() => resolvePanchangDate({}), /valid Gregorian date/);
-  assert.throws(() => resolvePanchangDate({ date_meta: { gregorian_date: "2026-99-99" } }), /valid Gregorian date/);
+  assert.throws(() => resolvePanchangDate({}, ""), /valid Gregorian date/);
+  assert.throws(() => resolvePanchangDate({ date_meta: { gregorian_date: "2026-99-99" } }, ""), /valid Gregorian date/);
 });
 
 test("Panchang date validation occurs before the external Supabase upload", () => {
