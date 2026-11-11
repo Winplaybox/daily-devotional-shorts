@@ -54,7 +54,7 @@ jobs:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
           SOURCE_RUN_NUMBER: ${{ github.event.workflow_run.run_number || inputs.run_number }}
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/verify-youtube-source-run.js
+        run: node src/social/source-run-verifier.js
 
       - name: Download the source run's render artifact
         uses: actions/download-artifact@v4
