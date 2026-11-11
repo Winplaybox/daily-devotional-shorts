@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolvePanchangDate } from "../scripts/publish_make_social.js";
+import { resolveMakeWebhookUrl, resolvePanchangDate } from "../scripts/publish_make_social.js";
 import {
   assertThreeVerifiedUploadOutcomes,
   countVerifiedUploadOutcomes,
@@ -66,6 +66,26 @@ test("Panchang date validation occurs before the external Supabase upload", () =
   assert.notEqual(dateValidation, -1);
   assert.notEqual(storageUpload, -1);
   assert.ok(dateValidation < storageUpload, "invalid Panchang metadata must fail before an external storage write");
+});
+
+test("validates the Make HTTPS webhook before writing the media object to Supabase", () => {
+  assert.throws(() => resolveMakeWebhookUrl(""), /Missing required environment variable: MAKE_SOCIAL_WEBHOOK_URL/);
+  assert.throws(() => resolveMakeWebhookUrl("not-a-url"), /valid HTTPS URL/);
+  assert.throws(() => resolveMakeWebhookUrl("http://hook.make.com/test"), /must use HTTPS/);
+  assert.equal(resolveMakeWebhookUrl("https://hook.make.com/test"), "https://hook.make.com/test");
+
+  const publisherScript = readFileSync(path.join(repositoryRoot, "scripts", "publish_make_social.js"), "utf8");
+  const webhookPreflight = publisherScript.indexOf(
+    "const webhookUrl = resolveMakeWebhookUrl(process.env.MAKE_SOCIAL_WEBHOOK_URL);",
+  );
+  const storageUpload = publisherScript.indexOf("const videoUrl = await uploadToSupabase(videoPath, runKey);");
+
+  assert.notEqual(webhookPreflight, -1);
+  assert.notEqual(storageUpload, -1);
+  assert.ok(
+    webhookPreflight < storageUpload,
+    "missing or invalid Make webhook configuration must fail before the Supabase storage write",
+  );
 });
 
 test("accepts only a successful canonical publisher run on main", () => {
