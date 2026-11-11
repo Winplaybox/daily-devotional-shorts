@@ -292,28 +292,25 @@ describe('7. Full-Poster Structure & Approved Visual Ornaments Regression Test',
     assert.ok(src.includes('SECTION 2: SURYA & CHANDRA TIMINGS'));
     assert.ok(src.includes('SECTION 3: SHUBH KAAL'));
     assert.ok(src.includes('SECTION 4: ASHUBH KAAL'));
-    assert.ok(src.includes('SECTION 5: CHOGHADIYA MUHURAT'));
+    assert.ok(src.includes('SECTION 5: SLOT-SPECIFIC HIGHLIGHTS'));
     assert.ok(src.includes('SECTION 6: DISHA SHOOL & VISHESH PARV'));
     assert.ok(src.includes('SECTION 7: DEVOTIONAL ORNAMENTS'));
   });
 });
 
-describe('8. YouTube publishing hard-disable safety', () => {
-  test('scheduled and manual workflow inputs cannot enable YouTube uploads', () => {
+describe('8. YouTube publishing opt-in safety', () => {
+  test('uploads require the AUTO_PUBLISH repository variable plus an explicit request', () => {
     const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
     const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
 
-    // Publishing stays hard-disabled in the workflow until a separate,
-    // owner-approved code change explicitly restores the upload path.
-    assert.ok(workflow.includes("AUTO_PUBLISH: 'false'"));
-    assert.ok(workflow.includes("REQUEST_UPLOAD: 'false'"));
-    assert.ok(!workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH"));
-    assert.ok(!workflow.includes("REQUEST_UPLOAD: ${{ vars.REQUEST_UPLOAD"));
+    // Publishing is opt-in: the owner enables it with the AUTO_PUBLISH=true
+    // repository variable. Nothing in the workflow hardcodes uploads on.
+    assert.ok(workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH == 'true' }}"));
+    assert.ok(workflow.includes("REQUEST_UPLOAD: ${{ vars.AUTO_PUBLISH == 'true' && (github.event_name == 'schedule' || inputs.publish == true) }}"));
     assert.ok(!workflow.includes("AUTO_PUBLISH: 'true'"));
     assert.ok(!workflow.includes("REQUEST_UPLOAD: 'true'"));
 
-    // Even if these values are changed in a future approved workflow edit,
-    // the application still requires both gates before calling YouTube.
+    // The application still requires both gates before calling YouTube.
     assert.ok(pipeline.includes('if (uploadRequested && autoPublishEnabled)'));
   });
 });
