@@ -77,6 +77,27 @@ test("accepts only a successful canonical publisher run on main", () => {
   assert.throws(() => validatePublisherRunMetadata(validRun, "someone/else"), /different repository/);
 });
 
+test("fails closed when the expected source repository identity is missing", () => {
+  const missingRepository = { ...validRun };
+  delete missingRepository.repository;
+  assert.throws(
+    () => validatePublisherRunMetadata(missingRepository, "Winplaybox/daily-devotional-shorts"),
+    /repository identity is missing/,
+  );
+  assert.throws(
+    () => validatePublisherRunMetadata({ ...validRun, repository: {} }, "Winplaybox/daily-devotional-shorts"),
+    /repository identity is missing/,
+  );
+  assert.equal(
+    validatePublisherRunMetadata({
+      ...validRun,
+      repository: undefined,
+      head_repository: { full_name: "Winplaybox/daily-devotional-shorts" },
+    }, "Winplaybox/daily-devotional-shorts"),
+    true,
+  );
+});
+
 test("requires one distinct YouTube upload read-back confirmation for each daily slot", () => {
   assert.equal(countVerifiedUploadOutcomes(threeUploads), 3);
   assert.equal(assertThreeVerifiedUploadOutcomes(threeUploads), 3);

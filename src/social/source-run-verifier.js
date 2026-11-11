@@ -23,8 +23,13 @@ export function validatePublisherRunMetadata(run, expectedRepository) {
     throw new Error("Source run must be a scheduled or manually dispatched publisher run.");
   }
   const actualRepository = run.repository?.full_name || run.head_repository?.full_name;
-  if (expectedRepository && actualRepository && actualRepository.toLowerCase() !== expectedRepository.toLowerCase()) {
-    throw new Error("Source publisher run belongs to a different repository.");
+  if (expectedRepository) {
+    if (typeof actualRepository !== "string" || actualRepository.trim().length === 0) {
+      throw new Error("Source publisher run repository identity is missing.");
+    }
+    if (actualRepository.toLowerCase() !== expectedRepository.toLowerCase()) {
+      throw new Error("Source publisher run belongs to a different repository.");
+    }
   }
   if (!Number.isInteger(Number(run.run_number)) || Number(run.run_number) < 1) {
     throw new Error("Source publisher run has no valid run number.");
