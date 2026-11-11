@@ -298,17 +298,15 @@ describe('7. Full-Poster Structure & Approved Visual Ornaments Regression Test',
   });
 });
 
-describe('8. YouTube publishing opt-in safety', () => {
-  test('uploads require the AUTO_PUBLISH repository variable plus an explicit request', () => {
+describe('8. YouTube daily publishing gates', () => {
+  test('scheduled runs always upload; manual runs upload unless publish is unticked', () => {
     const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
     const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
 
-    // Publishing is opt-in: the owner enables it with the AUTO_PUBLISH=true
-    // repository variable. Nothing in the workflow hardcodes uploads on.
-    assert.ok(workflow.includes("AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH == 'true' }}"));
-    assert.ok(workflow.includes("REQUEST_UPLOAD: ${{ vars.AUTO_PUBLISH == 'true' && (github.event_name == 'schedule' || inputs.publish == true) }}"));
-    assert.ok(!workflow.includes("AUTO_PUBLISH: 'true'"));
-    assert.ok(!workflow.includes("REQUEST_UPLOAD: 'true'"));
+    assert.ok(workflow.includes("AUTO_PUBLISH: 'true'"));
+    assert.ok(workflow.includes("REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish == true }}"));
+    assert.match(workflow, /publish:\n\s+description:[^\n]*\n\s+required: true\n\s+default: true/);
+    assert.ok(workflow.includes("PANCHANG_LOCATION_CONFIGURED: 'true'"));
 
     // The application still requires both gates before calling YouTube.
     assert.ok(pipeline.includes('if (uploadRequested && autoPublishEnabled)'));

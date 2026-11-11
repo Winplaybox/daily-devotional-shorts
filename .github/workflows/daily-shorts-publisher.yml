@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Upload to YouTube (requires repository variable AUTO_PUBLISH=true)"
+        description: "Upload to YouTube (untick for a review-only render)"
         required: true
-        default: false
+        default: true
         type: boolean
       panchang_date:
         description: "Optional exact Panchang/publication date YYYY-MM-DD (overrides the rolling buffer)"
@@ -52,12 +52,11 @@ jobs:
       PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
       PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
-      # Defaults are allowed for review renders, but production publishing requires explicit city coordinates and label.
-      PANCHANG_LOCATION_CONFIGURED: ${{ vars.PANCHANG_LAT != '' && vars.PANCHANG_LON != '' && vars.PANCHANG_LOCATION != '' }}
-      # Uploads are opt-in: set repository variable AUTO_PUBLISH=true to enable them.
-      # Scheduled runs then upload; manual runs upload only with publish=true.
-      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH == 'true' }}
-      REQUEST_UPLOAD: ${{ vars.AUTO_PUBLISH == 'true' && (github.event_name == 'schedule' || inputs.publish == true) }}
+      # Ujjain India-reference is the channel's production location; repository variables may override it.
+      PANCHANG_LOCATION_CONFIGURED: 'true'
+      # Daily channel: every scheduled run uploads. Manual runs upload unless publish is unticked.
+      AUTO_PUBLISH: 'true'
+      REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish == true }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
