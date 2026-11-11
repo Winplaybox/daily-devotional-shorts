@@ -1,7 +1,18 @@
 import unittest
+import sys
+import tempfile
+from contextlib import redirect_stdout
 from datetime import date, datetime, timezone
+from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
-from engine.publish_buffer import local_calendar_date, parse_date_override, resolve_target_date
+from engine.publish_buffer import (
+    local_calendar_date,
+    main,
+    parse_date_override,
+    resolve_target_date,
+)
 
 
 class PublishBufferTests(unittest.TestCase):
@@ -30,7 +41,6 @@ class PublishBufferTests(unittest.TestCase):
     def test_negative_buffer_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "non-negative"):
             resolve_target_date(-1, "Asia/Kolkata", date(2026, 11, 6))
-
 
     def test_leap_year_boundary(self):
         self.assertEqual(
@@ -74,6 +84,67 @@ class PublishBufferTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     parse_date_override(value)
+
+    def test_cli_manual_override_takes_precedence_and_writes_github_env(self):
+        with tempfile.TemporaryDirectory() as directory:
+            github_env = Path(directory) / "github.env"
+            argv = [
+                "publish_buffer.py",
+                "--days", "3",
+                "--timezone", "Asia/Kolkata",
+                "--date-override", "2026-02-28",
+                "--github-env", str(github_env),
+            ]
+            with patch.object(sys, "argv", argv), redirect_stdout(StringIO()):
+                main()
+
+            self.assertEqual(
+                github_env.read_text(encoding="utf-8"),
+                "PANCHANG_DATE=2026-02-28\\n",
+            )
+
+    def test_cli_invalid_override_does_not_mutate_github_env(self):
+        with tempfile.TemporaryDirectory() as directory:
+            github_env = Path(directory) / "github.env"
+            github_env.write_text("EXISTING=value\\n", encoding="utf-8")
+            argv = [
+                "publish_buffer.py",
+                "--date-override", "2026-02-30",
+                "--github-env", str(github_env),
+            ]
+            with patch.object(sys, "argv", argv), redirect_stdout(StringIO()):
+                with self.assertRaises(SystemExit):
+                    main()
+
+            self.assertEqual(
+                github_env.read_text(encoding="utf-8"),
+                "EXISTING=value\\n",
+            )
+
+    def test_cli_buffer_writes_resolved_date_to_github_env(self):
+        with tempfile.TemporaryDirectory() as directory:
+            github_env = Path(directory) / "github.env"
+            argv = [
+                "publish_buffer.py",
+                "--days", "3",
+                "--timezone", "Asia/Kolkata",
+                "--github-env", str(github_env),
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch(
+                    "engine.publish_buffer.resolve_target_date",
+                    return_value=date(2027, 1, 2),
+                ) as resolver,
+                redirect_stdout(StringIO()),
+            ):
+                main()
+
+            resolver.assert_called_once_with(3, "Asia/Kolkata")
+            self.assertEqual(
+                github_env.read_text(encoding="utf-8"),
+                "PANCHANG_DATE=2027-01-02\\n",
+            )
 
 
 if __name__ == "__main__":
