@@ -100,13 +100,13 @@ class PublishBufferTests(unittest.TestCase):
 
             self.assertEqual(
                 github_env.read_text(encoding="utf-8"),
-                "PANCHANG_DATE=2026-02-28\\n",
+                "PANCHANG_DATE=2026-02-28\n",
             )
 
     def test_cli_invalid_override_does_not_mutate_github_env(self):
         with tempfile.TemporaryDirectory() as directory:
             github_env = Path(directory) / "github.env"
-            github_env.write_text("EXISTING=value\\n", encoding="utf-8")
+            github_env.write_text("EXISTING=value\n", encoding="utf-8")
             argv = [
                 "publish_buffer.py",
                 "--date-override", "2026-02-30",
@@ -118,7 +118,7 @@ class PublishBufferTests(unittest.TestCase):
 
             self.assertEqual(
                 github_env.read_text(encoding="utf-8"),
-                "EXISTING=value\\n",
+                "EXISTING=value\n",
             )
 
     def test_cli_buffer_writes_resolved_date_to_github_env(self):
@@ -143,7 +143,7 @@ class PublishBufferTests(unittest.TestCase):
             resolver.assert_called_once_with(3, "Asia/Kolkata")
             self.assertEqual(
                 github_env.read_text(encoding="utf-8"),
-                "PANCHANG_DATE=2027-01-02\\n",
+                "PANCHANG_DATE=2027-01-02\n",
             )
 
 
