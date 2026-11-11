@@ -14,7 +14,12 @@ export function buildPublishJobTag(panchangDate, slot) {
   return `pp365_job_${panchangDate.replaceAll("-", "")}_${slot}`;
 }
 
-export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag) {
+/**
+ * Finds an earlier upload for this date+slot. The deterministic tag is the
+ * primary key; YouTube does not always return tags on read-back, so an exact
+ * title match (titles carry the date and slot) is the fallback key.
+ */
+export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag, { title } = {}) {
   if (!yt?.playlistItems?.list || !yt?.videos?.list) {
     throw new Error("YouTube client does not support upload-history lookup.");
   }
@@ -41,9 +46,10 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag) 
         id: batch,
         maxResults: batch.length,
       });
-      const match = (videos.data.items || []).find((video) =>
+      const items = videos.data.items || [];
+      const match = items.find((video) =>
         Array.isArray(video.snippet?.tags) && video.snippet.tags.includes(jobTag)
-      );
+      ) || (title ? items.find((video) => video.snippet?.title === title) : undefined);
       if (match) return match;
     }
     pageToken = page.data.nextPageToken || undefined;
