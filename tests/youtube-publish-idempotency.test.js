@@ -74,6 +74,7 @@ test("waits for YouTube processing to succeed before returning a verified read-b
       list: async (args) => {
         assert.deepEqual(args.part, ["snippet", "status", "processingDetails"]);
         assert.deepEqual(args.id, ["v-ready"]);
+        assert.equal(args.retry, false);
         calls += 1;
         return responses.shift();
       },
