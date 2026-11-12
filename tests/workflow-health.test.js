@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { evaluateWorkflowHealth, evaluateWorkflowRegistration, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
+import { evaluateWorkflowHealth, evaluateWorkflowRegistration, fetchWorkflowMetadata, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const expectation = {
   file: 'youtube-comment-intake.yml',
