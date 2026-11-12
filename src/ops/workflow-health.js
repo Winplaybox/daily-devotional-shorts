@@ -195,3 +195,56 @@ export function evaluateWorkflowHealth({ expectation, runs, now = new Date() }) 
 
   return { ...base, state: 'healthy', message: 'Latest scheduled run from main completed successfully within the expected window.' };
 }
+
+
+/**
+ * Check the Actions workflow metadata state separately from scheduled-run
+ * freshness. A disabled workflow can otherwise look like a scheduler outage.
+ */
+export function evaluateWorkflowRegistration({ expectation, workflow, error = null }) {
+  if (!expectation || (workflow !== null && typeof workflow !== 'object') || (error !== null && typeof error !== 'string')) {
+    throw new TypeError('expectation, workflow metadata and an optional error are required.');
+  }
+
+  const base = {
+    workflow: expectation.label,
+    file: expectation.file,
+  };
+
+  if (error) {
+    return {
+      ...base,
+      state: 'unknown',
+      workflowState: null,
+      message: `Unable to retrieve workflow enablement state: ${error}`,
+    };
+  }
+
+  const state = workflow?.state;
+  if (state === 'active') {
+    return {
+      ...base,
+      state: 'active',
+      workflowState: state,
+      message: 'Workflow is enabled in GitHub Actions.',
+    };
+  }
+
+  if (state === 'disabled_manually' || state === 'disabled_inactivity') {
+    return {
+      ...base,
+      state: 'disabled',
+      workflowState: state,
+      message: `Workflow is disabled (${state}). Re-enable it in repository Actions settings after owner review.`,
+    };
+  }
+
+  return {
+    ...base,
+    state: 'unknown',
+    workflowState: typeof state === 'string' ? state : null,
+    message: typeof state === 'string'
+      ? `GitHub returned an unrecognized workflow state: ${state}.`
+      : 'GitHub workflow metadata did not include a state.',
+  };
+}
