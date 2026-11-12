@@ -52,6 +52,8 @@ jobs:
       PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
       PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
       PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
+      # Ujjain India-reference is the channel's production location; repository variables may override it.
+      PANCHANG_LOCATION_CONFIGURED: 'true'
       # Never publish from a cron by default. A manual dispatch must explicitly set publish=true.
       AUTO_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
       REQUEST_UPLOAD: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
