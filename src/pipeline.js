@@ -7,6 +7,7 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
+import { readBackUntilProcessingReady } from './youtube/upload-verification.js';
 import { buildAfternoonNarration } from './editorial/slot-content.js';
 
 import { fileURLToPath } from 'url';
@@ -529,8 +530,16 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
 
     // Search the channel's uploads playlist before inserting. Retries must
     // reuse an existing upload rather than create a second scheduled Short.
-    const existing = await findExistingUploadByJobTag(yt, publishContext.uploadsPlaylistId, jobTag, { title: metadata.yt_title });
-    if (existing) {
+    const existingMatch = await findExistingUploadByJobTag(yt, publishContext.uploadsPlaylistId, jobTag, { title: metadata.yt_title });
+    if (existingMatch) {
+      // An upload can be present in the channel before YouTube finishes
+      // processing it. Re-read the owner-visible processing state before
+      // treating an existing scheduled video as a completed slot.
+      const existing = await readBackUntilProcessingReady(yt, existingMatch.id, {
+        jobTag,
+        title: metadata.yt_title,
+      });
+      console.log(`[PROCESSING] Existing video ${existing.id} reached processingStatus=succeeded.`);
       if (existing.snippet?.channelId !== publishContext.channelId) {
         throw new Error(`Idempotency key ${jobTag} was found on an unexpected YouTube channel.`);
       }
@@ -578,21 +587,13 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
     const videoId = res.data.id;
     if (!videoId) throw new Error('YouTube upload response did not include a video ID.');
 
-    // Read the uploaded video back from YouTube so a successful HTTP upload
-    // cannot be mistaken for a successfully scheduled publication.
-    // Tags can lag behind the upload response, so re-read a few times.
-    let uploaded;
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
-      const verification = await yt.videos.list({
-        part: ['snippet', 'status'],
-        id: [videoId],
-        maxResults: 1,
-      });
-      uploaded = verification.data.items?.[0];
-      if (uploaded && Array.isArray(uploaded.snippet?.tags) && uploaded.snippet.tags.includes(jobTag)) break;
-      if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 10_000));
-    }
-    if (!uploaded) throw new Error(`YouTube accepted upload ${videoId}, but the video could not be read back for verification.`);
+    // Do not call an accepted upload ready until YouTube reports that media
+    // processing succeeded and the read-back matches this slot's tag or title.
+    const uploaded = await readBackUntilProcessingReady(yt, videoId, {
+      jobTag,
+      title: metadata.yt_title,
+    });
+    console.log(`[PROCESSING] YouTube video ${videoId} reached processingStatus=succeeded.`);
     if (uploaded.status?.privacyStatus !== 'private') {
       throw new Error(`YouTube video ${videoId} is not private while awaiting its scheduled publish time.`);
     }
