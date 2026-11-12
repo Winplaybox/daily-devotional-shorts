@@ -56,6 +56,7 @@ export async function readBackUntilProcessingReady(yt, videoId, {
       part: ["snippet", "status", "processingDetails"],
       id: [videoId],
       maxResults: 1,
+      retry: false,
     });
     lastVideo = response?.data?.items?.[0] || null;
 
