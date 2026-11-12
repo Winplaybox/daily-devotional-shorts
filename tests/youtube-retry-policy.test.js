@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRetryableReadError, retryReadOnlyRequest } from "../src/youtube/retry-policy.js";
+import { isRetryableReadError, retryReadOnlyRequest, writeOnce } from "../src/youtube/retry-policy.js";
 
 test("retries transient read-only failures with capped exponential backoff", async () => {
   let calls = 0;
@@ -58,4 +58,23 @@ test("stops after the configured attempt budget", async () => {
 
   assert.equal(calls, 3);
   assert.deepEqual(delays, [100, 200]);
+});
+
+
+test("executes non-idempotent writes once with transport retries explicitly disabled", async () => {
+  let calls = 0;
+  let receivedOptions;
+  const transientFailure = Object.assign(new Error("ambiguous write outcome"), {
+    response: { status: 503 },
+  });
+
+  await assert.rejects(() => writeOnce(async (options) => {
+    calls += 1;
+    receivedOptions = options;
+    throw transientFailure;
+  }, { part: ["snippet"], retry: true }), /ambiguous write outcome/);
+
+  assert.equal(calls, 1);
+  assert.equal(receivedOptions.retry, false);
+  assert.deepEqual(receivedOptions.part, ["snippet"]);
 });
