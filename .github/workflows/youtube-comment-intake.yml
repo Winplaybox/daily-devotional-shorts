@@ -35,8 +35,9 @@ jobs:
             [[ -n "${!key:-}" ]] || missing+=("$key")
           done
           if (( ${#missing[@]} )); then
-            printf '::error::Missing required GitHub Actions secrets: %s\\n' "${missing[*]}"
-            echo "  
+            printf '::error::Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
+            echo "::error::Set these in Settings → Secrets and variables → Actions. See docs/worldwide-panchang-automation.md for Supabase setup. No comments were polled and no requests were queued."
+            exit 1
           fi
           if [[ "${#REQUEST_HASH_SALT}" -lt 32 ]]; then
             echo "::error::REQUEST_HASH_SALT must be at least 32 characters. Generate a random secret and store it in GitHub Actions Secrets."
