@@ -218,7 +218,7 @@ export async function fetchWorkflowMetadata({
     }
 
     const url = new URL(
-      `${apiBase.replace(/\\/+$/, '')}/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}`,
+      `${apiBase.replace(/\/+$/, '')}/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}`,
     );
     const response = await fetchImpl(url, {
       headers: {
