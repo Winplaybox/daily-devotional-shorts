@@ -1,0 +1,61 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { isRetryableReadError, retryReadOnlyRequest } from "../src/youtube/retry-policy.js";
+
+test("retries transient read-only failures with capped exponential backoff", async () => {
+  let calls = 0;
+  const delays = [];
+  const result = await retryReadOnlyRequest(async () => {
+    calls += 1;
+    if (calls < 3) throw Object.assign(new Error("temporary backend error"), { response: { status: 503 } });
+    return "ok";
+  }, {
+    maxAttempts: 4,
+    baseDelayMs: 100,
+    maxDelayMs: 250,
+    sleep: async (milliseconds) => delays.push(milliseconds),
+  });
+
+  assert.equal(result, "ok");
+  assert.equal(calls, 3);
+  assert.deepEqual(delays, [100, 200]);
+});
+
+test("does not retry a permanent YouTube upload-limit error", async () => {
+  let calls = 0;
+  const error = Object.assign(new Error("upload quota exceeded"), {
+    response: { status: 403, data: { error: { errors: [{ reason: "uploadLimitExceeded" }] } } },
+  });
+
+  await assert.rejects(() => retryReadOnlyRequest(async () => {
+    calls += 1;
+    throw error;
+  }, { sleep: async () => assert.fail("permanent errors must not sleep") }), /upload quota exceeded/);
+
+  assert.equal(calls, 1);
+  assert.equal(isRetryableReadError(error), false);
+});
+
+test("retries a documented 403 rate-limit response but not arbitrary 403 responses", () => {
+  const rateLimit = { response: { status: 403, data: { error: { errors: [{ reason: "userRateLimitExceeded" }] } } } };
+  const forbidden = { response: { status: 403, data: { error: { errors: [{ reason: "forbidden" }] } } } };
+  assert.equal(isRetryableReadError(rateLimit), true);
+  assert.equal(isRetryableReadError(forbidden), false);
+});
+
+test("stops after the configured attempt budget", async () => {
+  let calls = 0;
+  const delays = [];
+  await assert.rejects(() => retryReadOnlyRequest(async () => {
+    calls += 1;
+    throw Object.assign(new Error("still unavailable"), { response: { status: 429 } });
+  }, {
+    maxAttempts: 3,
+    baseDelayMs: 100,
+    maxDelayMs: 1000,
+    sleep: async (milliseconds) => delays.push(milliseconds),
+  }), /still unavailable/);
+
+  assert.equal(calls, 3);
+  assert.deepEqual(delays, [100, 200]);
+});
