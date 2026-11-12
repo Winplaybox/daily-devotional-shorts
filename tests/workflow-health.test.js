@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { evaluateWorkflowHealth, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
+import { evaluateWorkflowHealth, evaluateWorkflowRegistration, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const expectation = {
   file: 'youtube-comment-intake.yml',
@@ -9,6 +9,45 @@ const expectation = {
   maxAgeMinutes: 45,
 };
 const now = new Date('2026-11-07T07:30:00.000Z');
+
+test('recognizes an enabled Actions workflow', () => {
+  const result = evaluateWorkflowRegistration({
+    expectation,
+    workflow: { state: 'active' },
+  });
+  assert.equal(result.state, 'active');
+  assert.equal(result.workflowState, 'active');
+});
+
+test('distinguishes manually disabled and inactivity-disabled workflows', () => {
+  for (const state of ['disabled_manually', 'disabled_inactivity']) {
+    const result = evaluateWorkflowRegistration({
+      expectation,
+      workflow: { state },
+    });
+    assert.equal(result.state, 'disabled');
+    assert.equal(result.workflowState, state);
+  }
+});
+
+test('reports workflow metadata permission or API failures as unknown, not enabled', () => {
+  const result = evaluateWorkflowRegistration({
+    expectation,
+    workflow: null,
+    error: 'GitHub Actions workflow metadata API returned 403',
+  });
+  assert.equal(result.state, 'unknown');
+  assert.equal(result.workflowState, null);
+});
+
+test('does not assume a missing workflow state is active', () => {
+  const result = evaluateWorkflowRegistration({
+    expectation,
+    workflow: {},
+  });
+  assert.equal(result.state, 'unknown');
+  assert.equal(result.workflowState, null);
+});
 
 function run(overrides = {}) {
   return {
@@ -255,4 +294,15 @@ test('keeps Meta publishing hard-disabled and points its future verifier step at
   assert.match(workflow, /run:\s*node src\/social\/source-run-verifier\.js/);
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
+});
+
+
+test('health monitor reads workflow enablement metadata before declaring schedule health', () => {
+  const script = readFileSync(
+    new URL('../scripts/check-workflow-health.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(script, /actions\\/workflows\\/\$\\{encodeURIComponent\\(workflowFile\\)\\}/);
+  assert.match(script, /evaluateWorkflowRegistration/);
+  assert.match(script, /workflowState=\$\\{result\.workflowState \?\? 'unknown'\}/);
 });
