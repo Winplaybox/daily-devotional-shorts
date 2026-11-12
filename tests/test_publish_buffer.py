@@ -147,5 +147,36 @@ class PublishBufferTests(unittest.TestCase):
             )
 
 
+    def test_three_day_buffer_crosses_leap_and_non_leap_february(self):
+        self.assertEqual(
+            resolve_target_date(3, "Asia/Kolkata", date(2024, 2, 27)),
+            date(2024, 3, 1),
+        )
+        self.assertEqual(
+            resolve_target_date(3, "Asia/Kolkata", date(2025, 2, 27)),
+            date(2025, 3, 2),
+        )
+
+    def test_local_calendar_date_handles_non_hour_offset_at_midnight(self):
+        before_midnight = datetime(2026, 11, 6, 18, 14, tzinfo=timezone.utc)
+        at_midnight = datetime(2026, 11, 6, 18, 15, tzinfo=timezone.utc)
+        self.assertEqual(
+            local_calendar_date("Asia/Kathmandu", before_midnight),
+            date(2026, 11, 6),
+        )
+        self.assertEqual(
+            local_calendar_date("Asia/Kathmandu", at_midnight),
+            date(2026, 11, 7),
+        )
+
+    def test_resolve_target_date_rejects_datetime_as_calendar_today(self):
+        with self.assertRaisesRegex(ValueError, "today must be a calendar date"):
+            resolve_target_date(
+                3,
+                "Asia/Kolkata",
+                datetime(2026, 11, 6, 20, 0, tzinfo=timezone.utc),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
