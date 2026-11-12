@@ -49,6 +49,49 @@ test('does not assume a missing workflow state is active', () => {
   assert.equal(result.workflowState, null);
 });
 
+test('fetches workflow enablement metadata with the GitHub Actions API headers', async () => {
+  const result = await fetchWorkflowMetadata({
+    apiBase: 'https://api.github.com/',
+    repository: 'owner/repo',
+    workflowFile: 'workflow-health-monitor.yml',
+    token: 'test-token',
+    fetchImpl: async (url, options) => {
+      assert.equal(String(url), 'https://api.github.com/repos/owner/repo/actions/workflows/workflow-health-monitor.yml');
+      assert.equal(options.headers.Authorization, 'Bearer test-token');
+      assert.equal(options.headers.Accept, 'application/vnd.github+json');
+      return { ok: true, json: async () => ({ state: 'active' }) };
+    },
+  });
+  assert.deepEqual(result, { workflow: { state: 'active' } });
+});
+
+test('returns an actionable error for a non-success workflow metadata response', async () => {
+  const result = await fetchWorkflowMetadata({
+    apiBase: 'https://api.github.com',
+    repository: 'owner/repo',
+    workflowFile: 'workflow.yml',
+    token: 'test-token',
+    fetchImpl: async () => ({
+      ok: false,
+      status: 403,
+      text: async () => 'Resource not accessible by integration',
+    }),
+  });
+  assert.match(result.error, /returned 403/);
+  assert.match(result.error, /Resource not accessible/);
+});
+
+test('converts workflow metadata network failures into an unknown-state diagnostic', async () => {
+  const result = await fetchWorkflowMetadata({
+    apiBase: 'https://api.github.com',
+    repository: 'owner/repo',
+    workflowFile: 'workflow.yml',
+    token: 'test-token',
+    fetchImpl: async () => { throw new Error('temporary network failure'); },
+  });
+  assert.match(result.error, /request failed: temporary network failure/);
+});
+
 function run(overrides = {}) {
   return {
     id: 123,
