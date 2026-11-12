@@ -226,3 +226,20 @@ test('keeps Meta publishing hard-disabled and points its future verifier step at
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
+
+test('pins comment intake astronomy dependencies to the validated Python 3.11 runtime', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/youtube-comment-intake.yml', import.meta.url),
+    'utf8',
+  );
+  const pythonSetupIndex = workflow.indexOf('      - name: Set up Python');
+  const astronomyInstallIndex = workflow.indexOf('      - name: Install Python astronomy dependencies');
+
+  assert.notEqual(pythonSetupIndex, -1, 'comment intake must explicitly set up Python');
+  assert.notEqual(astronomyInstallIndex, -1, 'comment intake must install astronomy dependencies');
+  assert.ok(pythonSetupIndex < astronomyInstallIndex, 'Python setup must precede astronomy dependency installation');
+  assert.match(
+    workflow,
+    /uses: actions\/setup-python@v5[\s\S]*?python-version:\s*["']3\.11["']/,
+  );
+});
