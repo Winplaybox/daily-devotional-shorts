@@ -38,7 +38,9 @@ export function buildAnalyticsQueries(range) {
     },
     videos: {
       ...base,
-      metrics: 'views,engagedViews,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,likes,comments,shares',
+      // The top-videos report supports this per-video metric set. Keep
+      // subscriber, like/comment and average-percentage metrics in the daily report.
+      metrics: 'views,engagedViews,estimatedMinutesWatched,averageViewDuration',
       dimensions: 'video,creatorContentType',
       sort: '-views',
       maxResults: 200,
@@ -381,8 +383,7 @@ async function main() {
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2) + '\n');
   const columns = [
     'video', 'creatorContentType', 'title', 'publishedAt', 'duration', 'views',
-    'engagedViews', 'estimatedMinutesWatched', 'averageViewDuration',
-    'averageViewPercentage', 'subscribersGained', 'likes', 'comments', 'shares', 'url',
+    'engagedViews', 'estimatedMinutesWatched', 'averageViewDuration', 'url',
   ];
   const csv = [
     columns.join(','),
