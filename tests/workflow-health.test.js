@@ -91,11 +91,7 @@ test('marks the latest failed scheduled run as failed even when an older run suc
 });
 
 test('reports a recent in-progress scheduled run without treating it as a failure', () => {
-  const result = evaluateWorkflowHealth({
-    expectation,
-    runs: [run({ status: 'in_progress', conclusion: null })],
-    now,
-  });
+  const result = evaluateWorkflowHealth({ expectation, runs: [run({ status: 'in_progress', conclusion: null })], now });
   assert.equal(result.state, 'running');
 });
 
@@ -225,4 +221,27 @@ test('keeps Meta publishing hard-disabled and points its future verifier step at
   assert.match(workflow, /run:\s*node src\/social\/source-run-verifier\.js/);
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
+});
+
+test('keeps scheduled YouTube uploads disabled and manual publishing off by default', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/daily-shorts-publisher.yml', import.meta.url),
+    'utf8',
+  );
+  const normalizedWorkflow = workflow.replace(/\s+/g, ' ');
+
+  assert.match(
+    workflow,
+    /publish:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+default:\s*false\n\s+type:\s*boolean/,
+  );
+  assert.match(
+    normalizedWorkflow,
+    /AUTO_PUBLISH:\s*\$\{\{\s*github\.event_name == 'workflow_dispatch' && inputs\.publish == true\s*\}\}/,
+  );
+  assert.match(
+    normalizedWorkflow,
+    /REQUEST_UPLOAD:\s*\$\{\{\s*github\.event_name == 'workflow_dispatch' && inputs\.publish == true\s*\}\}/,
+  );
+  assert.doesNotMatch(normalizedWorkflow, /AUTO_PUBLISH:\s*'true'/);
+  assert.doesNotMatch(normalizedWorkflow, /REQUEST_UPLOAD:\s*\$\{\{[^}]*event_name == 'schedule'/);
 });
