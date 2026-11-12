@@ -35,7 +35,8 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag, 
       part: ["contentDetails"],
       playlistId: uploadsPlaylistId,
       maxResults: 50,
-      ...(pageToken ? { pageToken } : {}));
+      ...(pageToken ? { pageToken } : {}),
+    }));
     const ids = (page.data.items || [])
       .map((item) => item.contentDetails?.videoId)
       .filter(Boolean);
