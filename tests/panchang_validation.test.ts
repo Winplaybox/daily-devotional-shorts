@@ -298,14 +298,26 @@ describe('7. Full-Poster Structure & Approved Visual Ornaments Regression Test',
   });
 });
 
-describe('8. YouTube daily publishing gates', () => {
-  test('scheduled runs always upload; manual runs upload unless publish is unticked', () => {
+describe('8. YouTube publishing gates', () => {
+  test('scheduled runs are review-only and manual uploads require explicit opt-in', () => {
     const workflow = fs.readFileSync(path.resolve('./.github/workflows/daily-shorts-publisher.yml'), 'utf8');
+    const normalizedWorkflow = workflow.replace(/\\s+/g, ' ');
     const pipeline = fs.readFileSync(path.resolve('./src/pipeline.js'), 'utf8');
 
-    assert.ok(workflow.includes("AUTO_PUBLISH: 'true'"));
-    assert.ok(workflow.includes("REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish == true }}"));
-    assert.match(workflow, /publish:\n\s+description:[^\n]*\n\s+required: true\n\s+default: true/);
+    assert.match(
+      workflow,
+      /publish:\\s*\\n\\s+description:[^\\n]*\\n\\s+required:\\s*true\\n\\s+default:\\s*false\\n\\s+type:\\s*boolean/,
+    );
+    assert.match(
+      normalizedWorkflow,
+      /AUTO_PUBLISH:\\s*\\$\\{\\{\\s*github\\.event_name == 'workflow_dispatch' && inputs\\.publish == true\\s*\\}\\}/,
+    );
+    assert.match(
+      normalizedWorkflow,
+      /REQUEST_UPLOAD:\\s*\\$\\{\\{\\s*github\\.event_name == 'workflow_dispatch' && inputs\\.publish == true\\s*\\}\\}/,
+    );
+    assert.doesNotMatch(normalizedWorkflow, /AUTO_PUBLISH:\\s*'true'/);
+    assert.doesNotMatch(normalizedWorkflow, /REQUEST_UPLOAD:\\s*\\$\\{\\{[^}]*event_name == 'schedule'/);
     assert.ok(workflow.includes("PANCHANG_LOCATION_CONFIGURED: 'true'"));
 
     // The application still requires both gates before calling YouTube.
