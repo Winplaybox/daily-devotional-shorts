@@ -31,11 +31,12 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag, 
 
   let pageToken;
   do {
-    const page = await retryReadOnlyRequest(() => yt.playlistItems.list({
+    const page = await retryReadOnlyRequest((requestOptions) => yt.playlistItems.list({
       part: ["contentDetails"],
       playlistId: uploadsPlaylistId,
       maxResults: 50,
       ...(pageToken ? { pageToken } : {}),
+      ...requestOptions,
     }));
     const ids = (page.data.items || [])
       .map((item) => item.contentDetails?.videoId)
@@ -43,10 +44,11 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag, 
 
     for (let offset = 0; offset < ids.length; offset += 50) {
       const batch = ids.slice(offset, offset + 50);
-      const videos = await retryReadOnlyRequest(() => yt.videos.list({
+      const videos = await retryReadOnlyRequest((requestOptions) => yt.videos.list({
         part: ["snippet", "status"],
         id: batch,
         maxResults: batch.length,
+        ...requestOptions,
       }));
       const items = videos.data.items || [];
       const match = items.find((video) =>

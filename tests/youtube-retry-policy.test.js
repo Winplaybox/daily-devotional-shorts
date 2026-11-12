@@ -21,6 +21,26 @@ test("retries transient read-only failures with capped exponential backoff", asy
   assert.deepEqual(delays, [100, 200]);
 });
 
+test("disables Gaxios transport retries so the bounded wrapper owns every read attempt", async () => {
+  const receivedOptions = [];
+  let calls = 0;
+  const result = await retryReadOnlyRequest(async (requestOptions) => {
+    receivedOptions.push(requestOptions);
+    calls += 1;
+    if (calls === 1) throw Object.assign(new Error("temporary read failure"), { response: { status: 503 } });
+    return "ok";
+  }, {
+    maxAttempts: 2,
+    baseDelayMs: 0,
+    maxDelayMs: 0,
+    sleep: async () => {},
+  });
+
+  assert.equal(result, "ok");
+  assert.equal(calls, 2);
+  assert.deepEqual(receivedOptions, [{ retry: false }, { retry: false }]);
+});
+
 test("does not retry a permanent YouTube upload-limit error", async () => {
   let calls = 0;
   const error = Object.assign(new Error("upload quota exceeded"), {

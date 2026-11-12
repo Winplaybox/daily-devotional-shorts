@@ -455,11 +455,12 @@ async function getYouTubeClient() {
 async function ensurePlaylist(yt, title, description) {
   if (!title) return null;
   try {
-    const listRes = await yt.playlists.list({
+    const listRes = await retryReadOnlyRequest((requestOptions) => yt.playlists.list({
       part: ['snippet'],
       mine: true,
       maxResults: 50,
-    });
+      ...requestOptions,
+    }));
 
     const items = listRes.data.items || [];
     const targetTitle = title.trim().toLowerCase();
@@ -591,10 +592,11 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
     // Tags can lag behind the upload response, so re-read a few times.
     let uploaded;
     for (let attempt = 1; attempt <= 4; attempt += 1) {
-      const verification = await retryReadOnlyRequest(() => yt.videos.list({
+      const verification = await retryReadOnlyRequest((requestOptions) => yt.videos.list({
         part: ['snippet', 'status'],
         id: [videoId],
         maxResults: 1,
+        ...requestOptions,
       }));
       uploaded = verification.data.items?.[0];
       if (uploaded && Array.isArray(uploaded.snippet?.tags) && uploaded.snippet.tags.includes(jobTag)) break;
@@ -714,7 +716,12 @@ async function run() {
       try {
         if (!hasValidCredentials()) throw new Error('Publishing requested but YouTube OAuth files are missing or invalid.');
         const yt = await getYouTubeClient();
-        const channel = await yt.channels.list({ part: ['snippet', 'contentDetails'], mine: true, maxResults: 1 });
+        const channel = await retryReadOnlyRequest((requestOptions) => yt.channels.list({
+          part: ['snippet', 'contentDetails'],
+          mine: true,
+          maxResults: 1,
+          ...requestOptions,
+        }));
         if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
         const authenticatedChannel = channel.data.items[0];
         const channelId = authenticatedChannel.id;

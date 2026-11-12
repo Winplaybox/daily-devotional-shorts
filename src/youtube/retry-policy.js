@@ -59,7 +59,8 @@ export async function retryReadOnlyRequest(operation, options = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await operation();
+      // Disable Gaxios' internal retry loop so this helper owns the complete attempt budget.
+      return await operation({ retry: false });
     } catch (error) {
       if (attempt >= maxAttempts || !isRetryableReadError(error)) throw error;
       const delayMs = Math.min(maxDelayMs, baseDelayMs * (2 ** (attempt - 1)));

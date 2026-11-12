@@ -11,14 +11,28 @@ test("rejects invalid dates and slots", () => {
   assert.throws(() => buildPublishJobTag("2026-11-10", "night"), /Unsupported publish slot/);
 });
 
-test("finds an existing upload by its metadata tag", async () => {
+test("finds an existing upload by its metadata tag and disables nested Gaxios retries", async () => {
   const existing = { id: "video-123", snippet: { title: "Daily Panchang", tags: ["pp365_job_20261110_morning"] } };
+  let playlistOptions;
+  let videoOptions;
   const yt = {
-    playlistItems: { list: async () => ({ data: { items: [{ contentDetails: { videoId: "video-123" } }] } }) },
-    videos: { list: async () => ({ data: { items: [existing] } }) },
+    playlistItems: {
+      list: async (options) => {
+        playlistOptions = options;
+        return { data: { items: [{ contentDetails: { videoId: "video-123" } }] } };
+      },
+    },
+    videos: {
+      list: async (options) => {
+        videoOptions = options;
+        return { data: { items: [existing] } };
+      },
+    },
   };
   const result = await findExistingUploadByJobTag(yt, "uploads-1", "pp365_job_20261110_morning");
   assert.equal(result.id, "video-123");
+  assert.equal(playlistOptions.retry, false);
+  assert.equal(videoOptions.retry, false);
 });
 
 test("returns null when no matching job tag exists", async () => {
