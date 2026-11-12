@@ -302,7 +302,7 @@ test('health monitor reads workflow enablement metadata before declaring schedul
     new URL('../scripts/check-workflow-health.js', import.meta.url),
     'utf8',
   );
-  assert.match(script, /actions\\/workflows\\/\$\\{encodeURIComponent\\(workflowFile\\)\\}/);
-  assert.match(script, /evaluateWorkflowRegistration/);
-  assert.match(script, /workflowState=\$\\{result\.workflowState \?\? 'unknown'\}/);
+  assert.ok(script.includes('/actions/workflows/${encodeURIComponent(workflowFile)}'));
+  assert.ok(script.includes('evaluateWorkflowRegistration'));
+  assert.ok(script.includes("workflowState=${result.workflowState ?? 'unknown'}"));
 });
