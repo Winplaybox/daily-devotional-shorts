@@ -91,7 +91,11 @@ test('marks the latest failed scheduled run as failed even when an older run suc
 });
 
 test('reports a recent in-progress scheduled run without treating it as a failure', () => {
-  const result = evaluateWorkflowHealth({ expectation, runs: [run({ status: 'in_progress', conclusion: null })], now });
+  const result = evaluateWorkflowHealth({
+    expectation,
+    runs: [run({ status: 'in_progress', conclusion: null })],
+    now,
+  });
   assert.equal(result.state, 'running');
 });
 
