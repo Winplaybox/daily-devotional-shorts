@@ -7,7 +7,7 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
-import { retryReadOnlyRequest } from './youtube/retry-policy.js';
+import { retryReadOnlyRequest, writeOnce } from './youtube/retry-policy.js';
 import { createPublishLedger, markPendingSlotsNotAttempted, markRemainingSlotsNotAttempted, serializePublishError, updatePublishLedgerSlot, writePublishLedger } from './youtube/publish-ledger.js';
 import { buildAfternoonNarration } from './editorial/slot-content.js';
 
@@ -473,7 +473,7 @@ async function ensurePlaylist(yt, title, description) {
     }
 
     console.log(`[PLAYLIST] Creating new playlist: "${title}"...`);
-    const createRes = await yt.playlists.insert({
+    const createRes = await writeOnce((options) => yt.playlists.insert(options), {
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
@@ -498,7 +498,7 @@ async function ensurePlaylist(yt, title, description) {
 async function addVideoToPlaylist(yt, playlistId, videoId) {
   if (!playlistId || !videoId) return;
   try {
-    await yt.playlistItems.insert({
+    await writeOnce((options) => yt.playlistItems.insert(options), {
       part: ['snippet'],
       requestBody: {
         snippet: {
@@ -566,7 +566,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
       selfDeclaredMadeForKids: false,
     };
 
-    const res = await yt.videos.insert({
+    const res = await writeOnce((options) => yt.videos.insert(options), {
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
