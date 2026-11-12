@@ -15,7 +15,7 @@ const VALID_STATUSES = new Set([
  * the scheduled video has become publicly visible.
  */
 export function createPublishLedger({ panchangDate = null, slots, createdAt = new Date().toISOString() }) {
-  if (panchangDate !== null && !/^\\d{4}-\\d{2}-\\d{2}$/.test(String(panchangDate))) {
+  if (panchangDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(panchangDate))) {
     throw new TypeError("panchangDate must use YYYY-MM-DD or be null.");
   }
   if (!Array.isArray(slots) || slots.length === 0) {
@@ -106,8 +106,8 @@ export function serializePublishError(error) {
   const apiError = responseData?.error ?? responseData ?? {};
   const httpStatus = Number(error?.response?.status ?? error?.status);
   const message = String(error?.message ?? "Unknown publish error")
-    .replace(/Bearer\\s+[^\\s]+/gi, "Bearer [REDACTED]")
-    .replace(/(access_token|refresh_token|client_secret)\\s*[:=]\\s*[^,\\s]+/gi, "$1=[REDACTED]")
+    .replace(/Bearer\s+[^\s]+/gi, "Bearer [REDACTED]")
+    .replace(/(access_token|refresh_token|client_secret)\s*[:=]\s*[^,\s]+/gi, "$1=[REDACTED]")
     .slice(0, 500);
 
   return {
@@ -123,7 +123,7 @@ export function writePublishLedger(filePath, ledger) {
   if (typeof filePath !== "string" || !filePath) throw new TypeError("A ledger file path is required.");
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const temporaryPath = filePath + "." + process.pid + ".tmp";
-  fs.writeFileSync(temporaryPath, JSON.stringify(ledger, null, 2) + "\\n", {
+  fs.writeFileSync(temporaryPath, JSON.stringify(ledger, null, 2) + "\n", {
     encoding: "utf8",
     mode: 0o600,
   });
