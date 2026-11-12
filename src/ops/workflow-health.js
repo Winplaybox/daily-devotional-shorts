@@ -202,7 +202,7 @@ export function evaluateWorkflowHealth({ expectation, runs, now = new Date() }) 
  * freshness. A disabled workflow can otherwise look like a scheduler outage.
  */
 export function evaluateWorkflowRegistration({ expectation, workflow, error = null }) {
-  if (!expectation || (workflow !== null && typeof workflow !== 'object') || (error !== null && typeof error !== 'string')) {
+  if (!expectation || (workflow != null && typeof workflow !== 'object') || (error !== null && typeof error !== 'string')) {
     throw new TypeError('expectation, workflow metadata and an optional error are required.');
   }
 
