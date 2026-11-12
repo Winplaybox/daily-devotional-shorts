@@ -6,6 +6,7 @@ import {
   buildAnalyticsQueries,
   buildAnalyticsSummary,
   getAnalyticsDateRange,
+  queryAnalyticsReport,
 } from '../src/youtube/analytics-report.js';
 
 test('analytics date range uses completed Pacific Time days', () => {
@@ -46,7 +47,32 @@ test('analytics queries include Shorts classification, retention and traffic sou
   assert.match(queries.videos.metrics, /averageViewPercentage/);
   assert.equal(queries.trafficSources.dimensions, 'insightTrafficSourceType');
   assert.match(queries.trafficSources.metrics, /estimatedMinutesWatched/);
+  assert.equal(queries.trafficSources.sort, undefined);
   assert.match(queries.revenue.metrics, /estimatedRevenue/);
+});
+
+
+test('analytics report failures identify the failing report and preserve HTTP status', async () => {
+  const apiError = new Error('The query is not supported.');
+  apiError.response = {
+    status: 400,
+    data: { error: { message: 'The query is not supported.' } },
+  };
+  const analytics = {
+    reports: {
+      query: async () => { throw apiError; },
+    },
+  };
+
+  await assert.rejects(
+    queryAnalyticsReport(analytics, 'trafficSources', { dimensions: 'insightTrafficSourceType' }),
+    (error) => {
+      assert.match(error.message, /trafficSources/);
+      assert.match(error.message, /HTTP 400/);
+      assert.equal(error.response.status, 400);
+      return true;
+    },
+  );
 });
 
 test('analytics summary separates Shorts, computes watch hours and ranks top/weak Shorts', () => {
