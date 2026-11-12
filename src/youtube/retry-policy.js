@@ -69,3 +69,18 @@ export async function retryReadOnlyRequest(operation, options = {}) {
 
   throw new Error("Read-only request exhausted its retry budget.");
 }
+
+
+/**
+ * Execute a non-idempotent API write once and explicitly disable Gaxios retries.
+ * This protects uploads and other POST writes from ambiguous replay after a timeout.
+ */
+export function writeOnce(operation, requestOptions = {}) {
+  if (typeof operation !== "function") {
+    throw new TypeError("A write request function is required.");
+  }
+  if (!requestOptions || typeof requestOptions !== "object" || Array.isArray(requestOptions)) {
+    throw new TypeError("Write request options must be an object.");
+  }
+  return operation({ ...requestOptions, retry: false });
+}
