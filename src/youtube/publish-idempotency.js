@@ -2,6 +2,8 @@
  * YouTube-native idempotency for scheduled Panchang Shorts.
  * A deterministic video tag survives GitHub Actions retries without new secrets.
  */
+import { retryReadOnlyRequest } from "./retry-policy.js";
+
 const VALID_SLOTS = new Set(["morning", "afternoon", "evening"]);
 
 export function buildPublishJobTag(panchangDate, slot) {
@@ -29,23 +31,22 @@ export async function findExistingUploadByJobTag(yt, uploadsPlaylistId, jobTag, 
 
   let pageToken;
   do {
-    const page = await yt.playlistItems.list({
+    const page = await retryReadOnlyRequest(() => yt.playlistItems.list({
       part: ["contentDetails"],
       playlistId: uploadsPlaylistId,
       maxResults: 50,
-      ...(pageToken ? { pageToken } : {}),
-    });
+      ...(pageToken ? { pageToken } : {}));
     const ids = (page.data.items || [])
       .map((item) => item.contentDetails?.videoId)
       .filter(Boolean);
 
     for (let offset = 0; offset < ids.length; offset += 50) {
       const batch = ids.slice(offset, offset + 50);
-      const videos = await yt.videos.list({
+      const videos = await retryReadOnlyRequest(() => yt.videos.list({
         part: ["snippet", "status"],
         id: batch,
         maxResults: batch.length,
-      });
+      }));
       const items = videos.data.items || [];
       const match = items.find((video) =>
         Array.isArray(video.snippet?.tags) && video.snippet.tags.includes(jobTag)
