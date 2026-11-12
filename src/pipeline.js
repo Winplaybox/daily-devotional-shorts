@@ -7,6 +7,8 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
+import { retryReadOnlyRequest } from './youtube/retry-policy.js';
+import { createPublishLedger, markPendingSlotsNotAttempted, markRemainingSlotsNotAttempted, serializePublishError, updatePublishLedgerSlot, writePublishLedger } from './youtube/publish-ledger.js';
 import { buildAfternoonNarration } from './editorial/slot-content.js';
 
 import { fileURLToPath } from 'url';
@@ -546,7 +548,13 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
         throw new Error(`Existing video for ${jobTag} has unexpected privacy status; refusing duplicate upload.`);
       }
       console.log(`[IDEMPOTENCY] Existing upload found for ${jobTag}; skipping duplicate. URL: https://youtube.com/shorts/${existing.id}`);
-      return { videoId: existing.id, url: `https://youtube.com/shorts/${existing.id}`, skipped: true };
+      return {
+        videoId: existing.id,
+        url: 'https://youtube.com/shorts/' + existing.id,
+        skipped: true,
+        privacyStatus: existing.status?.privacyStatus ?? null,
+        publishAt: existing.status?.publishAt ?? publishAtIso,
+      };
     }
 
     console.log(`[SCHEDULE] Video will publish at: ${publishAtIso}`);
@@ -583,11 +591,11 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
     // Tags can lag behind the upload response, so re-read a few times.
     let uploaded;
     for (let attempt = 1; attempt <= 4; attempt += 1) {
-      const verification = await yt.videos.list({
+      const verification = await retryReadOnlyRequest(() => yt.videos.list({
         part: ['snippet', 'status'],
         id: [videoId],
         maxResults: 1,
-      });
+      }));
       uploaded = verification.data.items?.[0];
       if (uploaded && Array.isArray(uploaded.snippet?.tags) && uploaded.snippet.tags.includes(jobTag)) break;
       if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 10_000));
@@ -627,6 +635,14 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
         await addVideoToPlaylist(yt, playlistId, videoId);
       }
     }
+
+    return {
+      videoId,
+      url: 'https://youtube.com/shorts/' + videoId,
+      skipped: false,
+      privacyStatus: uploaded.status?.privacyStatus ?? null,
+      publishAt: uploaded.status?.publishAt ?? publishAtIso,
+    };
   } catch (uploadErr) {
     console.error('[ERROR] YouTube upload request failed:', uploadErr.message);
     if (uploadErr.response && uploadErr.response.data) {
@@ -681,31 +697,77 @@ async function run() {
     const uploadRequested = process.env.REQUEST_UPLOAD === 'true';
     const autoPublishEnabled = process.env.AUTO_PUBLISH === 'true';
     if (uploadRequested && autoPublishEnabled) {
-      if (!hasValidCredentials()) throw new Error('Publishing requested but YouTube OAuth files are missing or invalid.');
-      const yt = await getYouTubeClient();
-      const channel = await yt.channels.list({ part: ['snippet', 'contentDetails'], mine: true, maxResults: 1 });
-      if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
-      const authenticatedChannel = channel.data.items[0];
-      const channelId = authenticatedChannel.id;
-      const uploadsPlaylistId = authenticatedChannel.contentDetails?.relatedPlaylists?.uploads;
-      if (!channelId || !uploadsPlaylistId) throw new Error('Authenticated YouTube channel is missing its channel ID or uploads playlist.');
-      console.log('[YOUTUBE] Authenticated channel: ' + authenticatedChannel.snippet.title);
-
-      for (const output of outputs) {
-        const publishAt = new Date(output.data.publish_at);
-        if (!Number.isFinite(publishAt.getTime())) {
-          throw new Error(`Panchang engine returned invalid publish_at for ${output.slot}.`);
-        }
-        await uploadToYouTube(yt, output.videoPath, output.data, publishAt.toISOString(), {
-          channelId,
-          uploadsPlaylistId,
+      const panchangDate = process.env.PANCHANG_DATE || outputs[0]?.data?.date || outputs[0]?.data?.date_meta?.gregorian_date || null;
+      const ledgerDate = /^\d{4}-\d{2}-\d{2}$/.test(String(panchangDate ?? '')) ? panchangDate : 'unknown';
+      const ledgerPath = path.join(OUT_DIR, 'publish-ledger-' + ledgerDate + '.json');
+      let ledger = createPublishLedger({
+        panchangDate,
+        slots: outputs.map((output) => ({
           slot: output.slot,
-          panchangDate: process.env.PANCHANG_DATE,
-        });
+          durationSeconds: output.durationSeconds,
+          publishAt: output.data.publish_at ?? null,
+        })),
+      });
+      writePublishLedger(ledgerPath, ledger);
+
+      let activeSlot = null;
+      try {
+        if (!hasValidCredentials()) throw new Error('Publishing requested but YouTube OAuth files are missing or invalid.');
+        const yt = await getYouTubeClient();
+        const channel = await yt.channels.list({ part: ['snippet', 'contentDetails'], mine: true, maxResults: 1 });
+        if (!channel.data.items?.length) throw new Error('OAuth token did not resolve to a YouTube channel.');
+        const authenticatedChannel = channel.data.items[0];
+        const channelId = authenticatedChannel.id;
+        const uploadsPlaylistId = authenticatedChannel.contentDetails?.relatedPlaylists?.uploads;
+        if (!channelId || !uploadsPlaylistId) throw new Error('Authenticated YouTube channel is missing its channel ID or uploads playlist.');
+        console.log('[YOUTUBE] Authenticated channel: ' + authenticatedChannel.snippet.title);
+
+        for (const output of outputs) {
+          activeSlot = output.slot;
+          const publishAt = new Date(output.data.publish_at);
+          if (!Number.isFinite(publishAt.getTime())) {
+            throw new Error('Panchang engine returned invalid publish_at for ' + output.slot + '.');
+          }
+          const result = await uploadToYouTube(yt, output.videoPath, output.data, publishAt.toISOString(), {
+            channelId,
+            uploadsPlaylistId,
+            slot: output.slot,
+            panchangDate: process.env.PANCHANG_DATE,
+          });
+          ledger = updatePublishLedgerSlot(ledger, output.slot, {
+            status: result?.skipped ? 'reused' : 'upload_verified',
+            videoId: result?.videoId ?? null,
+            url: result?.url ?? null,
+            privacyStatus: result?.privacyStatus ?? null,
+            publishAt: result?.publishAt ?? publishAt.toISOString(),
+          });
+          activeSlot = null;
+          writePublishLedger(ledgerPath, ledger);
+        }
+      } catch (publishError) {
+        if (activeSlot) {
+          ledger = updatePublishLedgerSlot(ledger, activeSlot, {
+            status: 'failed',
+            error: serializePublishError(publishError),
+          });
+          ledger = markRemainingSlotsNotAttempted(
+            ledger,
+            activeSlot,
+            'Publisher stopped after the preceding slot failed; no upload was attempted for this slot.',
+          );
+        } else {
+          const failure = serializePublishError(publishError);
+          ledger = markPendingSlotsNotAttempted(
+            ledger,
+            'Publishing preflight failed: ' + (failure.reason || failure.message),
+          );
+        }
+        writePublishLedger(ledgerPath, ledger);
+        throw publishError;
       }
     } else {
       console.log('\n[REVIEW] All three slots rendered. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
-      for (const output of outputs) console.log(`[REVIEW] ${output.slot}: ${output.videoPath} -> ${output.data.publish_at}`);
+      for (const output of outputs) console.log('[REVIEW] ' + output.slot + ': ' + output.videoPath + ' -> ' + output.data.publish_at);
       console.log('[REVIEW] Publishing remains gated by REQUEST_UPLOAD and AUTO_PUBLISH.');
     }
 
