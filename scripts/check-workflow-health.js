@@ -1,4 +1,4 @@
-import { evaluateWorkflowHealth, evaluateWorkflowRegistration, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
+import { evaluateWorkflowHealth, evaluateWorkflowRegistration, fetchWorkflowMetadata, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const repository = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -6,27 +6,6 @@ const apiBase = (process.env.GITHUB_API_URL || 'https://api.github.com').replace
 
 if (!repository || !token) {
   throw new Error('GITHUB_REPOSITORY and GITHUB_TOKEN are required.');
-}
-
-async function fetchWorkflowMetadata(workflowFile) {
-  const url = new URL(
-    `${apiBase}/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}`,
-  );
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    return { error: `GitHub Actions workflow metadata API returned ${response.status}: ${body.slice(0, 300)}` };
-  }
-
-  const workflow = await response.json();
-  return { workflow };
 }
 
 async function fetchScheduledRuns(workflowFile) {
@@ -62,7 +41,7 @@ const results = [];
 
 for (const expectation of WORKFLOW_EXPECTATIONS) {
   const [metadata, runs] = await Promise.all([
-    fetchWorkflowMetadata(expectation.file),
+    fetchWorkflowMetadata({ apiBase, repository, workflowFile: expectation.file, token }),
     fetchScheduledRuns(expectation.file),
   ]);
   const registration = evaluateWorkflowRegistration({ expectation, ...metadata });
