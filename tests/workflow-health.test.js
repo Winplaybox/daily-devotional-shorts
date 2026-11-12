@@ -28,6 +28,36 @@ test('configures a 45-minute freshness threshold for the 15-minute comment intak
   assert.equal(configured.maxAgeMinutes, 45);
 });
 
+test('configures a 45-minute freshness threshold for the 30-minute health monitor schedule', () => {
+  const configured = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'workflow-health-monitor.yml');
+  assert.ok(configured);
+  assert.equal(configured.maxAgeMinutes, 45);
+});
+
+test('detects a missed health-monitor execution after its freshness threshold', () => {
+  const configured = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'workflow-health-monitor.yml');
+  const result = evaluateWorkflowHealth({
+    expectation: configured,
+    runs: [run({ id: 40, created_at: '2026-11-07T06:44:00.000Z' })],
+    now,
+  });
+  assert.equal(result.state, 'stale');
+  assert.equal(result.runId, 40);
+  assert.equal(result.ageMinutes, 46);
+});
+
+test('treats the current in-progress health-monitor run as running, not stale', () => {
+  const configured = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'workflow-health-monitor.yml');
+  const result = evaluateWorkflowHealth({
+    expectation: configured,
+    runs: [run({ id: 41, created_at: '2026-11-07T07:29:00.000Z', status: 'in_progress', conclusion: null })],
+    now,
+  });
+  assert.equal(result.state, 'running');
+  assert.equal(result.runId, 41);
+});
+
+
 test('marks a recent successful main-branch scheduled run healthy', () => {
   const result = evaluateWorkflowHealth({ expectation, runs: [run()], now });
   assert.equal(result.state, 'healthy');
