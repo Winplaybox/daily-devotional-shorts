@@ -48,6 +48,7 @@ test('analytics queries include Shorts classification, retention and traffic sou
   assert.equal(queries.trafficSources.dimensions, 'insightTrafficSourceType');
   assert.match(queries.trafficSources.metrics, /estimatedMinutesWatched/);
   assert.equal(queries.trafficSources.sort, undefined);
+  assert.equal(queries.trafficSources.maxResults, undefined);
   assert.match(queries.revenue.metrics, /estimatedRevenue/);
 });
 
