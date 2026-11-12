@@ -1,4 +1,4 @@
-import { evaluateWorkflowHealth, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
+import { evaluateWorkflowHealth, evaluateWorkflowRegistration, WORKFLOW_EXPECTATIONS } from '../src/ops/workflow-health.js';
 
 const repository = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -6,6 +6,27 @@ const apiBase = (process.env.GITHUB_API_URL || 'https://api.github.com').replace
 
 if (!repository || !token) {
   throw new Error('GITHUB_REPOSITORY and GITHUB_TOKEN are required.');
+}
+
+async function fetchWorkflowMetadata(workflowFile) {
+  const url = new URL(
+    `${apiBase}/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}`,
+  );
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    return { error: `GitHub Actions workflow metadata API returned ${response.status}: ${body.slice(0, 300)}` };
+  }
+
+  const workflow = await response.json();
+  return { workflow };
 }
 
 async function fetchScheduledRuns(workflowFile) {
@@ -40,16 +61,28 @@ const now = new Date();
 const results = [];
 
 for (const expectation of WORKFLOW_EXPECTATIONS) {
-  const runs = await fetchScheduledRuns(expectation.file);
-  results.push(evaluateWorkflowHealth({ expectation, runs, now }));
+  const [metadata, runs] = await Promise.all([
+    fetchWorkflowMetadata(expectation.file),
+    fetchScheduledRuns(expectation.file),
+  ]);
+  const registration = evaluateWorkflowRegistration({ expectation, ...metadata });
+  const health = evaluateWorkflowHealth({ expectation, runs, now });
+  results.push(registration.state === 'active'
+    ? { ...health, workflowState: registration.workflowState }
+    : {
+        ...health,
+        state: registration.state,
+        workflowState: registration.workflowState,
+        message: `${registration.message} Scheduled-run check: ${health.state}; ${health.message}`,
+      });
 }
 
 for (const result of results) {
-  const marker = ['healthy', 'running', 'pending'].includes(result.state) ? 'OK' : 'ALERT';
-  console.log(`[${marker}] ${result.workflow}: ${result.state}; run=${result.runId ?? 'none'}; ageMinutes=${result.ageMinutes ?? 'n/a'}; ${result.message}`);
+  const marker = ['healthy', 'running', 'pending'].includes(result.state) && result.workflowState === 'active' ? 'OK' : 'ALERT';
+  console.log(`[${marker}] ${result.workflow}: ${result.state}; workflowState=${result.workflowState ?? 'unknown'}; run=${result.runId ?? 'none'}; ageMinutes=${result.ageMinutes ?? 'n/a'}; ${result.message}`);
 }
 
-const unhealthy = results.filter((result) => !['healthy', 'running', 'pending'].includes(result.state));
+const unhealthy = results.filter((result) => !['healthy', 'running', 'pending'].includes(result.state) || result.workflowState !== 'active');
 if (unhealthy.length) {
   console.error(`Workflow schedule health check failed for ${unhealthy.length} workflow(s).`);
   process.exitCode = 1;
