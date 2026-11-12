@@ -47,8 +47,6 @@ export function buildAnalyticsQueries(range) {
       ...base,
       metrics: 'views,estimatedMinutesWatched',
       dimensions: 'insightTrafficSourceType',
-      sort: '-views',
-      maxResults: 50,
     },
     revenue: {
       ...base,
@@ -57,6 +55,21 @@ export function buildAnalyticsQueries(range) {
       sort: 'day',
     },
   };
+}
+
+export async function queryAnalyticsReport(analytics, reportName, query) {
+  try {
+    return await analytics.reports.query(query);
+  } catch (error) {
+    const status = error?.response?.status;
+    const detail = error?.response?.data?.error?.message || error?.message || 'Unknown YouTube Analytics API error';
+    const wrapped = new Error(
+      'YouTube Analytics report "' + reportName + '" failed' +
+      (status ? ' (HTTP ' + status + ')' : '') + ': ' + detail,
+    );
+    if (error?.response) wrapped.response = error.response;
+    throw wrapped;
+  }
 }
 
 function loadOAuthClient() {
@@ -240,9 +253,9 @@ async function main() {
 
   const queries = buildAnalyticsQueries(range);
   const [dailyResponse, videosResponse, trafficResponse] = await Promise.all([
-    analytics.reports.query(queries.daily),
-    analytics.reports.query(queries.videos),
-    analytics.reports.query(queries.trafficSources),
+    queryAnalyticsReport(analytics, 'daily', queries.daily),
+    queryAnalyticsReport(analytics, 'videos', queries.videos),
+    queryAnalyticsReport(analytics, 'trafficSources', queries.trafficSources),
   ]);
 
   const daily = rowsToObjects(dailyResponse.data);
