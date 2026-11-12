@@ -201,6 +201,47 @@ export function evaluateWorkflowHealth({ expectation, runs, now = new Date() }) 
  * Check the Actions workflow metadata state separately from scheduled-run
  * freshness. A disabled workflow can otherwise look like a scheduler outage.
  */
+/**
+ * Fetch workflow enablement metadata without allowing transient network or
+ * response errors to abort the entire monitor. Callers treat errors as unknown.
+ */
+export async function fetchWorkflowMetadata({
+  apiBase,
+  repository,
+  workflowFile,
+  token,
+  fetchImpl = fetch,
+}) {
+  try {
+    if (![apiBase, repository, workflowFile, token].every((value) => typeof value === 'string' && value.trim())) {
+      throw new TypeError('apiBase, repository, workflowFile and token are required.');
+    }
+
+    const url = new URL(
+      `${apiBase.replace(/\\/+$/, '')}/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}`,
+    );
+    const response = await fetchImpl(url, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      return {
+        error: `GitHub Actions workflow metadata API returned ${response.status}: ${body.slice(0, 300)}`,
+      };
+    }
+
+    return { workflow: await response.json() };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: `GitHub Actions workflow metadata request failed: ${message}` };
+  }
+}
+
 export function evaluateWorkflowRegistration({ expectation, workflow, error = null }) {
   if (!expectation || (workflow != null && typeof workflow !== 'object') || (error !== null && typeof error !== 'string')) {
     throw new TypeError('expectation, workflow metadata and an optional error are required.');
