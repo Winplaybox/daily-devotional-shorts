@@ -43,8 +43,15 @@ test('analytics queries include Shorts classification, retention and traffic sou
   const queries = buildAnalyticsQueries({ startDate: '2026-10-09', endDate: '2026-11-05' });
   assert.match(queries.daily.metrics, /engagedViews/);
   assert.match(queries.daily.metrics, /averageViewPercentage/);
+  assert.match(queries.daily.metrics, /subscribersGained/);
+  assert.match(queries.daily.metrics, /subscribersLost/);
   assert.equal(queries.videos.dimensions, 'video,creatorContentType');
-  assert.match(queries.videos.metrics, /averageViewPercentage/);
+  assert.equal(queries.videos.metrics, 'views,engagedViews,estimatedMinutesWatched,averageViewDuration');
+  assert.equal(queries.videos.sort, '-views');
+  assert.equal(queries.videos.maxResults, 200);
+  for (const unsupportedMetric of ['averageViewPercentage', 'subscribersGained', 'likes', 'comments', 'shares']) {
+    assert.ok(!queries.videos.metrics.split(',').includes(unsupportedMetric), unsupportedMetric + ' is not supported by the top-videos report');
+  }
   assert.equal(queries.trafficSources.dimensions, 'insightTrafficSourceType');
   assert.match(queries.trafficSources.metrics, /estimatedMinutesWatched/);
   assert.equal(queries.trafficSources.sort, undefined);
