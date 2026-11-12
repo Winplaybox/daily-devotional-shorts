@@ -16,6 +16,11 @@ export const WORKFLOW_EXPECTATIONS = [
     label: 'YouTube Comment Intake',
     maxAgeMinutes: 45,
   },
+  {
+    file: 'workflow-health-monitor.yml',
+    label: 'Workflow Schedule Health Monitor',
+    maxAgeMinutes: 45,
+  },
 ];
 
 function timestamp(value) {
