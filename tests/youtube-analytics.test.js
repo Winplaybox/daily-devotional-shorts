@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {
   assessDailyCoverage,
   assessMetricCoverage,
+  buildAnalyticsFallbackQueries,
   buildAnalyticsQueries,
   buildAnalyticsSummary,
+  queryWithFallback,
   getAnalyticsDateRange,
 } from '../src/youtube/analytics-report.js';
 
@@ -264,4 +266,80 @@ test('Short ranking falls back to views when engaged views are blank or unavaila
   assert.equal(summary.topShorts.length, 1);
   assert.equal(summary.topShorts[0].video, 'fallback');
   assert.equal(summary.weakShorts[0].video, 'fallback');
+});
+
+
+test('analytics fallback queries use the known-supported video dimension', () => {
+  const fallbacks = buildAnalyticsFallbackQueries({
+    startDate: '2026-10-09',
+    endDate: '2026-11-05',
+  });
+
+  assert.equal(fallbacks.daily[0].dimensions, 'day');
+  assert.equal(fallbacks.videos[0].dimensions, 'video');
+  assert.doesNotMatch(fallbacks.videos[0].metrics, /engagedViews|averageViewPercentage/);
+  assert.equal(fallbacks.trafficSources[0].dimensions, 'insightTrafficSourceType');
+});
+
+test('analytics retries a known-good query after YouTube rejects the primary query', async () => {
+  const attempts = [];
+  const primary = { dimensions: 'video,creatorContentType', metrics: 'views,engagedViews' };
+  const fallback = { dimensions: 'video', metrics: 'views,estimatedMinutesWatched' };
+  const analytics = {
+    reports: {
+      query: async (query) => {
+        attempts.push(query);
+        if (attempts.length === 1) {
+          const error = new Error('The query is not supported.');
+          error.response = { status: 400, data: { error: { message: 'The query is not supported.' } } };
+          throw error;
+        }
+        return { data: { rows: [['video-1', '10']] } };
+      },
+    },
+  };
+
+  const response = await queryWithFallback(analytics, 'videos', [primary, fallback]);
+  assert.deepEqual(attempts, [primary, fallback]);
+  assert.deepEqual(response.data.rows, [['video-1', '10']]);
+});
+
+test('analytics does not retry fallback queries after an authentication failure', async () => {
+  let attempts = 0;
+  const analytics = {
+    reports: {
+      query: async () => {
+        attempts += 1;
+        const error = new Error('Forbidden');
+        error.response = { status: 403, data: { error: { message: 'Insufficient permissions.' } } };
+        throw error;
+      },
+    },
+  };
+
+  await assert.rejects(
+    () => queryWithFallback(analytics, 'videos', [{ dimensions: 'video,creatorContentType' }, { dimensions: 'video' }]),
+    /YouTube Analytics report "videos" failed/,
+  );
+  assert.equal(attempts, 1);
+});
+
+test('optional traffic-source analytics degrade to unavailable rows after query failures', async () => {
+  const analytics = {
+    reports: {
+      query: async () => {
+        const error = new Error('Unsupported traffic-source query');
+        error.response = { status: 400, data: { error: { message: 'Unsupported traffic-source query' } } };
+        throw error;
+      },
+    },
+  };
+
+  const response = await queryWithFallback(
+    analytics,
+    'trafficSources',
+    [{ dimensions: 'insightTrafficSourceType', sort: '-views' }, { dimensions: 'insightTrafficSourceType' }],
+    { optional: true },
+  );
+  assert.deepEqual(response, { data: { columnHeaders: [], rows: [] } });
 });
