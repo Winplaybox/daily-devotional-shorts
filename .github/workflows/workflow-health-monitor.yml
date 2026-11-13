@@ -2,7 +2,7 @@ name: Workflow Schedule Health Monitor
 
 on:
   schedule:
-    # Run twice per hour so the 45-minute comment-intake threshold is not hidden by an hourly check.
+    # Run twice per hour; comment intake alerts after 6 hours without a successful scheduled run.
     - cron: "*/30 * * * *"
   workflow_dispatch:
 

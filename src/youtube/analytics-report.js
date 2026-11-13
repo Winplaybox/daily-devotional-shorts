@@ -59,6 +59,60 @@ export function buildAnalyticsQueries(range) {
   };
 }
 
+/**
+ * Known-good query shapes (in use when the 2026-11-06 report succeeded).
+ * Used only when YouTube rejects the richer primary query.
+ */
+export function buildAnalyticsFallbackQueries(range) {
+  const base = { ids: 'channel==MINE', ...range };
+  return {
+    daily: [{
+      ...base,
+      metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost',
+      dimensions: 'day',
+      sort: 'day',
+    }],
+    videos: [{
+      ...base,
+      metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,likes,comments,shares',
+      dimensions: 'video',
+      sort: '-views',
+      maxResults: 200,
+    }],
+    trafficSources: [{
+      ...base,
+      metrics: 'views,estimatedMinutesWatched',
+      dimensions: 'insightTrafficSourceType',
+    }],
+  };
+}
+
+/**
+ * Runs the primary query, then each fallback, logging which shape YouTube
+ * rejected. Optional reports resolve to an empty result instead of failing.
+ */
+export async function queryWithFallback(analytics, reportName, candidates, { optional = false } = {}) {
+  const errors = [];
+  for (const [index, query] of candidates.entries()) {
+    try {
+      const response = await analytics.reports.query(query);
+      if (index > 0) console.warn('[ANALYTICS] ' + reportName + ': primary query rejected; used fallback #' + index + '.');
+      return response;
+    } catch (error) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.error?.message || error?.message || 'Unknown YouTube Analytics API error';
+      errors.push('#' + index + (status ? ' HTTP ' + status : '') + ': ' + detail);
+      console.warn('[ANALYTICS] ' + reportName + ' query #' + index + ' failed (' + (status || 'no status') + '): ' + detail + ' | dimensions=' + (query.dimensions || '') + ' metrics=' + query.metrics);
+      if (status === 401 || status === 403) break;
+    }
+  }
+  if (optional) {
+    console.warn('[ANALYTICS] ' + reportName + ' unavailable; continuing without it.');
+    return { data: { columnHeaders: [], rows: [] } };
+  }
+  throw new Error('YouTube Analytics report "' + reportName + '" failed: ' + errors.join(' | '));
+}
+
 function loadOAuthClient() {
   const clientPath = process.env.CLIENT_SECRET_FILE || './client_secret.json';
   const tokenPath = process.env.TOKEN_FILE || './token.json';
@@ -239,10 +293,11 @@ async function main() {
   if (!channel) throw new Error('OAuth token did not resolve to a YouTube channel.');
 
   const queries = buildAnalyticsQueries(range);
+  const fallbacks = buildAnalyticsFallbackQueries(range);
   const [dailyResponse, videosResponse, trafficResponse] = await Promise.all([
-    analytics.reports.query(queries.daily),
-    analytics.reports.query(queries.videos),
-    analytics.reports.query(queries.trafficSources),
+    queryWithFallback(analytics, 'daily', [queries.daily, ...fallbacks.daily]),
+    queryWithFallback(analytics, 'videos', [queries.videos, ...fallbacks.videos]),
+    queryWithFallback(analytics, 'trafficSources', [queries.trafficSources, ...fallbacks.trafficSources], { optional: true }),
   ]);
 
   const daily = rowsToObjects(dailyResponse.data);

@@ -39,20 +39,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Check Make webhook configuration
+        id: config
+        env:
+          MAKE_SOCIAL_WEBHOOK_URL: ${{ secrets.MAKE_SOCIAL_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          if [[ -n "${MAKE_SOCIAL_WEBHOOK_URL}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::MAKE_SOCIAL_WEBHOOK_URL secret is not set; skipping Instagram/Facebook distribution."
+          fi
+
       - name: Checkout publishing code
+        if: steps.config.outputs.ready == 'true'
         uses: actions/checkout@v4
         with:
           ref: main
 
       - name: Set up Node.js
+        if: steps.config.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Validate Make publisher script syntax
+        if: steps.config.outputs.ready == 'true'
         run: node --check scripts/publish_make_social.js
 
       - name: Verify source YouTube uploads before distribution
+        if: steps.config.outputs.ready == 'true'
         id: verify-source
         env:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
@@ -61,6 +78,7 @@ jobs:
         run: node src/social/source-run-verifier.js
 
       - name: Download source render artifact
+        if: steps.config.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: pavitra-panchang-${{ steps.verify-source.outputs.run_number }}
@@ -69,6 +87,7 @@ jobs:
           path: out
 
       - name: Verify 40-second video and metadata
+        if: steps.config.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -77,6 +96,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('out/daily_props_morning.json','utf8'));"
 
       - name: Upload media and dispatch Make scenario
+        if: steps.config.outputs.ready == 'true'
         env:
           META_VIDEO_PATH: out/pavitra-panchang-40s.mp4
           PANCHANG_METADATA_PATH: out/daily_props_morning.json
