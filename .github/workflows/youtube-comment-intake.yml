@@ -60,8 +60,8 @@ jobs:
           if (!scopes.includes('youtube.force-ssl') && !scopes.includes('youtube.readonly')) throw new Error('TOKEN_JSON is missing YouTube comment/channel read scopes.');
           console.log('Google OAuth token format and comment scopes are present.');
           NODE
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
