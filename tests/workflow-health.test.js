@@ -182,7 +182,7 @@ test('runs the schedule monitor every 30 minutes so intake staleness is checked 
   assert.match(workflow, /cron:\s*["']\*\/30 \* \* \* \*["']/);
 });
 
-test('requires explicit opt-in for automatic Make distribution and manual confirmation', () => {
+test('keeps Make social distribution manual-only until explicit owner re-approval', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/make-social-publisher.yml', import.meta.url),
     'utf8',
@@ -193,15 +193,17 @@ test('requires explicit opt-in for automatic Make distribution and manual confir
   );
 
   const normalizedWorkflow = workflow.replace(/\s+/g, ' ');
+  assert.doesNotMatch(workflow, /^  workflow_run:/m);
+  assert.match(workflow, /^  workflow_dispatch:/m);
   assert.match(
-    normalizedWorkflow,
-    /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.conclusion == 'success' && vars\.MAKE_SOCIAL_AUTO_PUBLISH == 'true'/,
+    workflow,
+    /publish:\s*\r?\n\s+description:[^\n]*\r?\n\s+required:\s*true\r?\n\s+default:\s*false\r?\n\s+type:\s*boolean/,
   );
   assert.match(
     normalizedWorkflow,
-    /github\.event_name == 'workflow_dispatch' && inputs\.publish == true/,
+    /if: github\.event_name == 'workflow_dispatch' && inputs\.publish == true/,
   );
-  assert.doesNotMatch(workflow, /^  dispatch:\r?\n    if:\s*false\b/m);
+  assert.doesNotMatch(normalizedWorkflow, /MAKE_SOCIAL_AUTO_PUBLISH|github\.event\.workflow_run/);
 
   const verificationStep = workflow.indexOf('node src/social/source-run-verifier.js');
   const dispatchStep = workflow.indexOf('node scripts/publish_make_social.js');
