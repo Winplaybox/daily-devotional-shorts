@@ -14,7 +14,9 @@ export const WORKFLOW_EXPECTATIONS = [
   {
     file: 'youtube-comment-intake.yml',
     label: 'YouTube Comment Intake',
-    maxAgeMinutes: 45,
+    // GitHub delays/drops */15 schedules on busy runners; observed gaps on
+    // main were 3-5 hours, so a 45-minute threshold alerted permanently.
+    maxAgeMinutes: 360,
   },
 ];
 

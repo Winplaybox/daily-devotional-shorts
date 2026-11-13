@@ -22,10 +22,10 @@ function run(overrides = {}) {
   };
 }
 
-test('configures a 45-minute freshness threshold for the 15-minute comment intake schedule', () => {
+test('configures a 6-hour freshness threshold for the throttled 15-minute comment intake schedule', () => {
   const configured = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'youtube-comment-intake.yml');
   assert.ok(configured);
-  assert.equal(configured.maxAgeMinutes, 45);
+  assert.equal(configured.maxAgeMinutes, 360);
 });
 
 test('marks a recent successful main-branch scheduled run healthy', () => {
