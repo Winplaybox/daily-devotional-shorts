@@ -28,8 +28,8 @@ jobs:
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
       ANALYTICS_DAYS: ${{ inputs.days || '28' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -61,7 +61,7 @@ jobs:
       - name: Collect channel analytics
         run: npm run analytics:report
       - name: Upload analytics report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pavitra-youtube-analytics-${{ github.run_number }}
           path: out/analytics/*
