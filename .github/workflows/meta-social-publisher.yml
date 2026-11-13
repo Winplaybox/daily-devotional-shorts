@@ -36,12 +36,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout publishing code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
 
@@ -57,7 +57,7 @@ jobs:
         run: node src/social/source-run-verifier.js
 
       - name: Download the source run's render artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: pavitra-panchang-${{ steps.verify-source.outputs.run_number }}
           run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
