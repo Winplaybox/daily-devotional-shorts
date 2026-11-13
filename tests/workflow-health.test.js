@@ -240,15 +240,15 @@ test('pins workflow actions to Node 24-compatible major versions', () => {
   ];
   const workflows = workflowFiles
     .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
-    .join('\\n');
+    .join('\n');
 
   assert.doesNotMatch(
     workflows,
-    /actions\\/(?:checkout@v4|setup-node@v4|setup-python@v5|upload-artifact@v4|download-artifact@v4)/,
+    /actions\/(?:checkout@v4|setup-node@v4|setup-python@v5|upload-artifact@v4|download-artifact@v4)/,
   );
-  assert.match(workflows, /actions\\/checkout@v5/);
-  assert.match(workflows, /actions\\/setup-node@v5/);
-  assert.match(workflows, /actions\\/setup-python@v6/);
-  assert.match(workflows, /actions\\/upload-artifact@v5/);
-  assert.match(workflows, /actions\\/download-artifact@v6/);
+  assert.match(workflows, /actions\/checkout@v5/);
+  assert.match(workflows, /actions\/setup-node@v5/);
+  assert.match(workflows, /actions\/setup-python@v6/);
+  assert.match(workflows, /actions\/upload-artifact@v5/);
+  assert.match(workflows, /actions\/download-artifact@v6/);
 });
