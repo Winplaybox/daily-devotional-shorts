@@ -240,49 +240,132 @@ export function buildHindiTtsArgs({ configuredVoice = '', text, rate, outputPath
   ];
 }
 
+const TTS_PROVIDERS = ['kokoro', 'gemini', 'edge'];
+const KOKORO_HINDI_VOICES = new Set(['hf_alpha', 'hf_beta', 'hm_omega', 'hm_psi']);
+
+/** Provider order: TTS_PROVIDERS env (comma list) or Kokoro -> Gemini -> Edge. */
+export function resolveTtsProviders(configured = '') {
+  const requested = String(configured || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => TTS_PROVIDERS.includes(item));
+  const order = requested.length ? [...new Set(requested)] : [...TTS_PROVIDERS];
+  // Edge is always the last resort so a render never ships without narration.
+  return order.includes('edge') ? order : [...order, 'edge'];
+}
+
+/**
+ * A provider "fails" if its audio is implausibly short/long for the script
+ * (e.g. Gemini answering in English or truncating) or cannot fit the video
+ * even at the maximum natural speed-up.
+ */
+export function isAcceptableNarrationDuration({ seconds, text, targetSec, maxTempo }) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  const chars = String(text || '').replace(/\s+/g, '').length;
+  const expected = chars / 7.0; // measured Hindi speech rate on this channel
+  if (seconds < expected * 0.5 || seconds > expected * 1.8) return false;
+  return seconds <= targetSec * maxTempo + 1;
+}
+
+function writePcmWav(pcm, rate, outPath) {
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0); header.writeUInt32LE(36 + pcm.length, 4);
+  header.write('WAVE', 8); header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22); header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28); header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34); header.write('data', 36);
+  header.writeUInt32LE(pcm.length, 40);
+  fs.writeFileSync(outPath, Buffer.concat([header, pcm]));
+}
+
+async function synthesizeKokoro(text, rawPath, durationSeconds) {
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const voice = KOKORO_HINDI_VOICES.has(process.env.KOKORO_VOICE) ? process.env.KOKORO_VOICE : 'hf_alpha';
+  const textPath = path.join(OUT_DIR, `narration_text_${durationSeconds}.txt`);
+  fs.writeFileSync(textPath, text, 'utf8');
+  execFileSync(python, ['scripts/tts_kokoro.py', '--text-file', textPath, '--out', rawPath, '--voice', voice, '--speed', '1.05'], {
+    stdio: 'inherit',
+    timeout: 10 * 60 * 1000,
+  });
+  return `Kokoro ${voice}`;
+}
+
+async function synthesizeGemini(text, rawPath) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set.');
+  const voice = process.env.GEMINI_TTS_VOICE || 'Kore';
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: 'Read the following text aloud in Hindi (hi-IN), exactly as written, in a calm devotional presenter voice. Do not translate, add or omit anything.\n\n' + text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { languageCode: 'hi-IN', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`Gemini HTTP ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  const result = await response.json();
+  const part = result.candidates?.[0]?.content?.parts?.find((x) => x.inlineData?.data);
+  if (!part) throw new Error('Gemini TTS returned no audio data.');
+  const rate = Number((part.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1] || 24000);
+  writePcmWav(Buffer.from(part.inlineData.data, 'base64'), rate, rawPath);
+  return `Gemini ${voice}`;
+}
+
+async function synthesizeEdge(text, rawPath, durationSeconds) {
+  const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const ttsArgs = buildHindiTtsArgs({ configuredVoice: process.env.EDGE_TTS_VOICE, text, rate: '+10%', outputPath: mp3Path });
+  execFileSync(python, ttsArgs, { stdio: 'inherit', maxBuffer: 10 * 1024 * 1024 });
+  fs.copyFileSync(mp3Path, rawPath);
+  return `Edge ${ttsArgs[3]}`;
+}
+
+const MAX_TEMPO = 1.12;
+
 export async function generateHindiNarration(data, durationSeconds = 60) {
   const sourcePath = path.join(OUT_DIR, `narration_source_${durationSeconds}.wav`);
   const narrationPath = path.resolve(`./public/narration${durationSeconds}.wav`);
   const { ffmpeg } = getBinaryPaths();
-
-  // Always generate duration-specific narration text
   const text = buildHindiNarration(data, durationSeconds);
-  // Hindi narration uses a Hindi-only Edge voice. Gemini TTS previously
-  // returned English speech for Hindi-script input when its language was
-  // inferred; do not allow that silent language fallback in production.
-  const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
-  const python = process.platform === 'win32' ? 'python' : 'python3';
-  // Natural Hindi pace; scripts are sized so speech fits without heavy speed-up.
-  const ttsRate = '+10%';
-  const ttsArgs = buildHindiTtsArgs({
-    configuredVoice: process.env.EDGE_TTS_VOICE,
-    text,
-    rate: ttsRate,
-    outputPath: mp3Path,
-  });
-  const voice = ttsArgs[3];
-  try {
-    execFileSync(python, ttsArgs, {
-      stdio: 'inherit',
-      maxBuffer: 10 * 1024 * 1024,
-    });
-    execSync(`${ffmpeg} -y -i "${mp3Path}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'inherit' });
-    console.log(`[TTS] Hindi narration generated using ${voice} at rate ${ttsRate}.`);
-  } catch (error) {
-    throw new Error(`Hindi TTS generation failed for ${durationSeconds}s using ${voice}. Details: ` + error.message);
+  const targetSec = durationSeconds === 40 ? 36.5 : 55.0;
+  const synthesizers = { kokoro: synthesizeKokoro, gemini: synthesizeGemini, edge: synthesizeEdge };
+
+  let used = '';
+  const providers = resolveTtsProviders(process.env.TTS_PROVIDERS);
+  for (const provider of providers) {
+    const rawPath = path.join(OUT_DIR, `narration_raw_${provider}_${durationSeconds}.${provider === 'edge' ? 'mp3' : 'wav'}`);
+    try {
+      console.log(`[TTS] Trying ${provider} for ${durationSeconds}s...`);
+      const label = await synthesizers[provider](text, rawPath, durationSeconds);
+      execSync(`${ffmpeg} -y -i "${rawPath}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'inherit' });
+      const seconds = getAudioDuration(sourcePath);
+      const isLast = provider === providers[providers.length - 1];
+      if (!isLast && !isAcceptableNarrationDuration({ seconds, text, targetSec, maxTempo: MAX_TEMPO })) {
+        console.warn(`[TTS] ${label} produced ${seconds.toFixed(1)}s, outside the plausible/fit range; trying next provider.`);
+        continue;
+      }
+      used = label;
+      break;
+    } catch (error) {
+      console.warn(`[TTS] ${provider} failed for ${durationSeconds}s: ${error.message}`);
+    }
   }
+  if (!used) throw new Error(`All TTS providers failed for ${durationSeconds}s narration.`);
+  console.log(`[TTS] Hindi narration generated using ${used}.`);
 
   // Measure actual audio duration and adjust tempo gracefully if needed
   const rawDuration = getAudioDuration(sourcePath);
   console.log(`[TTS] Measured raw audio duration for ${durationSeconds}s: ${rawDuration.toFixed(2)}s`);
 
   let tempo = 1.0;
-  const targetSec = durationSeconds === 40 ? 36.5 : 55.0;
   const maxSafeSec = durationSeconds === 40 ? 37.8 : 56.8;
 
   // Never stretch speech beyond a natural-sounding range: speed up at most
   // MAX_TEMPO and never slow down. Short narration simply ends early.
-  const MAX_TEMPO = 1.12;
   if (rawDuration > maxSafeSec) {
     tempo = Math.min(rawDuration / targetSec, MAX_TEMPO);
     if (rawDuration / tempo > maxSafeSec + 2) {

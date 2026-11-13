@@ -87,6 +87,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-engine.txt edge-tts
 
+      - name: Cache Kokoro model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kokoro-82m-v1
+
+      - name: Install Kokoro TTS (first-priority voice)
+        # Optional: if this fails, narration falls back to Gemini, then Edge.
+        continue-on-error: true
+        run: |
+          sudo apt-get install --yes espeak-ng
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements-tts.txt
+
       - name: Resolve exact Panchang publication date
         shell: bash
         run: |
@@ -130,7 +144,7 @@ jobs:
           set -euo pipefail
           [[ -n "$CLIENT_SECRET_JSON" ]] || { echo "::error::Missing Actions secret CLIENT_SECRET_JSON"; exit 1; }
           [[ -n "$TOKEN_JSON" ]] || { echo "::error::Missing Actions secret TOKEN_JSON"; exit 1; }
-          [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Edge TTS fallback will be used."
+          [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Gemini TTS fallback is unavailable."
           python - <<'PY'
           import json, os
           for key in ("CLIENT_SECRET_JSON", "TOKEN_JSON"):

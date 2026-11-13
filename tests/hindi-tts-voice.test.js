@@ -108,3 +108,20 @@ test('afternoon slot fails closed when its three labelled time highlights are in
   );
   assert.equal(getAfternoonSlotContent({ ...afternoonSlotFixture, slot: 'morning' }), null);
 });
+
+test('TTS provider order is Kokoro, then Gemini, then Edge, with Edge always last', async () => {
+  const { resolveTtsProviders } = await import('../src/pipeline.js');
+  assert.deepEqual(resolveTtsProviders(''), ['kokoro', 'gemini', 'edge']);
+  assert.deepEqual(resolveTtsProviders('gemini,kokoro'), ['gemini', 'kokoro', 'edge']);
+  assert.deepEqual(resolveTtsProviders('edge'), ['edge']);
+  assert.deepEqual(resolveTtsProviders('bogus'), ['kokoro', 'gemini', 'edge']);
+});
+
+test('rejects narration audio that is implausible for the script or cannot fit the video', async () => {
+  const { isAcceptableNarrationDuration } = await import('../src/pipeline.js');
+  const text = 'क'.repeat(245); // ~35s of Hindi speech
+  assert.equal(isAcceptableNarrationDuration({ seconds: 35, text, targetSec: 36.5, maxTempo: 1.12 }), true);
+  assert.equal(isAcceptableNarrationDuration({ seconds: 12, text, targetSec: 36.5, maxTempo: 1.12 }), false); // truncated / wrong language
+  assert.equal(isAcceptableNarrationDuration({ seconds: 48, text, targetSec: 36.5, maxTempo: 1.12 }), false); // too long to fit
+  assert.equal(isAcceptableNarrationDuration({ seconds: NaN, text, targetSec: 36.5, maxTempo: 1.12 }), false);
+});
