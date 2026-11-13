@@ -226,3 +226,29 @@ test('keeps Meta publishing hard-disabled and points its future verifier step at
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
+
+
+test('pins workflow actions to Node 24-compatible major versions', () => {
+  const workflowFiles = [
+    '../.github/workflows/daily-shorts-publisher.yml',
+    '../.github/workflows/youtube-analytics.yml',
+    '../.github/workflows/youtube-comment-intake.yml',
+    '../.github/workflows/workflow-health-monitor.yml',
+    '../.github/workflows/validate.yml',
+    '../.github/workflows/make-social-publisher.yml',
+    '../.github/workflows/meta-social-publisher.yml',
+  ];
+  const workflows = workflowFiles
+    .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
+    .join('\\n');
+
+  assert.doesNotMatch(
+    workflows,
+    /actions\\/(?:checkout@v4|setup-node@v4|setup-python@v5|upload-artifact@v4|download-artifact@v4)/,
+  );
+  assert.match(workflows, /actions\\/checkout@v5/);
+  assert.match(workflows, /actions\\/setup-node@v5/);
+  assert.match(workflows, /actions\\/setup-python@v6/);
+  assert.match(workflows, /actions\\/upload-artifact@v5/);
+  assert.match(workflows, /actions\\/download-artifact@v6/);
+});
