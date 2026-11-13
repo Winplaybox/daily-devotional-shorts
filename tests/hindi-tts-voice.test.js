@@ -24,14 +24,14 @@ test('builds argv for Edge TTS without shell interpolation of narration text', (
   const args = buildHindiTtsArgs({
     configuredVoice: 'en-US-AriaNeural',
     text: narration,
-    rate: '+18%',
+    rate: '+10%',
     outputPath: 'out/narration.mp3',
   });
 
   assert.deepEqual(args, [
     '-m', 'edge_tts',
     '--voice', 'hi-IN-SwaraNeural',
-    '--rate=+18%',
+    '--rate=+10%',
     '--text', narration,
     '--write-media', 'out/narration.mp3',
   ]);
@@ -39,8 +39,8 @@ test('builds argv for Edge TTS without shell interpolation of narration text', (
 });
 
 test('rejects empty narration, missing output path and unconfigured speech rates', () => {
-  assert.throws(() => buildHindiTtsArgs({ text: '', rate: '+18%', outputPath: 'out.mp3' }), TypeError);
-  assert.throws(() => buildHindiTtsArgs({ text: 'नमस्कार', rate: '+18%', outputPath: '' }), TypeError);
+  assert.throws(() => buildHindiTtsArgs({ text: '', rate: '+10%', outputPath: 'out.mp3' }), TypeError);
+  assert.throws(() => buildHindiTtsArgs({ text: 'नमस्कार', rate: '+10%', outputPath: '' }), TypeError);
   assert.throws(() => buildHindiTtsArgs({ text: 'नमस्कार', rate: '+50%', outputPath: 'out.mp3' }), TypeError);
 });
 
@@ -85,11 +85,12 @@ test('afternoon narration speaks its slot-specific title and values instead of t
   assert.notEqual(afternoonText, morningText);
   assert.ok(afternoonText.includes('आज का शुभ चौघड़िया'));
   assert.ok(afternoonText.includes('अमृत चौघड़िया'));
-  assert.ok(afternoonText.includes('12:10 PM से 01:34 PM'));
+  assert.ok(afternoonText.includes('दोपहर 12:10 से 1:34 तक'));
   assert.ok(afternoonText.includes('शुभ चौघड़िया'));
-  assert.ok(afternoonText.includes('02:57 PM से 04:20 PM'));
+  assert.ok(afternoonText.includes('दोपहर 2:57 से शाम 4:20 तक'));
   assert.ok(afternoonText.includes('शुभ अभिजीत मुहूर्त'));
-  assert.ok(afternoonText.includes('11:48 AM से 12:32 PM'));
+  assert.ok(afternoonText.includes('सुबह 11:48 से दोपहर 12:32 तक'));
+  assert.ok(!/\b(AM|PM)\b/.test(afternoonText), 'narration must not read AM/PM in English');
   assert.ok(!morningText.includes('अमृत चौघड़िया'));
 });
 
@@ -106,4 +107,21 @@ test('afternoon slot fails closed when its three labelled time highlights are in
     /exactly three labelled time highlights/,
   );
   assert.equal(getAfternoonSlotContent({ ...afternoonSlotFixture, slot: 'morning' }), null);
+});
+
+test('TTS provider order is Kokoro, then Gemini, then Edge, with Edge always last', async () => {
+  const { resolveTtsProviders } = await import('../src/pipeline.js');
+  assert.deepEqual(resolveTtsProviders(''), ['kokoro', 'gemini', 'edge']);
+  assert.deepEqual(resolveTtsProviders('gemini,kokoro'), ['gemini', 'kokoro', 'edge']);
+  assert.deepEqual(resolveTtsProviders('edge'), ['edge']);
+  assert.deepEqual(resolveTtsProviders('bogus'), ['kokoro', 'gemini', 'edge']);
+});
+
+test('rejects narration audio that is implausible for the script or cannot fit the video', async () => {
+  const { isAcceptableNarrationDuration } = await import('../src/pipeline.js');
+  const text = 'क'.repeat(245); // ~35s of Hindi speech
+  assert.equal(isAcceptableNarrationDuration({ seconds: 35, text, targetSec: 36.5, maxTempo: 1.12 }), true);
+  assert.equal(isAcceptableNarrationDuration({ seconds: 12, text, targetSec: 36.5, maxTempo: 1.12 }), false); // truncated / wrong language
+  assert.equal(isAcceptableNarrationDuration({ seconds: 48, text, targetSec: 36.5, maxTempo: 1.12 }), false); // too long to fit
+  assert.equal(isAcceptableNarrationDuration({ seconds: NaN, text, targetSec: 36.5, maxTempo: 1.12 }), false);
 });

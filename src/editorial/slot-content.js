@@ -1,3 +1,5 @@
+import { spokenRange } from './spoken-time.js';
+
 function cleanText(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
@@ -35,14 +37,13 @@ export function buildAfternoonNarration(data, dateGreeting = '') {
   const nakshatra = cleanText(c1.nakshatra?.name || p.nakshatra_clean || p.nakshatra_name);
   const calendarTokens = [month, paksha, tithi, nakshatra].filter(Boolean);
 
+  const [first, ...rest] = content.highlights;
   const parts = [
-    `नमस्कार। दैनिक पंचांग 365 में ${cleanText(dateGreeting) || 'आज'} के लिए ${content.title} के प्रमुख समय जानिए।`,
+    `${content.title}। आज ${first.label} ${spokenRange(first.value)} है, यह शुभ कार्य के लिए उत्तम समय है।`,
   ];
-
-  if (calendarTokens.length) parts.push(`आज ${calendarTokens.join(', ')} है।`);
-  parts.push(`प्रमुख समय: ${content.highlights.map(({ label, value }) => `${label}: ${value}`).join('। ')}।`);
-  if (content.footer) parts.push(content.footer);
-  parts.push('दैनिक पंचांग से जुड़े रहने के लिए सब्सक्राइब करें। आपका दिन मंगलमय हो। जय श्री राम।');
+  if (cleanText(dateGreeting)) parts.push(`${cleanText(dateGreeting)}।`);
+  for (const { label, value } of rest) parts.push(`${label} ${spokenRange(value)}।`);
+  parts.push('रोज़ का पंचांग पाने के लिए सब्सक्राइब करें। जय श्री राम।');
 
   return parts.join(' ');
 }

@@ -1,0 +1,4 @@
+# First-priority Hindi narration (Kokoro-82M). CPU-only torch is installed separately.
+kokoro>=0.9.4
+soundfile>=0.12
+misaki[hi]>=0.9.4
