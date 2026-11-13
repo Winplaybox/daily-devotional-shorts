@@ -8,6 +8,8 @@ import { google } from 'googleapis';
 import { normalizeGoogleOAuthToken } from './youtube/oauth-token.js';
 import { buildPublishJobTag, findExistingUploadByJobTag } from './youtube/publish-idempotency.js';
 import { buildAfternoonNarration } from './editorial/slot-content.js';
+import { buildHook, dayWordFor } from './editorial/hook.js';
+import { spokenRange, spokenTime } from './editorial/spoken-time.js';
 
 import { fileURLToPath } from 'url';
 
@@ -163,143 +165,49 @@ export function buildHindiNarration(data, durationSeconds = 60) {
 
   // Festivals / Vrats
   const festivals = Array.isArray(c4.festivals) ? c4.festivals : [];
-  let festivalText = '';
-  if (festivals.length > 0 && festivals[0].name) {
-    festivalText = `आज का विशेष पर्व ${festivals[0].name} है।`;
-  } else if (data.title && !data.title.toLowerCase().includes('पंचांग')) {
-    festivalText = `आज ${data.title} का पावन दिन है।`;
-  }
+
+  const ok = (v) => v && v !== 'उपलब्ध नहीं';
+  const day = dayWordFor(data);
+  const hook = buildHook(data);
+  const dateLine = dateGreeting ? `${day} ${dateGreeting}` : day;
+  const calendarTokens = [ok(month) && month, ok(paksha) && paksha, ok(tithi) && `${tithi} तिथि`].filter(Boolean);
+  const festivalName = festivals.length > 0 && festivals[0].name
+    ? festivals[0].name
+    : (data.title && !data.title.toLowerCase().includes('पंचांग') ? data.title : '');
 
   if (durationSeconds === 40) {
-    // --- 40-SECOND NARRATION STRUCTURE ---
-    // 0-4s: Greeting and date
-    // 4-11s: Maas, Paksha, Tithi and Nakshatra
-    // 11-18s: Sunrise, sunset and important daily timings
-    // 18-27s: Important Shubh Muhurat and Rahu Kaal
-    // 27-34s: Vrat, festival or special Panchang info
-    // 34-40s: Directional guidance and closing
+    // --- 40-SECOND NARRATION: hook first, one fact per line, ~30s of speech ---
     const parts = [];
-    parts.push(`नमस्कार। दैनिक पंचांग 365 में आज ${dateGreeting} का पंचांग।`);
-
-    let calendarPart = '';
-    const calTokens = [];
-    if (month && month !== 'उपलब्ध नहीं') calTokens.push(`${month} माह`);
-    if (paksha && paksha !== 'उपलब्ध नहीं') calTokens.push(paksha);
-    if (tithi && tithi !== 'उपलब्ध नहीं') calTokens.push(`${tithi} तिथि`);
-
-    if (calTokens.length > 0) {
-      calendarPart = `आज ${calTokens.join(', ')} है`;
-      if (nakshatra && nakshatra !== 'उपलब्ध नहीं') calendarPart += `, तथा नक्षत्र ${nakshatra} रहेगा।`;
-      else calendarPart += '।';
-    } else if (nakshatra && nakshatra !== 'उपलब्ध नहीं') {
-      calendarPart = `आज नक्षत्र ${nakshatra} रहेगा।`;
-    }
-    if (calendarPart) parts.push(calendarPart);
-
-    if (sunrise && sunset && sunrise !== 'उपलब्ध नहीं' && sunset !== 'उपलब्ध नहीं') {
-      parts.push(`सूर्योदय ${formatVoiceTime(sunrise)} और सूर्यास्त ${formatVoiceTime(sunset)} पर होगा।`);
-    }
-
-    let muhuratPart = '';
-    if (abhijit && abhijit !== 'उपलब्ध नहीं') {
-      muhuratPart += `शुभ अभिजीत मुहूर्त ${formatVoiceTime(abhijit)} तक है। `;
-    }
-    if (rahuKaal && rahuKaal !== 'उपलब्ध नहीं') {
-      muhuratPart += `अशुभ राहुकाल ${formatVoiceTime(rahuKaal)} रहेगा।`;
-    }
-    if (muhuratPart) parts.push(muhuratPart.trim());
-
-    if (festivalText) {
-      parts.push(festivalText);
-    } else {
-      parts.push('आज का दिन धार्मिक कार्यों और ईश्वर आराधना के लिए उत्तम है।');
-    }
-
-    if (disha && disha !== 'उपलब्ध नहीं') {
-      parts.push(`आज ${disha} दिशा में दिशा शूल रहेगा।`);
-    }
-    parts.push('आपका दिन मंगलमय हो। जय श्री राम।');
-
+    if (hook) parts.push(hook.spoken);
+    let calendar = dateLine;
+    if (calendarTokens.length) calendar += `, ${calendarTokens.join(' ')}`;
+    if (ok(nakshatra)) calendar += `, ${nakshatra} नक्षत्र`;
+    parts.push(`${calendar}।`);
+    if (ok(sunrise)) parts.push(`सूर्योदय ${spokenTime(sunrise)}।`);
+    if (ok(abhijit) && !hook?.kicker.includes('अभिजीत')) parts.push(`अभिजीत मुहूर्त ${spokenRange(abhijit)}।`);
+    if (festivalName) parts.push(`${day} ${festivalName} है।`);
+    if (ok(disha)) parts.push(`दिशा शूल ${disha} में।`);
+    parts.push('रोज़ का पंचांग पाने के लिए सब्सक्राइब करें। जय श्री राम।');
     return parts.join(' ');
   }
 
-  // --- 60-SECOND NARRATION STRUCTURE ---
-  // 0-5s: Greeting and date
-  // 5-15s: Maas, Paksha, Tithi, Nakshatra, Yoga
-  // 15-25s: Sunrise, sunset and Choghadiya highlights
-  // 25-38s: Shubh Muhurat and important auspicious timings
-  // 38-48s: Rahu Kaal, Yamaganda and other relevant timings
-  // 48-55s: Festival, vrat and Disha Shool
-  // 55-60s: Short devotional closing
+  // --- 60-SECOND NARRATION: hook first, full detail, ~48s of speech ---
   const parts = [];
-  parts.push(`नमस्कार। दैनिक पंचांग 365 में आपका स्वागत है। आज ${dateGreeting} का संपूर्ण वैदिक पंचांग जानिए।`);
-
-  let calPart = '';
-  const cal60Tokens = [];
-  if (month && month !== 'उपलब्ध नहीं') cal60Tokens.push(`${month} माह`);
-  if (paksha && paksha !== 'उपलब्ध नहीं') cal60Tokens.push(paksha);
-  if (tithi && tithi !== 'उपलब्ध नहीं') cal60Tokens.push(`${tithi} तिथि`);
-
-  if (cal60Tokens.length > 0) {
-    calPart = `आज ${cal60Tokens.join(', ')} है।`;
-  }
-  if (nakshatra && nakshatra !== 'उपलब्ध नहीं') {
-    calPart += ` नक्षत्र ${nakshatra} रहेगा`;
-    if (yoga && yoga !== 'उपलब्ध नहीं') {
-      calPart += `, तथा योग ${yoga}`;
-      if (karana && karana !== 'उपलब्ध नहीं') {
-        calPart += ` और करण ${karana} है।`;
-      } else {
-        calPart += ' है।';
-      }
-    } else if (karana && karana !== 'उपलब्ध नहीं') {
-      calPart += ` तथा करण ${karana} है।`;
-    } else {
-      calPart += '।';
-    }
-  }
-  if (calPart) parts.push(calPart.trim());
-
-  let timingPart = '';
-  if (sunrise && sunset && sunrise !== 'उपलब्ध नहीं' && sunset !== 'उपलब्ध नहीं') {
-    timingPart = `सूर्योदय प्रातः ${formatVoiceTime(sunrise)} और सूर्यास्त सायं ${formatVoiceTime(sunset)} पर होगा।`;
-  }
-  if (moonrise && moonset && moonrise !== 'उपलब्ध नहीं' && moonset !== 'उपलब्ध नहीं') {
-    timingPart += ` चन्द्रोदय ${formatVoiceTime(moonrise)} तथा चन्द्रास्त ${formatVoiceTime(moonset)} पर होगा।`;
-  }
-  if (timingPart) parts.push(timingPart.trim());
-
-  let shubhPart = '';
-  if (abhijit && abhijit !== 'उपलब्ध नहीं') {
-    shubhPart += `दिन का सबसे शुभ अभिजीत मुहूर्त ${formatVoiceTime(abhijit)} रहेगा। `;
-  }
-  if (brahma && brahma !== 'उपलब्ध नहीं') {
-    shubhPart += `ब्रह्म मुहूर्त ${formatVoiceTime(brahma)} तक है, जिसमें शुभ संकल्प सिद्ध होते हैं।`;
-  }
-  if (shubhPart) parts.push(shubhPart.trim());
-
-  let ashubhPart = '';
-  if (rahuKaal && rahuKaal !== 'उपलब्ध नहीं') {
-    ashubhPart += `अशुभ समय में राहुकाल ${formatVoiceTime(rahuKaal)} रहेगा`;
-    if (yamaganda && yamaganda !== 'उपलब्ध नहीं') {
-      ashubhPart += `, तथा यमगण्ड काल ${formatVoiceTime(yamaganda)} तक रहेगा। इस दौरान नए कार्य टालें।`;
-    } else {
-      ashubhPart += '। इस दौरान नए कार्य टालें।';
-    }
-  }
-  if (ashubhPart) parts.push(ashubhPart.trim());
-
-  let culturalPart = '';
-  if (festivalText) {
-    culturalPart += festivalText + ' ';
-  }
-  if (disha && disha !== 'उपलब्ध नहीं') {
-    culturalPart += `आज ${disha} दिशा में दिशा शूल रहेगा, यात्रा से पूर्व उपाय अवश्य करें।`;
-  }
-  if (culturalPart) parts.push(culturalPart.trim());
-
-  parts.push('दैनिक पंचांग से जुड़े रहने के लिए सब्सक्राइब करें। आपका दिन मंगलमय हो। ॐ नमो भगवते वासुदेवाय नमः।');
-
+  if (hook) parts.push(hook.spoken);
+  let calendar = `${dateLine} का पंचांग।`;
+  if (calendarTokens.length) calendar += ` ${calendarTokens.join(' ')}`;
+  if (ok(nakshatra)) calendar += `, ${nakshatra} नक्षत्र`;
+  if (ok(yoga)) calendar += `, ${yoga} योग`;
+  if (ok(karana)) calendar += `, ${karana} करण`;
+  parts.push(calendarTokens.length || ok(nakshatra) ? `${calendar}।` : calendar);
+  if (ok(sunrise) && ok(sunset)) parts.push(`सूर्योदय ${spokenTime(sunrise)}, सूर्यास्त ${spokenTime(sunset)}।`);
+  if (ok(moonrise) && ok(moonset)) parts.push(`चन्द्रोदय ${spokenTime(moonrise)}, चन्द्रास्त ${spokenTime(moonset)}।`);
+  if (ok(abhijit)) parts.push(`अभिजीत मुहूर्त ${spokenRange(abhijit)}।`);
+  if (ok(brahma)) parts.push(`ब्रह्म मुहूर्त ${spokenRange(brahma)}।`);
+  if (ok(yamaganda)) parts.push(`यमगण्ड काल ${spokenRange(yamaganda)}।`);
+  if (festivalName) parts.push(`${day} ${festivalName} है।`);
+  if (ok(disha)) parts.push(`दिशा शूल ${disha} में।`);
+  parts.push('रोज़ का पंचांग पाने के लिए सब्सक्राइब करें। ॐ नमो भगवते वासुदेवाय नमः।');
   return parts.join(' ');
 }
 
@@ -317,7 +225,7 @@ export function buildHindiTtsArgs({ configuredVoice = '', text, rate, outputPath
   if (typeof outputPath !== 'string' || !outputPath.trim()) {
     throw new TypeError('Hindi TTS outputPath must be a non-empty string.');
   }
-  if (!['+18%', '+20%'].includes(rate)) {
+  if (!['+5%', '+10%'].includes(rate)) {
     throw new TypeError('Hindi TTS rate must be one of the configured safe rates.');
   }
 
@@ -344,7 +252,8 @@ export async function generateHindiNarration(data, durationSeconds = 60) {
   // inferred; do not allow that silent language fallback in production.
   const mp3Path = path.join(OUT_DIR, `narration_edge_${durationSeconds}.mp3`);
   const python = process.platform === 'win32' ? 'python' : 'python3';
-  const ttsRate = durationSeconds === 40 ? '+18%' : '+20%';
+  // Natural Hindi pace; scripts are sized so speech fits without heavy speed-up.
+  const ttsRate = '+10%';
   const ttsArgs = buildHindiTtsArgs({
     configuredVoice: process.env.EDGE_TTS_VOICE,
     text,
@@ -370,12 +279,15 @@ export async function generateHindiNarration(data, durationSeconds = 60) {
   let tempo = 1.0;
   const targetSec = durationSeconds === 40 ? 36.5 : 55.0;
   const maxSafeSec = durationSeconds === 40 ? 37.8 : 56.8;
-  const minSafeSec = durationSeconds === 40 ? 30.0 : 46.0;
 
+  // Never stretch speech beyond a natural-sounding range: speed up at most
+  // MAX_TEMPO and never slow down. Short narration simply ends early.
+  const MAX_TEMPO = 1.12;
   if (rawDuration > maxSafeSec) {
-    tempo = rawDuration / targetSec;
-  } else if (rawDuration > 0 && rawDuration < minSafeSec) {
-    tempo = rawDuration / targetSec;
+    tempo = Math.min(rawDuration / targetSec, MAX_TEMPO);
+    if (rawDuration / tempo > maxSafeSec + 2) {
+      console.warn(`[TTS][WARN] ${durationSeconds}s narration is ${rawDuration.toFixed(1)}s; at the ${MAX_TEMPO}x cap it overruns the target. Shorten the script.`);
+    }
   }
 
   console.log(`[TTS] Calculated tempo adjustment for ${durationSeconds}s: ${tempo.toFixed(3)}x (target: ${targetSec}s)`);

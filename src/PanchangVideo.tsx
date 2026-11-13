@@ -13,6 +13,7 @@ import {loadFont as loadNotoSans} from '@remotion/google-fonts/NotoSansDevanagar
 import {noise2D} from '@remotion/noise';
 import {Star} from '@remotion/shapes';
 import { getAfternoonSlotContent } from './editorial/slot-content.js';
+import { buildHook } from './editorial/hook.js';
 
 // Load authentic Google Fonts natively via @remotion/google-fonts
 const {fontFamily: rozhaFont} = loadRozha();
@@ -334,6 +335,64 @@ const VedicDivider: React.FC<{width?: number}> = ({width = 380}) => (
 );
 
 // --- MAIN PANCHANG POSTER COMPONENT ---
+// --- Retention structure: hook card first, then the poster builds section by section ---
+const HOOK_FRAMES = 105; // 3.5s at 30fps
+const REVEAL_START = HOOK_FRAMES - 10;
+const REVEAL_STEP = 45; // one section every 1.5s
+
+const Reveal: React.FC<{frame: number; start: number; enabled: boolean; children: React.ReactNode}> = ({frame, start, enabled, children}) => {
+  const t = enabled ? interpolate(frame, [start, start + 14], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}) : 1;
+  return (
+    <div style={{width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: t, transform: `translateY(${(1 - t) * 26}px)`}}>
+      {children}
+    </div>
+  );
+};
+
+const HookIntro: React.FC<{frame: number; kicker: string; value: string; note: string; dateText: string}> = ({frame, kicker, value, note, dateText}) => {
+  const fadeOut = interpolate(frame, [HOOK_FRAMES - 12, HOOK_FRAMES], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const pop = interpolate(frame, [0, 8], [0.86, 1], {extrapolateRight: 'clamp'});
+  const pulse = 1 + Math.sin(frame / 6) * 0.015;
+  if (frame >= HOOK_FRAMES) return null;
+  return (
+    <AbsoluteFill
+      style={{
+        zIndex: 30,
+        opacity: fadeOut,
+        background: 'radial-gradient(ellipse at 50% 45%, rgba(92,10,20,0.97) 0%, rgba(30,2,6,0.99) 75%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 70px',
+        textAlign: 'center',
+        fontFamily: notoFont
+      }}
+    >
+      <div style={{fontSize: 40, fontWeight: 800, color: GOLD_MID, letterSpacing: 1, marginBottom: 26, textShadow: '0 3px 10px #000'}}>{dateText}</div>
+      <div style={{fontSize: 74, fontWeight: 900, color: GOLD_LIGHT, lineHeight: 1.2, transform: `scale(${pop})`, textShadow: '0 4px 18px #000'}}>{kicker}</div>
+      <div
+        style={{
+          marginTop: 34,
+          fontSize: 92,
+          fontWeight: 900,
+          color: WHITE,
+          lineHeight: 1.15,
+          padding: '26px 40px',
+          borderRadius: 30,
+          border: '4px solid #fde047',
+          background: 'rgba(127,29,29,0.85)',
+          boxShadow: '0 0 40px rgba(250,204,21,0.45)',
+          transform: `scale(${pop * pulse})`
+        }}
+      >
+        {value}
+      </div>
+      <div style={{marginTop: 34, fontSize: 46, fontWeight: 800, color: '#fca5a5', textShadow: '0 3px 10px #000'}}>{note}</div>
+    </AbsoluteFill>
+  );
+};
+
 export const PanchangVideo: React.FC<PanchangProps> = (props) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
@@ -359,6 +418,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
     dishaGuidance
   } = mapPanchangData(props);
   const afternoonSlotContent = getAfternoonSlotContent(props);
+  // Only full-length Shorts get the hook card and staged reveal; still posters stay complete.
+  const animateIntro = durationInFrames >= 300;
+  const hook = animateIntro ? buildHook(props) : null;
 
   // Animation values using @remotion/noise for organic movement
   const entrance = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
@@ -592,6 +654,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           </div>
         </div>
 
+        <Reveal frame={frame} start={REVEAL_START + 0 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 1: CORE PANCHANG (वार, माह, पक्ष, तिथि) --- */}
         <div
           style={{
@@ -609,6 +672,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           <div>पक्ष– {hindiPaksha}</div>
           <div>तिथि– {hindiTithi}</div>
         </div>
+        </Reveal>
 
         {/* Authentic Victorian Filigree Divider */}
         <Img
@@ -622,6 +686,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           }}
         />
 
+        <Reveal frame={frame} start={REVEAL_START + 1 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 2: SURYA & CHANDRA TIMINGS --- */}
         <div
           style={{
@@ -639,7 +704,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           <div>चन्द्रोदय – {moonrise}</div>
           <div>चन्द्रास्त – {moonset}</div>
         </div>
+        </Reveal>
 
+        <Reveal frame={frame} start={REVEAL_START + 2 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 3: SHUBH KAAL (शुभ काल) --- */}
         <div style={{textAlign: 'center', width: '100%'}}>
           <PillBadge text="शुभ काल" frame={frame} bg="#7f1d1d" />
@@ -659,7 +726,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             <div>ब्रह्म मुहूर्त – {brahma}</div>
           </div>
         </div>
+        </Reveal>
 
+        <Reveal frame={frame} start={REVEAL_START + 3 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 4: ASHUBH KAAL (अशुभ काल) --- */}
         <div style={{textAlign: 'center', width: '100%'}}>
           <PillBadge text="अशुभ काल" frame={frame} bg="#7f1d1d" />
@@ -679,7 +748,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             <div>गुलिक काल – {gulikKaal}</div>
           </div>
         </div>
+        </Reveal>
 
+        <Reveal frame={frame} start={REVEAL_START + 4 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 5: SLOT-SPECIFIC HIGHLIGHTS --- */}
         {afternoonSlotContent ? (
           <GlowGlassCard style={{width: '95%', maxWidth: 820, textAlign: 'center'}}>
@@ -712,7 +783,9 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             </div>
           </GlowGlassCard>
         )}
+        </Reveal>
 
+        <Reveal frame={frame} start={REVEAL_START + 5 * REVEAL_STEP} enabled={animateIntro}>
         {/* --- SECTION 6: DISHA SHOOL & VISHESH PARV --- */}
         <div style={{textAlign: 'center', width: '92%', maxWidth: 860}}>
           <div
@@ -752,6 +825,7 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
             विशेष पर्व : {festivalTitle}
           </div>
         </div>
+        </Reveal>
 
         {/* --- SECTION 7: DEVOTIONAL ORNAMENTS (MANGAL KALASH & GLOWING DIYA) --- */}
         <div
@@ -774,6 +848,10 @@ export const PanchangVideo: React.FC<PanchangProps> = (props) => {
           <MangalKalash size={140} />
         </div>
       </AbsoluteFill>
+
+      {hook && (
+        <HookIntro frame={frame} kicker={hook.kicker} value={hook.value} note={hook.note} dateText={formattedHindiDate} />
+      )}
 
       {/* Layer 7: Golden Video Timeline Progress Indicator (in bottom margin, below border line) */}
       <div

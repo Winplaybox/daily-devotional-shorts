@@ -253,9 +253,11 @@ describe('6. Narration and Poster Data Consistency', () => {
     assert.ok(n40.includes('शनिवार'));
     assert.ok(n40.includes('सप्तमी'));
     assert.ok(n40.includes('मूल'));
-    assert.ok(n40.includes('06:24'));
+    assert.ok(n40.includes('सुबह 6:24'));
     assert.ok(n40.includes('11:49'));
-    assert.ok(n40.includes('09:18'));
+    assert.ok(n40.includes('सुबह 9:18 से 10:45 तक'));
+    assert.ok(n40.startsWith('आज राहुकाल'), '40s narration must open with the Rahu Kaal hook');
+    assert.ok(!/\b(AM|PM)\b/.test(n40 + n60), 'narration must not read AM/PM in English');
     assert.ok(n40.includes('पूर्व'));
     assert.ok(n40.includes('जय श्री राम'));
 
