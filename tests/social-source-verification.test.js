@@ -140,16 +140,27 @@ test("counts idempotently reused uploads only when their deterministic slot tag 
   assert.equal(countVerifiedUploadOutcomes("[IDEMPOTENCY] Existing upload found for arbitrary-job; skipping duplicate."), 0);
 });
 
-test("automatic Make distribution requires an explicit opt-in while manual dispatch remains confirmed", () => {
+test("Make distribution is manual-only and requires explicit publish confirmation", () => {
   const workflowPath = path.join(repositoryRoot, ".github", "workflows", "make-social-publisher.yml");
   const workflow = readFileSync(workflowPath, "utf8");
   const dispatchJob = workflow.split("\n  dispatch:\n")[1] || "";
   const jobCondition = dispatchJob.split("\n    runs-on:", 1)[0] || "";
 
-  assert.ok(jobCondition.includes("github.event_name == 'workflow_run'"));
-  assert.ok(jobCondition.includes("github.event.workflow_run.conclusion == 'success'"));
-  assert.ok(jobCondition.includes("vars.MAKE_SOCIAL_AUTO_PUBLISH == 'true'"));
+  assert.doesNotMatch(workflow, /workflow_run/);
+  assert.doesNotMatch(workflow, /MAKE_SOCIAL_AUTO_PUBLISH/);
   assert.ok(jobCondition.includes("github.event_name == 'workflow_dispatch' && inputs.publish == true"));
+  assert.match(workflow, /publish:\n        description:[^\n]*\n        required: true\n        default: false\n        type: boolean/);
+});
+
+test("scheduled YouTube runs are render-only and manual publishing defaults off", () => {
+  const workflowPath = path.join(repositoryRoot, ".github", "workflows", "daily-shorts-publisher.yml");
+  const workflow = readFileSync(workflowPath, "utf8");
+
+  assert.match(workflow, /publish:\n        description:[^\n]*\n        required: true\n        default: false\n        type: boolean/);
+  assert.match(workflow, /AUTO_PUBLISH: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.publish == true \}\}/);
+  assert.match(workflow, /REQUEST_UPLOAD: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.publish == true \}\}/);
+  assert.doesNotMatch(workflow, /AUTO_PUBLISH: 'true'/);
+  assert.doesNotMatch(workflow, /REQUEST_UPLOAD: \$\{\{ github\.event_name == 'schedule'/);
 });
 
 test("verifies run metadata, successful publisher job and read-back log before allowing distribution", async () => {
