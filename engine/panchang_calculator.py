@@ -574,6 +574,20 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
     # Observance-kaal tithis: Pradosh festivals (Dhanteras, Diwali, Holika, Pradosh
     # Vrat) follow the tithi prevailing in the evening, Nishita ones (Shivratri,
     # Janmashtami) the tithi at local midnight; neither is the sunrise tithi.
+    # Kshaya tithi: a tithi that begins after today's sunrise and ends before
+    # tomorrow's never touches a sunrise; udaya-tithi rules would skip its vrat.
+    next_sunrise = calculate_sun_times(date + timedelta(days=1), lat, lon, tz)["sunrise"]
+    next_el = calculate_panchang_elements(next_sunrise, tz, light=True)
+    kshaya_tithi = None
+    if (next_el["tithi_number"] - elements["tithi_number"]) % 30 == 2:
+        skipped = elements["tithi_number"] % 30 + 1
+        kshaya_tithi = {
+            "number": skipped,
+            "in_paksha": skipped if skipped <= 15 else skipped - 15,
+            "paksha": "शुक्ल पक्ष" if skipped <= 15 else "कृष्ण पक्ष",
+            "name": TITHI_NAMES[skipped - 1],
+        }
+
     pradosh_el = calculate_panchang_elements(sun_times["sunset"] + timedelta(minutes=72), tz, light=True)
     nishita_el = calculate_panchang_elements(sun_times["sunset"] + timedelta(minutes=night_mins / 2), tz, light=True)
     day_length = f"{int(day_mins // 60)}h {int(round(day_mins % 60))}m"
@@ -650,6 +664,7 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         "aparahna_kaal": _window(
             sun_times["sunrise"] + timedelta(minutes=day_mins * 3 / 5),
             sun_times["sunrise"] + timedelta(minutes=day_mins * 4 / 5)),
+        "kshaya_tithi": kshaya_tithi,
         "pradosh_paksha": pradosh_el["paksha"],
         "pradosh_tithi_in_paksha": pradosh_el["tithi_in_paksha"],
         "nishita_paksha": nishita_el["paksha"],

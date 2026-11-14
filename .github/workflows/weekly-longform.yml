@@ -1,0 +1,147 @@
+name: Weekly Panchang Long-form
+
+on:
+  schedule:
+    # Saturday 06:00 IST; publishes (scheduled) for Sunday 18:00 IST, ahead of the Monday week.
+    - cron: "30 0 * * 6"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Upload to YouTube (untick for a review-only render)"
+        required: true
+        default: true
+        type: boolean
+      week_start:
+        description: "Optional Monday YYYY-MM-DD (default: next Monday IST)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavitra-panchang-weekly-longform
+  cancel-in-progress: false
+
+jobs:
+  render-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      WEEK_START: ${{ inputs.week_start || '' }}
+      PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
+      PANCHANG_LON: ${{ vars.PANCHANG_LON || '75.7885' }}
+      PANCHANG_TZ: ${{ vars.PANCHANG_TZ || '5.5' }}
+      PANCHANG_LOCATION: ${{ vars.PANCHANG_LOCATION || 'Ujjain, Madhya Pradesh, India (India reference)' }}
+      PANCHANG_TIMEZONE_LABEL: ${{ vars.PANCHANG_TIMEZONE_LABEL || 'IST' }}
+      PANCHANG_LOCATION_MODE: ${{ vars.PANCHANG_LOCATION_MODE || 'india_reference' }}
+      PANCHANG_LOCATION_CONFIGURED: 'true'
+      AUTO_PUBLISH: 'true'
+      REQUEST_UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish == true }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
+      TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-engine.txt edge-tts
+
+      - name: Cache Kokoro model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kokoro-82m-v1
+
+      - name: Install Kokoro TTS (first-priority voice)
+        # Optional: if this fails, narration falls back to Gemini, then Edge.
+        continue-on-error: true
+        run: |
+          sudo apt-get install --yes espeak-ng
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements-tts.txt
+
+      - name: Validate source
+        env:
+          # Fixed, explicit fixture coordinates keep offline tests deterministic.
+          # These values are never used for public publishing.
+          PANCHANG_LAT: "23.1765"
+          PANCHANG_LON: "75.7885"
+          PANCHANG_TZ: "5.5"
+          PANCHANG_LOCATION: "Ujjain, India (test fixture only)"
+        run: |
+          npm run check
+          npm test
+          python -m py_compile engine/*.py
+          python -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Validate publishing configuration
+        if: env.REQUEST_UPLOAD == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$CLIENT_SECRET_JSON" ]] || { echo "::error::Missing Actions secret CLIENT_SECRET_JSON"; exit 1; }
+          [[ -n "$TOKEN_JSON" ]] || { echo "::error::Missing Actions secret TOKEN_JSON"; exit 1; }
+          [[ -n "$GEMINI_API_KEY" ]] || echo "::warning::GEMINI_API_KEY is empty; Gemini TTS fallback is unavailable."
+          python - <<'PY'
+          import json, os
+          for key in ("CLIENT_SECRET_JSON", "TOKEN_JSON"):
+              try:
+                  value = json.loads(os.environ[key])
+              except Exception as exc:
+                  raise SystemExit(f"{key} is not valid JSON: {exc}")
+              if key == "CLIENT_SECRET_JSON":
+                  conf = value.get("installed") or value.get("web") or value
+                  if not conf.get("client_id") or not conf.get("client_secret"):
+                      raise SystemExit("CLIENT_SECRET_JSON must contain client_id and client_secret.")
+              elif not any((value.get(k) or (value.get("tokens") or {}).get(k) or (value.get("credentials") or {}).get(k)) for k in ("refresh_token", "access_token", "token")):
+                  raise SystemExit("TOKEN_JSON must contain a Google OAuth refresh_token or access_token (root, tokens, or credentials object).")
+          PY
+
+      - name: Validate explicit production Panchang location
+        if: env.REQUEST_UPLOAD == 'true' && env.AUTO_PUBLISH == 'true'
+        run: python -m engine.publish_location
+
+      - name: Write OAuth files
+        if: env.REQUEST_UPLOAD == 'true'
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$CLIENT_SECRET_JSON" > client_secret.json
+          printf '%s' "$TOKEN_JSON" > token.json
+
+      - name: Render and optionally publish the weekly guide
+        run: npm run weekly
+
+      - name: Upload render artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavitra-weekly-${{ github.run_number }}
+          path: |
+            out/*.mp4
+            out/*.jpg
+            out/*.json
+          if-no-files-found: warn
+          retention-days: 14

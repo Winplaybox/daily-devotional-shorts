@@ -92,7 +92,7 @@ def get_easter_date(year: int) -> date:
     return date(year, month, day)
 
 # ----------------- Dynamic Festival Matcher -----------------
-def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
+def _detect_for_tithi(panchang_data: dict, target_date: date) -> list:
     """
     Returns list of matching festivals across religions for the target date.
     Each item contains:
@@ -556,6 +556,27 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
     # Sort matches by highest priority first
     matches.sort(key=lambda x: x["priority"], reverse=True)
     return matches
+
+def detect_todays_festivals(panchang_data, target_date):
+    """Festival/vrat events for a date, including a kshaya tithi that never meets a sunrise."""
+    matches = _detect_for_tithi(panchang_data, target_date)
+    kshaya = panchang_data.get("kshaya_tithi")
+    if kshaya:
+        alt = dict(panchang_data)
+        alt.update(
+            tithi_number=kshaya["number"],
+            tithi_in_paksha=kshaya["in_paksha"],
+            paksha=kshaya["paksha"],
+            tithi_name=kshaya["name"],
+        )
+        known = {m["title"] for m in matches}
+        extra = [
+            m for m in _detect_for_tithi(alt, target_date)
+            if m["title"] not in known and not str(m["title"]).startswith("दैनिक पंचांग")
+        ]
+        matches = sorted(matches + extra, key=lambda x: x["priority"], reverse=True)
+    return matches
+
 
 if __name__ == "__main__":
     import json
