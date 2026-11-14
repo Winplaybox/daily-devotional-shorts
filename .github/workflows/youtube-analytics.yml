@@ -4,6 +4,8 @@ on:
   schedule:
     # Daily at 09:30 IST; reports cover completed UTC days through yesterday.
     - cron: "0 4 * * *"
+    # Redundant off-peak trigger: GitHub drops busy schedules (4 AM UTC was missed on 2026-11-14).
+    - cron: "23 5 * * *"
   workflow_dispatch:
     inputs:
       days:

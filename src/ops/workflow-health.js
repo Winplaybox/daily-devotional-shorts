@@ -3,13 +3,14 @@ export const WORKFLOW_EXPECTATIONS = [
     file: 'daily-shorts-publisher.yml',
     label: 'Daily Shorts Publisher',
     dailyScheduleUtc: { hour: 0, minute: 30 },
-    graceMinutes: 120,
+    // Observed GitHub delays of 3-6h on the 00:30 cron; redundant crons at 01:17/02:47/06:30 retry idempotently.
+    graceMinutes: 240,
   },
   {
     file: 'youtube-analytics.yml',
     label: 'YouTube Analytics Report',
     dailyScheduleUtc: { hour: 4, minute: 0 },
-    graceMinutes: 120,
+    graceMinutes: 240,
   },
   {
     file: 'youtube-comment-intake.yml',

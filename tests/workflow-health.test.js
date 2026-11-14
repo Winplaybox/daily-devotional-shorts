@@ -119,9 +119,9 @@ test('sorts by scheduled run creation time, not API response order', () => {
 const publisherExpectation = WORKFLOW_EXPECTATIONS.find((item) => item.file === 'daily-shorts-publisher.yml');
 const dailyNow = new Date('2026-11-07T10:30:00.000Z');
 
-test('configures the publisher expected UTC cron and a two-hour grace window', () => {
+test('configures the publisher expected UTC cron and a four-hour grace window', () => {
   assert.deepEqual(publisherExpectation.dailyScheduleUtc, { hour: 0, minute: 30 });
-  assert.equal(publisherExpectation.graceMinutes, 120);
+  assert.equal(publisherExpectation.graceMinutes, 240);
 });
 
 test('marks a daily publisher run late when it starts several hours after cron', () => {
