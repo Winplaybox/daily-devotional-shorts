@@ -76,7 +76,8 @@ class SkyfieldPanchangAstronomy:
         result = {}
         for name, body in (("sun", self.sun), ("moon", self.moon)):
             apparent = observer.observe(body).apparent()
-            longitude, _, _ = apparent.frame_latlon(ecliptic_frame)
+            # frame_latlon returns (latitude, longitude, distance).
+            _, longitude, _ = apparent.frame_latlon(ecliptic_frame)
             result[name] = longitude.degrees % 360.0
         return result
 
@@ -113,7 +114,7 @@ class SkyfieldPanchangAstronomy:
             current = self.panchang_angles(at)[angle_name]
             return self._forward_delta(start_angle, current)
 
-        step = timedelta(minutes=10)
+        step = timedelta(minutes=60)
         lo = instant
         hi = instant + step
         limit = instant + timedelta(hours=max_hours)

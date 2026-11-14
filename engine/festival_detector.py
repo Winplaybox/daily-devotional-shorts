@@ -113,6 +113,11 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
     tithi_in_paksha = panchang_data["tithi_in_paksha"] # 1 to 15
     paksha = panchang_data["paksha"]               # शुक्ल पक्ष / कृष्ण पक्ष
     month_name = panchang_data["hindu_month"]      # कार्तिक etc.
+    is_adhika = bool(panchang_data.get("is_adhika"))
+    if is_adhika:
+        # Adhika Maas carries no month-specific festivals; only Ekadashi/Pradosh-type
+        # tithi vrats (with Adhika-specific Ekadashi names) are observed.
+        month_name = ""
     weekday = panchang_data["weekday"]             # मंगलवार etc.
     sunrise = panchang_data["sunrise"]
     sunset = panchang_data["sunset"]
@@ -120,6 +125,19 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
     rahu_kaal = panchang_data["rahu_kaal"]
     brahma = panchang_data["brahma"]
     godhuli = panchang_data["godhuli"]
+
+    pradosh_kaal = panchang_data.get("pradosh_kaal", panchang_data["godhuli"])
+    nishita_kaal = panchang_data.get("nishita_kaal", "मध्यरात्रि")
+    pratah_kaal = panchang_data.get("pratah_kaal", panchang_data["sunrise"])
+    madhyahna_kaal = panchang_data.get("madhyahna_kaal", abhijit)
+    aparahna_kaal = panchang_data.get("aparahna_kaal", abhijit)
+    moonrise = panchang_data.get("moonrise") or "स्थानीय चंद्रोदय"
+
+    # Observance-kaal tithis (see calculator): fall back to the sunrise tithi.
+    pr_paksha = panchang_data.get("pradosh_paksha", paksha)
+    pr_tithi = panchang_data.get("pradosh_tithi_in_paksha", tithi_in_paksha)
+    ni_paksha = panchang_data.get("nishita_paksha", paksha)
+    ni_tithi = panchang_data.get("nishita_tithi_in_paksha", tithi_in_paksha)
 
     m = target_date.month
     d = target_date.day
@@ -138,14 +156,14 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
 
     # 1.1 Diwali Festive Cycle (Kartika Krishna)
     if "कार्तिक" in month_name:
-        if paksha == "कृष्ण पक्ष" and tithi_in_paksha == 13:
+        if pr_paksha == "कृष्ण पक्ष" and pr_tithi == 13:
             matches.append({
                 "religion": "SANATANA DHARMA",
                 "title": "धनतेरस / धनत्रयोदशी",
                 "priority": 10,
                 "label1": "शुभ खरीद व पूजा मुहूर्त", "val1": f"शाम {godhuli}",
-                "label2": "प्रदोष काल मुहूर्त", "val2": f"{sunset} से 08:15 PM",
-                "label3": "विशेष कुबेर व लक्ष्मी पूजा", "val3": "शाम 06:15 PM से 08:20 PM",
+                "label2": "प्रदोष काल मुहूर्त", "val2": pradosh_kaal,
+                "label3": "विशेष कुबेर व लक्ष्मी पूजा", "val3": pradosh_kaal,
                 "footer": "🪔 भगवान धन्वंतरि व मां लक्ष्मी की कृपा आप पर बनी रहे",
                 "theme": "devi",
                 "yt_title": f"Dhanteras {y} Shubh Muhurat & Puja Timings | धनतेरस पूजा शुभ मुहूर्त #Shorts",
@@ -157,19 +175,19 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "priority": 9,
                 "label1": "अभ्यंग स्नान मुहूर्त", "val1": f"प्रातः {brahma}",
                 "label2": "यम दीपदान समय", "val2": f"शाम {godhuli}",
-                "label3": "शुभ चौघड़िया मुहूर्त", "val3": "शाम 05:40 PM से 07:15 PM",
+                "label3": "प्रदोष दीपदान काल", "val3": pradosh_kaal,
                 "footer": "🪔 दीपों का पावन पर्व आपके जीवन में उजाला लाए",
                 "theme": "devi",
                 "yt_title": f"Choti Diwali / Narak Chaturdashi {y} Shubh Muhurat #Shorts",
             })
-        elif paksha == "कृष्ण पक्ष" and tithi_in_paksha == 15: # Amavasya
+        if pr_paksha == "कृष्ण पक्ष" and pr_tithi == 15: # Amavasya at Pradosh (independent of sunrise tithi)
             matches.append({
                 "religion": "SANATANA DHARMA",
                 "title": "दीपावली / महालक्ष्मी पूजन",
                 "priority": 10,
-                "label1": "प्रदोष काल लक्ष्मी पूजा", "val1": f"{sunset} से 08:10 PM",
-                "label2": "वृषभ लग्न (स्थिर लग्न)", "val2": "शाम 06:25 PM से 08:22 PM",
-                "label3": "महानिशीथ काल (तांत्रिक पूजन)", "val3": "रात्रि 11:38 PM से 12:31 AM",
+                "label1": "प्रदोष काल लक्ष्मी पूजा", "val1": pradosh_kaal,
+                "label2": "अभिजीत मुहूर्त (दिन)", "val2": abhijit,
+                "label3": "महानिशीथ काल (तांत्रिक पूजन)", "val3": nishita_kaal,
                 "footer": "🪔 शुभ दीपावली! मां महालक्ष्मी आपके घर रिद्धि-सिद्धि लाएं",
                 "theme": "devi",
                 "yt_title": f"Diwali Lakshmi Puja Shubh Muhurat {y} | दिवाली महालक्ष्मी पूजन #Shorts",
@@ -179,9 +197,9 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "religion": "SANATANA DHARMA",
                 "title": "गोवर्धन पूजा / अन्नकूट महोत्सव",
                 "priority": 9,
-                "label1": "गोवर्धन पूजा प्रातः मुहूर्त", "val1": f"प्रातः {sunrise} से 08:45 AM",
-                "label2": "सायंकाल पूजन मुहूर्त", "val2": f"{sunset} से 07:35 PM",
-                "label3": "अमृत चौघड़िया मुहूर्त", "val3": "दोपहर 01:25 PM से 02:50 PM",
+                "label1": "गोवर्धन पूजा प्रातः मुहूर्त", "val1": pratah_kaal,
+                "label2": "सायंकाल पूजन मुहूर्त", "val2": pradosh_kaal,
+                "label3": "अमृत चौघड़िया मुहूर्त", "val3": abhijit,
                 "footer": "🚩 श्री गिरिराज धरण की जय! अन्नकूट महाप्रसाद",
                 "theme": "krishna",
                 "yt_title": f"Govardhan Puja {y} Shubh Muhurat & Annakut | गोवर्धन पूजा #Shorts",
@@ -191,7 +209,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "religion": "SANATANA DHARMA",
                 "title": "भाई दूज / यम द्वितीया",
                 "priority": 9,
-                "label1": "भाई दूज तिलक मुहूर्त", "val1": "दोपहर 01:10 PM से 03:20 PM",
+                "label1": "भाई दूज तिलक मुहूर्त", "val1": aparahna_kaal,
                 "label2": "अभिजीत विजय मुहूर्त", "val2": abhijit,
                 "label3": "यमराज व यमुना पूजन", "val3": f"शाम {godhuli}",
                 "footer": "🌸 भाई-बहन के अटूट प्रेम के पावन पर्व की शुभकामनाएं",
@@ -205,7 +223,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "priority": 10,
                 "label1": "डूबते सूर्य को अर्घ्य (संध्या)", "val1": f"शाम {sunset}",
                 "label2": "राहुकाल (त्याज्य समय)", "val2": rahu_kaal,
-                "label3": "छठी मैया पूजन समय", "val3": "शाम 04:30 PM से 06:15 PM",
+                "label3": "छठी मैया पूजन समय", "val3": f"सूर्यास्त {sunset} से पहले",
                 "footer": "☀️ जय छठी मैया! भगवान भास्कर सब पर कृपा करें",
                 "theme": "temple",
                 "yt_title": f"Chhath Puja {y} Sandhya Arghya Shubh Samay | छठ पूजा #Shorts",
@@ -216,7 +234,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "title": "देवउठनी एकादशी / तुलसी विवाह",
                 "priority": 9,
                 "label1": "हरि प्रबोधिनी पूजा मुहूर्त", "val1": f"शाम {godhuli}",
-                "label2": "तुलसी-शालिग्राम विवाह", "val2": f"{sunset} से 08:30 PM",
+                "label2": "तुलसी-शालिग्राम विवाह", "val2": pradosh_kaal,
                 "label3": "शुभ मांगलिक कार्य प्रारंभ", "val3": "आज से सभी शुभ कार्य शुरू",
                 "footer": "🌿 भगवान श्री हरि विष्णु योगनिद्रा से जागे! तुलसी विवाह",
                 "theme": "krishna",
@@ -228,7 +246,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "title": "कार्तिक पूर्णिमा / देव दीपावली",
                 "priority": 9,
                 "label1": "पवित्र नदी स्नान मुहूर्त", "val1": f"प्रातः {brahma}",
-                "label2": "देव दीपावली दीपदान", "val2": f"{sunset} से 07:45 PM",
+                "label2": "देव दीपावली दीपदान", "val2": pradosh_kaal,
                 "label3": "सत्यनारायण कथा मुहूर्त", "val3": abhijit,
                 "footer": "🪔 काशी देव दीपावली! देवताओं का पावन दीपोत्सव",
                 "theme": "shiva",
@@ -236,14 +254,14 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             })
 
     # 1.2 Shivratri Festivals (Maha Shivratri & Masik Shivratri)
-    if tithi_in_paksha == 14 and paksha == "कृष्ण पक्ष":
+    if ni_tithi == 14 and ni_paksha == "कृष्ण पक्ष":
         if "फाल्गुन" in month_name or "माघ" in month_name:
             matches.append({
                 "religion": "SANATANA DHARMA",
                 "title": "महाशिवरात्रि महापर्व",
                 "priority": 10,
-                "label1": "निशीथ काल (मध्यरात्रि पूजन)", "val1": "रात्रि 11:42 PM से 12:34 AM",
-                "label2": "चार प्रहर पूजा प्रारंभ", "val2": f"शाम {sunset} से",
+                "label1": "निशीथ काल (मध्यरात्रि पूजन)", "val1": nishita_kaal,
+                "label2": "चार प्रहर पूजा प्रारंभ", "val2": pradosh_kaal,
                 "label3": "अभिषेक व रुद्राभिषेक", "val3": f"प्रातः {sunrise} से अनवरत",
                 "footer": "🔱 ॐ नमः शिवाय! हर हर महादेव",
                 "theme": "shiva",
@@ -254,23 +272,23 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "religion": "SANATANA DHARMA",
                 "title": f"मासिक शिवरात्रि ({month_name})",
                 "priority": 7,
-                "label1": "शिव पूजन निशीथ मुहूर्त", "val1": "रात्रि 11:40 PM से 12:30 AM",
-                "label2": "प्रदोष काल अभिषेक", "val2": f"{sunset} से 08:15 PM",
+                "label1": "शिव पूजन निशीथ मुहूर्त", "val1": nishita_kaal,
+                "label2": "प्रदोष काल अभिषेक", "val2": pradosh_kaal,
                 "label3": "अभिजीत मुहूर्त", "val3": abhijit,
                 "footer": "🔱 ॐ नमः शिवाय! महादेव की कृपा बनी रहे",
                 "theme": "shiva",
                 "yt_title": f"Masik Shivratri Puja Muhurat | मासिक शिवरात्रि #Shorts",
             })
 
-    # 1.3 Pradosh Vrats (Trayodashi)
-    if tithi_in_paksha == 13:
+    # 1.3 Pradosh Vrats (Trayodashi at Pradosh)
+    if pr_tithi == 13:
         prefix = "सोम" if weekday == "सोमवार" else ("भौम" if weekday == "मंगलवार" else ("शनि" if weekday == "शनिवार" else ""))
         vrat_name = f"{prefix} प्रदोष व्रत" if prefix else "प्रदोष व्रत"
         matches.append({
             "religion": "SANATANA DHARMA",
-            "title": f"{vrat_name} ({paksha})",
+            "title": f"{vrat_name} ({pr_paksha})",
             "priority": 8,
-            "label1": "प्रदोष काल पूजा मुहूर्त", "val1": f"{sunset} से 08:20 PM",
+            "label1": "प्रदोष काल पूजा मुहूर्त", "val1": pradosh_kaal,
             "label2": "त्रयोदशी तिथि विस्तार", "val2": f"दिनभर मान्य",
             "label3": "राहुकाल (पूजा निषेध समय)", "val3": rahu_kaal,
             "footer": "🔱 भगवान शिव व माता पार्वती का पावन आशीर्वाद",
@@ -282,13 +300,15 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
     if tithi_in_paksha == 11:
         paksha_idx = 0 if paksha == "कृष्ण पक्ष" else 1
         ekadashi_title = EKADASHI_NAMES.get(month_idx, ("एकादशी", "एकादशी"))[paksha_idx]
+        if is_adhika:
+            ekadashi_title = ("परम एकादशी", "पद्मिनी एकादशी")[paksha_idx]
         matches.append({
             "religion": "SANATANA DHARMA",
             "title": f"{ekadashi_title} व्रत",
             "priority": 8,
             "label1": "एकादशी व्रत पूजा मुहूर्त", "val1": abhijit,
             "label2": "राहुकाल समय (त्याज्य)", "val2": rahu_kaal,
-            "label3": "द्वादशी पारण समय (कल)", "val3": f"प्रातः {sunrise} से 09:15 AM",
+            "label3": "द्वादशी पारण समय (कल)", "val3": pratah_kaal,
             "footer": "🌸 ॐ नमो भगवते वासुदेवाय! श्री हरि विष्णु की कृपा",
             "theme": "krishna",
             "yt_title": f"{ekadashi_title} Vrat Shubh Muhurat & Parana Time #Shorts",
@@ -301,9 +321,9 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "religion": "SANATANA DHARMA",
                 "title": "गणेश चतुर्थी / गणेशोत्सव प्रारंभ",
                 "priority": 10,
-                "label1": "गणपति स्थापना मध्याह्न मुहूर्त", "val1": "पूर्वाह्न 11:05 AM से 01:35 PM",
-                "label2": "वर्जित चन्द्रदर्शन समय", "val2": f"{sunset} से 09:15 PM",
-                "label3": "अमृत चौघड़िया", "val3": "दोपहर 01:45 PM से 03:15 PM",
+                "label1": "गणपति स्थापना मध्याह्न मुहूर्त", "val1": madhyahna_kaal,
+                "label2": "वर्जित चन्द्रदर्शन समय", "val2": pradosh_kaal,
+                "label3": "अपराह्न शुभ समय", "val3": aparahna_kaal,
                 "footer": "🐘 गणपति बप्पा मोरया! मंगल मूर्ति मोरया",
                 "theme": "ganesh",
                 "yt_title": f"Ganesh Chaturthi {y} Ganpati Sthapana Muhurat | गणेश चतुर्थी #Shorts",
@@ -314,7 +334,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
                 "title": "संकष्टी चतुर्थी व्रत",
                 "priority": 7,
                 "label1": "गणेश पूजन शुभ मुहूर्त", "val1": abhijit,
-                "label2": "संकष्टी चंद्रोदय समय", "val2": "रात्रि 08:35 PM (लगभग)",
+                "label2": "संकष्टी चंद्रोदय समय", "val2": moonrise,
                 "label3": "राहुकाल समय", "val3": rahu_kaal,
                 "footer": "🐘 विघ्नहर्ता गणेश आपके सभी विघ्न दूर करें",
                 "theme": "ganesh",
@@ -322,26 +342,26 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             })
 
     # 1.6 Janmashtami & Holi & Navratri
-    if "भाद्रपद" in month_name and paksha == "कृष्ण पक्ष" and tithi_in_paksha == 8:
+    if "भाद्रपद" in month_name and ni_paksha == "कृष्ण पक्ष" and ni_tithi == 8:
         matches.append({
             "religion": "SANATANA DHARMA",
             "title": "श्री कृष्ण जन्माष्टमी महापर्व",
             "priority": 10,
-            "label1": "निशीथ काल (कान्हा जन्म मुहूर्त)", "val1": "रात्रि 11:58 PM से 12:45 AM",
+            "label1": "निशीथ काल (कान्हा जन्म मुहूर्त)", "val1": nishita_kaal,
             "label2": "रोहिणी नक्षत्र प्रारंभ", "val2": "रात्रि समय से",
             "label3": "लड्डू गोपाल अभिषेक", "val3": f"प्रातः {sunrise} से अनवरत",
             "footer": "🦚 हाथी घोड़ा पालकी, जय कन्हैया लाल की!",
             "theme": "krishna",
             "yt_title": f"Krishna Janmashtami {y} Kanha Janm Shubh Muhurat #Shorts",
         })
-    elif "फाल्गुन" in month_name and paksha == "शुक्ल पक्ष" and tithi_in_paksha == 15:
+    elif "फाल्गुन" in month_name and pr_paksha == "शुक्ल पक्ष" and pr_tithi == 15:
         matches.append({
             "religion": "SANATANA DHARMA",
             "title": "होलिका दहन / छोटी होली",
             "priority": 10,
-            "label1": "होलिका दहन शुभ मुहूर्त", "val1": f"{sunset} से 08:50 PM",
-            "label2": "भद्रा पुंछ समय", "val2": "शाम 06:15 PM से",
-            "label3": "पूर्णिमा तिथि समाप्ति", "val3": "रात्रि 11:15 PM",
+            "label1": "होलिका दहन शुभ मुहूर्त", "val1": pradosh_kaal,
+            "label2": "राहुकाल (त्याज्य)", "val2": rahu_kaal,
+            "label3": "भद्रा समय", "val3": "स्थानीय पंचांग से जाँचें",
             "footer": "🔥 असत्य पर सत्य की विजय! होलिका दहन",
             "theme": "temple",
             "yt_title": f"Holika Dahan {y} Shubh Muhurat & Purnima Tithi #Shorts",
@@ -351,8 +371,8 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "religion": "SANATANA DHARMA",
             "title": "विजयादशमी / दशहरा महापर्व",
             "priority": 10,
-            "label1": "विजय मुहूर्त", "val1": "दोपहर 01:55 PM से 02:42 PM",
-            "label2": "अपराह्न पूजन समय", "val2": "दोपहर 01:15 PM से 03:30 PM",
+            "label1": "विजय मुहूर्त (अपराह्न)", "val1": aparahna_kaal,
+            "label2": "अभिजीत मुहूर्त", "val2": abhijit,
             "label3": "शमी पूजन व शस्त्र पूजन", "val3": f"शाम {godhuli}",
             "footer": "🏹 अधर्म पर धर्म की विजय! शुभ विजयादशमी",
             "theme": "devi",
@@ -382,7 +402,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "religion": "ISLAM",
             "title": "ईद-उल-फ़ित्र (मीठी ईद)",
             "priority": 10,
-            "label1": "ईद की नमाज़ का वक़्त", "val1": "प्रातः 07:30 AM से 08:45 AM",
+            "label1": "ईद की नमाज़ का वक़्त", "val1": "स्थानीय ईदगाह/मस्जिद के अनुसार",
             "label2": "सदक़ा-ए-फ़ित्र", "val2": "ईद की नमाज़ से पहले",
             "label3": "चांद रात मुबारक", "val3": f"1 शव्वाल {h_year} हिजरी",
             "footer": "🌙 ईद मुबारक! अमन, खुशहाली और बरकत की दुआ",
@@ -394,7 +414,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "religion": "ISLAM",
             "title": "ईद-उल-अज़हा (बकरीद)",
             "priority": 10,
-            "label1": "ईद नमाज़ का समय", "val1": "प्रातः 07:15 AM से 08:30 AM",
+            "label1": "ईद नमाज़ का समय", "val1": "स्थानीय ईदगाह/मस्जिद के अनुसार",
             "label2": "कुर्बानी का वक़्त", "val2": "नमाज़ के बाद से 3 दिन",
             "label3": "तकबीर-ए-तशरीक़", "val3": "फ़ज्र नमाज़ से शुरू",
             "footer": "🌙 ईद-उल-अज़हा मुबारक! त्याग और समर्पण का पर्व",
@@ -435,7 +455,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "title": "श्री गुरु नानक देव जी प्रकाश पर्व",
             "priority": 10,
             "label1": "अमृत वेला नितनेम", "val1": f"प्रातः {brahma}",
-            "label2": "रह्रास साहिब व कीर्तन", "val2": f"शाम {sunset} से",
+            "label2": "रह्रास साहिब व कीर्तन", "val2": pradosh_kaal,
             "label3": "गुरु का अटूट लंगर", "val3": "दिनभर अनवरत",
             "footer": "ੴ वाहेगुरु जी का खालसा, वाहेगुरु जी की फतेह",
             "theme": "sikh",
@@ -467,8 +487,8 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "title": "ईस्टर संडे (Easter Sunday)",
             "priority": 10,
             "label1": "प्रभु यीशु का पुनरुत्थान", "val1": "Resurrection of Jesus Christ",
-            "label2": "प्रातः कालीन प्रार्थना", "val2": "प्रातः 06:30 AM से 08:30 AM",
-            "label3": "विशेष ईस्टर मास", "val3": "सुबह 09:00 AM",
+            "label2": "प्रातः कालीन प्रार्थना", "val2": "स्थानीय चर्च के अनुसार",
+            "label3": "विशेष ईस्टर मास", "val3": "स्थानीय चर्च के अनुसार",
             "footer": "✝️ Christ is Risen! प्रभु यीशु का पावन आशीष आप पर रहे",
             "theme": "christian",
             "yt_title": f"Happy Easter {y} | ईस्टर संडे प्रार्थना समय #Shorts",
@@ -479,7 +499,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "title": "गुड फ्राइडे (Good Friday)",
             "priority": 9,
             "label1": "पवित्र बलिदान दिवस", "val1": "Crucifixion of Christ",
-            "label2": "क्रूस मार्ग प्रार्थना", "val2": "दोपहर 12:00 PM से 03:00 PM",
+            "label2": "क्रूस मार्ग प्रार्थना", "val2": "स्थानीय चर्च के अनुसार",
             "label3": "उपवास व आत्म-चिंतन", "val3": "दिनभर",
             "footer": "✝️ प्रभु का असीम प्रेम और बलिदान",
             "theme": "christian",
@@ -491,7 +511,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "title": "बड़ा दिन / क्रिसमस (Christmas)",
             "priority": 10,
             "label1": "प्रभु यीशु मसीह जन्मोत्सव", "val1": "Nativity of Jesus Christ",
-            "label2": "क्रिसमस प्रार्थना सभा", "val2": "सुबह 08:30 AM से 10:30 AM",
+            "label2": "क्रिसमस प्रार्थना सभा", "val2": "स्थानीय चर्च के अनुसार",
             "label3": "आनंद व शांति का संदेश", "val3": "दिनभर उल्लास",
             "footer": "🎄 Merry Christmas! प्रभु आपके परिवार को सुख-शांति दें",
             "theme": "christian",
@@ -506,7 +526,7 @@ def detect_todays_festivals(panchang_data: dict, target_date: date) -> list:
             "religion": "JAINISM",
             "title": "भगवान महावीर जन्म कल्याणक",
             "priority": 10,
-            "label1": "महावीर प्रभु जन्म वांचन", "val1": f"प्रातः {sunrise} से 09:30 AM",
+            "label1": "महावीर प्रभु जन्म वांचन", "val1": pratah_kaal,
             "label2": "अहिंसा व शांति संदेश", "val2": "जियो और जीने दो",
             "label3": "शोभायात्रा व अभिषेक", "val3": abhijit,
             "footer": "☸️ ॐ ह्रीं श्रीं अर्हं नमः! महावीर जयंती की शुभकामनाएं",

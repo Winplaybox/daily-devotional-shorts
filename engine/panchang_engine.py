@@ -252,8 +252,9 @@ def generate_daily_payload(target_date: date = None, slot: str = "morning") -> d
         "shaka_samvat": panchang["shaka_samvat"],
         "ayana": panchang["ayana"],
         "ritu": panchang["ritu"],
-        "month_amanta": panchang["hindu_month_clean"],
-        "month_purnimanta": panchang["hindu_month_clean"],
+        "month_amanta": panchang.get("month_amanta", panchang["hindu_month_clean"]),
+        "month_purnimanta": panchang.get("month_purnimanta", panchang["hindu_month_clean"]),
+        "is_adhika": bool(panchang.get("is_adhika", False)),
         "paksha": panchang["paksha"],
         "tithi_number": panchang["tithi_number"]
     }

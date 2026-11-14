@@ -63,6 +63,8 @@ KARANA_NAMES = [
     "शकुनि", "चतुष्पाद", "नाग", "किंस्तुघ्न"
 ]
 
+from .skyfield_provider import skyfield_elements  # noqa: E402
+
 HINDU_MONTHS = [
     "चैत्र (Chaitra)", "वैशाख (Vaishakha)", "ज्येष्ठ (Jyeshtha)", "आषाढ़ (Ashadha)",
     "श्रावण (Shravana)", "भाद्रपद (Bhadrapada)", "आश्विन (Ashwin)", "कार्तिक (Kartika)",
@@ -434,7 +436,7 @@ def calculate_muhurats(sun_times: dict, weekday: int):
 
 # ----------------- Tithi, Nakshatra, Yoga, Karana -----------------
 
-def calculate_panchang_elements(dt: datetime, tz: float = DEFAULT_TZ):
+def calculate_panchang_elements(dt: datetime, tz: float = DEFAULT_TZ, light: bool = False):
     """
     Computes exact astronomical Tithi, Nakshatra, Yoga, Karana, and Hindu Month.
     """
@@ -483,8 +485,57 @@ def calculate_panchang_elements(dt: datetime, tz: float = DEFAULT_TZ):
     # Sun in Tula (6) -> Kartika (7)
     rashi_idx = int(sun_sidereal / 30.0) % 12
     lunar_month_idx = (rashi_idx + 1) % 12
+    engine_id = "legacy-analytic"
+    amanta_idx = lunar_month_idx
+    is_adhika = False
+    end_times: dict = {}
+
+    # Production path: JPL-ephemeris Skyfield engine (falls back to legacy above).
+    sky = skyfield_elements(dt, tz, light=light)
+    if sky is not None:
+        engine_id = sky["engine"]
+        diff = sky["tithi_phase"]
+        tithi_index = int(diff / 12.0) % 30
+        tithi_number = tithi_index + 1
+        paksha = "शुक्ल पक्ष" if tithi_number <= 15 else "कृष्ण पक्ष"
+        tithi_in_paksha = tithi_number if tithi_number <= 15 else tithi_number - 15
+        nakshatra_index = int(sky["nakshatra_longitude"] / nakshatra_span) % 27
+        yoga_index = int(sky["yoga_longitude"] / nakshatra_span) % 27
+        karana_val = int(diff / 6.0) % 60
+        if karana_val == 0:
+            karana_name = KARANA_NAMES[10]
+        elif 1 <= karana_val <= 56:
+            karana_name = KARANA_NAMES[(karana_val - 1) % 7]
+        elif karana_val == 57:
+            karana_name = KARANA_NAMES[7]
+        elif karana_val == 58:
+            karana_name = KARANA_NAMES[8]
+        else:
+            karana_name = KARANA_NAMES[9]
+        # North-Indian (Purnimanta) month label: the convention the festival
+        # rules (Kartika Krishna = Dhanteras/Diwali, Ekadashi names) are written in.
+        if sky["month"] is not None:
+            lunar_month_idx = sky["month"]["purnimanta_index"]
+            amanta_idx = sky["month"]["amanta_index"]
+            is_adhika = bool(sky["month"]["adhika"])
+        moon_phase_value = diff
+        end_times = {k: v for k, v in sky["ends"].items()}
+    else:
+        moon_phase_value = diff
+
+    hindu_month_label = HINDU_MONTHS[lunar_month_idx]
+    if is_adhika:
+        hindu_month_label = "अधिक " + hindu_month_label
 
     return {
+        "calculation_engine": engine_id,
+        "is_adhika": is_adhika,
+        "month_amanta_index": amanta_idx,
+        "month_amanta": HINDU_MONTHS[amanta_idx].split(" ")[0],
+        "month_purnimanta": HINDU_MONTHS[lunar_month_idx].split(" ")[0],
+        "tithi_end_dt": end_times.get("tithi_end"),
+        "nakshatra_end_dt": end_times.get("nakshatra_end"),
+        "yoga_end_dt": end_times.get("yoga_end"),
         "tithi_number": tithi_number,
         "tithi_in_paksha": tithi_in_paksha,
         "paksha": paksha,
@@ -492,9 +543,12 @@ def calculate_panchang_elements(dt: datetime, tz: float = DEFAULT_TZ):
         "nakshatra_name": NAKSHATRA_NAMES[nakshatra_index],
         "yoga_name": YOGA_NAMES[yoga_index],
         "karana_name": karana_name,
-        "hindu_month": HINDU_MONTHS[lunar_month_idx],
-        "moon_phase_deg": diff,
+        "hindu_month": hindu_month_label,
+        "moon_phase_deg": moon_phase_value,
     }
+
+def _window(start: datetime, end: datetime) -> str:
+    return f"{format_time_12h(start)} से {format_time_12h(end)}"
 
 def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, tz: float = DEFAULT_TZ):
     """
@@ -516,6 +570,12 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
 
     day_mins = sun_times["day_duration"]
     night_mins = 24 * 60 - day_mins
+
+    # Observance-kaal tithis: Pradosh festivals (Dhanteras, Diwali, Holika, Pradosh
+    # Vrat) follow the tithi prevailing in the evening, Nishita ones (Shivratri,
+    # Janmashtami) the tithi at local midnight; neither is the sunrise tithi.
+    pradosh_el = calculate_panchang_elements(sun_times["sunset"] + timedelta(minutes=72), tz, light=True)
+    nishita_el = calculate_panchang_elements(sun_times["sunset"] + timedelta(minutes=night_mins / 2), tz, light=True)
     day_length = f"{int(day_mins // 60)}h {int(round(day_mins % 60))}m"
     night_length = f"{int(night_mins // 60)}h {int(round(night_mins % 60))}m"
 
@@ -528,7 +588,7 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         "मार्गशीर्ष": "हेमंत (Pre-Winter)", "पौष": "हेमंत (Pre-Winter)",
         "माघ": "शिशिर (Winter)", "फाल्गुन": "शिशिर (Winter)"
     }
-    m_name = elements["hindu_month"].split(" ")[0]
+    m_name = elements["month_purnimanta"]
     ritu = ritu_map.get(m_name, "शरद (Autumn)")
 
     # Ayana based on solar month (Dakshinayan vs Uttarayan)
@@ -537,10 +597,28 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
     sun_lon = sun_apparent_longitude(jd_noon)
     ayana = "दक्षिणायन (Dakshinayan)" if (90.0 <= sun_lon < 270.0) else "उत्तरायण (Uttarayan)"
 
+    # Samvat years roll over at Chaitra Shukla Pratipada (start of amanta Chaitra),
+    # so Jan-Apr dates still in amanta Margashirsha..Phalguna belong to the old year.
+    before_new_samvat = date.month <= 4 and elements["month_amanta_index"] >= 8
+
+    def _end_str(key):
+        value = elements.get(key)
+        if value is None:
+            return None
+        label = format_time_12h(value.replace(tzinfo=None))
+        day_offset = (value.date() - date).days
+        return f"{label} (अगले दिन)" if day_offset > 0 else label
+
+    elements["tithi_end"] = _end_str("tithi_end_dt")
+    elements["nakshatra_end"] = _end_str("nakshatra_end_dt")
+    elements["yoga_end"] = _end_str("yoga_end_dt")
+    for _k in ("tithi_end_dt", "nakshatra_end_dt", "yoga_end_dt"):
+        elements.pop(_k, None)
+
     # Clean Vernacular Hindi Tithi and Nakshatra names (without English brackets)
     tithi_clean = elements["tithi_name"].split(" ")[0]
     nakshatra_clean = elements["nakshatra_name"].split(" ")[0]
-    hindu_month_clean = elements["hindu_month"].split(" ")[0]
+    hindu_month_clean = ("अधिक " if elements["is_adhika"] else "") + elements["month_purnimanta"]
 
     return {
         "date": date.strftime("%Y-%m-%d"),
@@ -548,8 +626,8 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         "date_display_full": f"{date.day} {['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][date.month-1]} {date.year}, {weekday_hi}",
         "weekday": weekday_hi,
         "weekday_en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][weekday],
-        "vikram_samvat": date.year + (56 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 57),
-        "shaka_samvat": date.year - (77 if any(m in elements["hindu_month"] for m in ("पौष", "माघ", "फाल्गुन")) else 78),
+        "vikram_samvat": date.year + (56 if before_new_samvat else 57),
+        "shaka_samvat": date.year - (79 if before_new_samvat else 78),
         "sunrise": format_time_12h(sun_times["sunrise"]),
         "sunset": format_time_12h(sun_times["sunset"]),
         "moonrise": format_time_12h(moon_times["moonrise"]) if moon_times["moonrise"] else None,
@@ -561,6 +639,21 @@ def get_complete_panchang(date: datetime.date = None, lat: float = DEFAULT_LAT, 
         "tithi_clean": tithi_clean,
         "nakshatra_clean": nakshatra_clean,
         "hindu_month_clean": hindu_month_clean,
+        "pradosh_kaal": _window(sun_times["sunset"], sun_times["sunset"] + timedelta(minutes=144)),
+        "nishita_kaal": _window(
+            sun_times["sunset"] + timedelta(minutes=night_mins / 2 - 24),
+            sun_times["sunset"] + timedelta(minutes=night_mins / 2 + 24)),
+        "pratah_kaal": _window(sun_times["sunrise"], sun_times["sunrise"] + timedelta(minutes=day_mins / 5)),
+        "madhyahna_kaal": _window(
+            sun_times["sunrise"] + timedelta(minutes=day_mins * 2 / 5),
+            sun_times["sunrise"] + timedelta(minutes=day_mins * 3 / 5)),
+        "aparahna_kaal": _window(
+            sun_times["sunrise"] + timedelta(minutes=day_mins * 3 / 5),
+            sun_times["sunrise"] + timedelta(minutes=day_mins * 4 / 5)),
+        "pradosh_paksha": pradosh_el["paksha"],
+        "pradosh_tithi_in_paksha": pradosh_el["tithi_in_paksha"],
+        "nishita_paksha": nishita_el["paksha"],
+        "nishita_tithi_in_paksha": nishita_el["tithi_in_paksha"],
         **elements,
         **muhurats,
     }

@@ -73,6 +73,14 @@ export function buildAnalyticsFallbackQueries(range) {
       sort: 'day',
     }],
     videos: [{
+      // Keeps Shorts classification (creatorContentType) with the conservative
+      // metric set that is known to be accepted for the video dimension.
+      ...base,
+      metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,likes,comments,shares',
+      dimensions: 'video,creatorContentType',
+      sort: '-views',
+      maxResults: 200,
+    }, {
       ...base,
       metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,likes,comments,shares',
       dimensions: 'video',
@@ -242,6 +250,56 @@ export function assessMetricCoverage(rows = [], keys = []) {
   }));
 }
 
+const SHORTS_MAX_SECONDS = 180;
+
+export function isoDurationSeconds(value) {
+  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(String(value || ''));
+  if (!match) return null;
+  return Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0);
+}
+
+/**
+ * Uses YouTube's creatorContentType when the API returned it. Only when NO row
+ * carries it (the fallback query shape) are short videos inferred from duration,
+ * and every inferred row is labelled so reports never present a guess as fact.
+ */
+export function classifyShorts(rows = []) {
+  const hasApiClassification = rows.some((row) => row.creatorContentType);
+  if (hasApiClassification) {
+    return { rows, method: 'api-creatorContentType' };
+  }
+  return {
+    method: 'inferred-from-duration',
+    rows: rows.map((row) => {
+      const seconds = isoDurationSeconds(row.duration);
+      return seconds !== null && seconds <= SHORTS_MAX_SECONDS
+        ? { ...row, creatorContentType: 'SHORTS', shortsClassification: 'inferred-from-duration' }
+        : row;
+    }),
+  };
+}
+
+/**
+ * Progress toward the two YouTube Partner Program tiers, from verified API
+ * numbers only. This reports distance to the published thresholds; YouTube
+ * Studio remains the authority on actual eligibility.
+ */
+export function buildMonetizationProgress({ subscribers = null, shortsViews90d = null, longFormWatchHours90d = null } = {}) {
+  const pct = (value, goal) => (value === null || value === undefined ? null : Math.min(100, Math.round((value / goal) * 1000) / 10));
+  const tier = (name, subsGoal, hoursGoal, viewsGoal) => ({
+    name,
+    subscribers: { current: subscribers, goal: subsGoal, percent: pct(subscribers, subsGoal) },
+    longFormWatchHours90d: { current: longFormWatchHours90d, goal: hoursGoal, percent: pct(longFormWatchHours90d, hoursGoal) },
+    shortsViews90d: { current: shortsViews90d, goal: viewsGoal, percent: pct(shortsViews90d, viewsGoal) },
+    note: 'Eligibility needs the subscriber goal AND either the watch-hour goal OR the Shorts-view goal (last 90 days).',
+  });
+  return {
+    basis: 'verified YouTube API values; thresholds as published by YouTube and subject to change',
+    earlyAccess: tier('500 subscribers tier', 500, 3000, 3_000_000),
+    fullPartner: tier('1,000 subscribers tier', 1000, 4000, 10_000_000),
+  };
+}
+
 function shortScore(row) {
   const engagedViews = numericOrNull(row.engagedViews);
   return engagedViews !== null ? engagedViews : numericOrNull(row.views);
@@ -335,12 +393,15 @@ async function main() {
     ...(metadata.get(row.video) || {}),
     url: row.video ? 'https://www.youtube.com/watch?v=' + row.video : null,
   });
-  const topVideos = videoRows.map(enrichVideo);
+  const classified = classifyShorts(videoRows.map(enrichVideo));
+  const topVideos = classified.rows;
   const shorts = topVideos.filter((row) => row.creatorContentType === 'SHORTS');
   const hasMonetaryScope = String(token.scope || '').split(/\s+/).some((scope) => scope.includes(MONETARY_SCOPE));
   const notes = [
     'YouTube Analytics data can be delayed; the report ends on the last completed Pacific Time day.',
-    'Shorts are classified using the creatorContentType dimension; unclassified videos are not guessed from duration.',
+    classified.method === 'api-creatorContentType'
+      ? 'Shorts are classified using the creatorContentType dimension returned by YouTube.'
+      : 'YouTube did not return creatorContentType for this query; videos of 3 minutes or less are labelled Shorts by duration (shortsClassification=inferred-from-duration).',
     'Average view percentage is an average playback metric, not the full audience-retention curve.',
     'The SHORTS traffic-source row reports views referred from the Shorts feed; it is not the shown-in-feed or viewed-versus-swiped rate.',
   ];
@@ -410,6 +471,14 @@ async function main() {
     trafficSources,
     topVideos,
     shorts,
+    shortsClassificationMethod: classified.method,
+    monetizationProgress: buildMonetizationProgress({
+      subscribers: numericOrNull(channel.statistics?.subscriberCount),
+      shortsViews90d: days >= 90 ? sumMetric(shorts, 'views') : null,
+      longFormWatchHours90d: days >= 90
+        ? (sumMetric(topVideos.filter((row) => row.creatorContentType !== 'SHORTS'), 'estimatedMinutesWatched') ?? 0) / 60
+        : null,
+    }),
     topShorts: summary.topShorts,
     weakShorts: summary.weakShorts,
     notes,

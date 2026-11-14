@@ -276,8 +276,10 @@ test('analytics fallback queries use the known-supported video dimension', () =>
   });
 
   assert.equal(fallbacks.daily[0].dimensions, 'day');
-  assert.equal(fallbacks.videos[0].dimensions, 'video');
-  assert.doesNotMatch(fallbacks.videos[0].metrics, /engagedViews|averageViewPercentage/);
+  // First fallback keeps Shorts classification; the last is the known-good shape.
+  assert.equal(fallbacks.videos[0].dimensions, 'video,creatorContentType');
+  assert.equal(fallbacks.videos.at(-1).dimensions, 'video');
+  for (const query of fallbacks.videos) assert.doesNotMatch(query.metrics, /engagedViews|averageViewPercentage/);
   assert.equal(fallbacks.trafficSources[0].dimensions, 'insightTrafficSourceType');
 });
 

@@ -25,7 +25,7 @@ def local_calendar_date(timezone_name: str, instant: datetime | None = None) -> 
 
 
 def resolve_target_date(
-    buffer_days: int = 3,
+    buffer_days: int = 1,
     timezone_name: str = "Asia/Kolkata",
     today: date | None = None,
 ) -> date:
@@ -55,7 +55,7 @@ def parse_date_override(value: str) -> date:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--days", type=int, default=3)
+    parser.add_argument("--days", type=int, default=1)
     parser.add_argument("--timezone", default="Asia/Kolkata")
     parser.add_argument("--date-override", default="")
     parser.add_argument("--github-env", default="")
