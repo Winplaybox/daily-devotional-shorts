@@ -11,3 +11,12 @@ class Kshaya(unittest.TestCase):
         self.assertTrue(any("देवउठनी" in t for t in titles(datetime.date(2026, 11, 20))))
     def test_not_next_day(self):
         self.assertFalse(any("देवउठनी" in t for t in titles(datetime.date(2026, 11, 21))))
+
+class Festivals(unittest.TestCase):
+    def test_karwa_chauth_2026(self):
+        self.assertTrue(any("करवा" in t for t in titles(datetime.date(2026, 10, 29))))
+        self.assertFalse(any("करवा" in t for t in titles(datetime.date(2026, 10, 28))))
+    def test_holi_2027(self):
+        self.assertTrue(any("होलिका" in t for t in titles(datetime.date(2027, 3, 21))))
+        self.assertTrue(any("होली (" in t for t in titles(datetime.date(2027, 3, 22))))
+        self.assertFalse(any("होली (" in t for t in titles(datetime.date(2027, 3, 21))))

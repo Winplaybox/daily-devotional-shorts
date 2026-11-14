@@ -18,9 +18,9 @@ const week = (over = {}) => ({
 
 test('scene list is intro + 7 days + summary + outro with unique ids', () => {
   const scenes = buildWeeklyScenes(week());
-  assert.equal(scenes.length, 10);
-  assert.deepEqual(scenes.map((s) => s.kind), ['intro', ...Array(7).fill('day'), 'summary', 'outro']);
-  assert.equal(new Set(scenes.map((s) => s.id)).size, 10);
+  assert.equal(scenes.length, 13);
+  assert.deepEqual(scenes.map((s) => s.kind), ['intro', ...Array(7).fill('day'), 'summary', 'summary', 'summary', 'summary', 'outro']);
+  assert.equal(new Set(scenes.map((s) => s.id)).size, 13);
 });
 
 test('narration never contains English AM/PM or empty placeholders', () => {

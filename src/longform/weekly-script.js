@@ -85,6 +85,24 @@ function dayNarration(day, index) {
   return variants[index % variants.length].replace(/\s{2,}/g, ' ').trim();
 }
 
+const WEEKDAY_GUIDE = {
+  'सोमवार': 'सोमवार भगवान शिव और चंद्रदेव का दिन है। इस दिन शिवलिंग पर जल या दूध चढ़ाना, ओम नमः शिवाय का जाप और सफेद वस्त्र पहनना शुभ माना जाता है।',
+  'मंगलवार': 'मंगलवार हनुमान जी का दिन है। हनुमान चालीसा का पाठ, सिंदूर चढ़ाना और ज़रूरतमंद को भोजन कराना इस दिन शुभ माना जाता है। लाल रंग इस दिन प्रिय है।',
+  'बुधवार': 'बुधवार गणेश जी और भगवान विष्णु का दिन माना जाता है। नए काम की शुरुआत से पहले गणेश जी को दूर्वा चढ़ाएं। हरा रंग इस दिन शुभ माना जाता है।',
+  'गुरुवार': 'गुरुवार बृहस्पति देव और भगवान विष्णु का दिन है। इस दिन विष्णु पूजन, पीले वस्त्र, चने की दाल और केले का दान शुभ माना जाता है।',
+  'शुक्रवार': 'शुक्रवार माता लक्ष्मी और देवी की उपासना का दिन है। घर की साफ़ सफ़ाई, खीर का भोग और सफेद या गुलाबी वस्त्र इस दिन शुभ माने जाते हैं।',
+  'शनिवार': 'शनिवार शनिदेव और हनुमान जी का दिन है। सरसों के तेल का दीपक, काले तिल या अनाज का दान और बुज़ुर्गों की सेवा इस दिन शुभ मानी जाती है।',
+  'रविवार': 'रविवार सूर्यदेव का दिन है। सुबह सूर्य को जल अर्पित करना, आदित्य हृदय स्तोत्र का पाठ और लाल या सुनहरे वस्त्र इस दिन शुभ माने जाते हैं।',
+};
+
+function dayGuidance(day) {
+  const guide = WEEKDAY_GUIDE[day.weekday] || '';
+  const rahu = spokenRange(day.rahu_kaal);
+  const abhijit = spokenRange(day.abhijit);
+  const tip = `अगर आपको ${day.weekday} को कोई ज़रूरी काम शुरू करना है, तो अभिजीत मुहूर्त ${abhijit} सबसे अच्छा समय माना जाता है। राहुकाल ${rahu} में नया काम, यात्रा की शुरुआत या कोई नया सौदा टालने की परंपरा है।`;
+  return `${guide} ${tip}`;
+}
+
 function dayDisplay(day) {
   const events = eventsOf(day);
   return {
@@ -126,9 +144,28 @@ export function buildWeeklyScenes(week) {
       id: `day-${day.date}`,
       kind: 'day',
       chapter: `${day.weekday} ${day.date_display.replace(/ \d{4}$/, '')}`,
-      narration: dayNarration(day, index),
+      narration: `${dayNarration(day, index)} ${dayGuidance(day)}`,
       display: { ...dayDisplay(day), index },
     });
+  });
+
+  const planner = (id, chapter, title, intro, pick) => ({
+    id, kind: 'summary', chapter,
+    narration: `${intro} ${week.days.map((d) => `${d.weekday} को ${pick(d, true)}`).join('। ')}।`,
+    display: { title, items: week.days.map((d) => ({ weekday: d.weekday, date: d.date_display.replace(/ \d{4}$/, ''), label: pick(d, false) })) },
+  });
+  scenes.push(planner('rahu-planner', 'सातों दिन का राहुकाल', 'सातों दिन का राहुकाल', 'इस पूरे हफ्ते का राहुकाल एक नज़र में। इन समयों में नया शुभ कार्य शुरू करने से बचना चाहिए।', (d, spoken) => (spoken ? spokenRange(d.rahu_kaal) : displayRange(d.rahu_kaal))));
+  scenes.push(planner('abhijit-planner', 'सातों दिन का अभिजीत मुहूर्त', 'सातों दिन का अभिजीत मुहूर्त', 'अब देखिए हर दिन का शुभ अभिजीत मुहूर्त। नया काम, खरीदारी या कोई ज़रूरी बातचीत शुरू करने के लिए यह समय अच्छा माना जाता है।', (d, spoken) => (spoken ? spokenRange(d.abhijit) : displayRange(d.abhijit))));
+  scenes.push({
+    id: 'panchang-basics', kind: 'summary', chapter: 'पंचांग के पाँच अंग',
+    narration: 'पंचांग के पाँच अंग होते हैं: तिथि, वार, नक्षत्र, योग और करण। तिथि चंद्रमा और सूर्य के बीच की दूरी से तय होती है और लगभग उन्नीस से छब्बीस घंटे की हो सकती है, इसलिए कभी कभी कोई तिथि दो दिन तक या एक दिन में दो बार आ सकती है। नक्षत्र चंद्रमा की स्थिति बताता है। राहुकाल हर दिन का वह लगभग डेढ़ घंटे का समय है जिसे नए शुभ कार्य के लिए ठीक नहीं माना जाता। और अभिजीत मुहूर्त दिन के मध्य का वह शुभ समय है जो अधिकतर दोषों से मुक्त माना जाता है।',
+    display: { title: 'पंचांग के पाँच अंग', items: [
+      { weekday: '', date: '', label: 'तिथि — चंद्र और सूर्य की दूरी से' },
+      { weekday: '', date: '', label: 'वार — सप्ताह का दिन' },
+      { weekday: '', date: '', label: 'नक्षत्र — चंद्रमा की स्थिति' },
+      { weekday: '', date: '', label: 'योग और करण — तिथि का सूक्ष्म विभाजन' },
+      { weekday: '', date: '', label: 'राहुकाल अशुभ · अभिजीत शुभ' },
+    ] },
   });
 
   const notable = week.days.flatMap((day) => {
