@@ -75,7 +75,16 @@ export function buildWeeklyEditorialPlan(weekStartDate) {
     });
   }
 
+  // One weekly long-form guide (Saturday) built from the same verified 7-day
+  // Panchang data. It carries the public watch-hour goal; Shorts carry reach.
+  const saturday = dateString(new Date(monday.getTime() + 5 * DAY_MS));
   const plan = {
+    longForm: {
+      date: saturday,
+      format: 'weekly_panchang_guide',
+      targetMinutes: [5, 8],
+      status: 'planned_not_automated',
+    },
     timezone: 'Asia/Kolkata',
     weekStartDate: dateString(monday),
     weekEndDate: dateString(new Date(monday.getTime() + 6 * DAY_MS)),

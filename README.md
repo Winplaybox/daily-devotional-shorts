@@ -56,7 +56,7 @@ The 40-second edition is scheduled for 07:00 IST; the 60-second edition is sched
 
 ## Three-day automatic publishing buffer
 
-The daily publisher resolves the Panchang date three local calendar days ahead (default: `PANCHANG_PUBLISH_BUFFER_DAYS=3`, `PANCHANG_SCHEDULE_TIMEZONE=Asia/Kolkata`). Both rendered editions use that exact same Panchang date and configured location. The 40-second edition remains scheduled for 07:00 IST and the 60-second edition for 19:00 IST. See [the buffer implementation and validation notes](docs/three-day-publishing-buffer.md). An explicit manual `panchang_date` is treated as the final target date and is not offset again.
+The daily publisher resolves the Panchang date one local calendar day ahead (default: `PANCHANG_PUBLISH_BUFFER_DAYS=1`; a 12:00 IST retry run fills any slot the 06:00 IST run missed, `PANCHANG_SCHEDULE_TIMEZONE=Asia/Kolkata`). Daily slots are controlled by `PANCHANG_DAILY_SLOTS` (default `morning,evening`; add `afternoon` for the Muhurat Short). Rendered editions use that exact same Panchang date and configured location. The 40-second edition remains scheduled for 07:00 IST and the 60-second edition for 19:00 IST. See [the buffer implementation and validation notes](docs/three-day-publishing-buffer.md). An explicit manual `panchang_date` is treated as the final target date and is not offset again.
 
 ## Monetization-readiness principles
 

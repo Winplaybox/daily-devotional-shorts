@@ -9,11 +9,13 @@ on:
       days:
         description: "Completed UTC days to report (1-90)"
         required: true
-        default: "28"
+        default: "90"
         type: string
 
 permissions:
-  contents: read
+  # write is used ONLY to commit analytics history to the isolated
+  # `analytics-data` branch; no workflow here pushes to main.
+  contents: write
 
 concurrency:
   group: pavitra-youtube-analytics
@@ -26,7 +28,7 @@ jobs:
     env:
       CLIENT_SECRET_JSON: ${{ secrets.CLIENT_SECRET_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
-      ANALYTICS_DAYS: ${{ inputs.days || '28' }}
+      ANALYTICS_DAYS: ${{ inputs.days || '90' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,3 +69,24 @@ jobs:
           path: out/analytics/*
           if-no-files-found: error
           retention-days: 90
+      - name: Persist durable metrics history (analytics-data branch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$(ls -1 out/analytics/youtube-analytics-*.json | tail -n 1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin analytics-data >/dev/null 2>&1; then
+            git fetch --depth=1 origin analytics-data
+            git worktree add history FETCH_HEAD
+            cd history && git checkout -B analytics-data && cd ..
+          else
+            git worktree add --detach history
+            cd history && git checkout --orphan analytics-data && git rm -rf . >/dev/null 2>&1 || true && cd ..
+          fi
+          node scripts/analytics-history.mjs "$report" history
+          cd history
+          git add -A
+          if git diff --cached --quiet; then echo "No history changes."; exit 0; fi
+          git commit -m "analytics: update metrics history $(date -u +%F)"
+          git push origin analytics-data

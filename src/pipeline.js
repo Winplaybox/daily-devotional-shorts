@@ -650,13 +650,24 @@ function hasValidCredentials() {
   }
 }
 
+const SLOT_DURATIONS = { morning: 40, afternoon: 40, evening: 60 };
+
+// Which Shorts to produce per day. Default is two distinct, high-value slots
+// (morning Panchang + evening "tomorrow" preview); the afternoon Muhurat slot is
+// opt-in via PANCHANG_DAILY_SLOTS so the channel never posts near-identical clips.
+export function resolveDailySlots(configured = process.env.PANCHANG_DAILY_SLOTS) {
+  const raw = String(configured || 'morning,evening');
+  const wanted = raw.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const unknown = wanted.filter((x) => !(x in SLOT_DURATIONS));
+  if (unknown.length) throw new Error(`PANCHANG_DAILY_SLOTS has unknown slot(s): ${unknown.join(', ')}`);
+  const ordered = Object.keys(SLOT_DURATIONS).filter((slot) => wanted.includes(slot));
+  if (!ordered.length) throw new Error('PANCHANG_DAILY_SLOTS must include at least one slot.');
+  return ordered.map((slot) => ({ slot, durationSeconds: SLOT_DURATIONS[slot] }));
+}
+
 async function run() {
   try {
-    const slotPlan = [
-      { slot: 'morning', durationSeconds: 40 },
-      { slot: 'afternoon', durationSeconds: 40 },
-      { slot: 'evening', durationSeconds: 60 },
-    ];
+    const slotPlan = resolveDailySlots();
     fs.mkdirSync(path.resolve('./public'), { recursive: true });
     const outputs = [];
 
@@ -699,7 +710,7 @@ async function run() {
         });
       }
     } else {
-      console.log('\n[REVIEW] All three slots rendered. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
+      console.log('\n[REVIEW] All configured slots rendered. YouTube upload was not requested or AUTO_PUBLISH is disabled.');
       for (const output of outputs) console.log(`[REVIEW] ${output.slot}: ${output.videoPath} -> ${output.data.publish_at}`);
       console.log('[REVIEW] Publishing remains gated by REQUEST_UPLOAD and AUTO_PUBLISH.');
     }

@@ -2,8 +2,10 @@ name: Daily Shorts Publisher
 
 on:
   schedule:
-    # 06:00 IST production; schedule the target date three calendar days ahead.
+    # 06:00 IST production; schedule the target date one calendar day ahead.
+    # 12:00 IST is an idempotent retry: already-uploaded slots are skipped.
     - cron: "30 0 * * *"
+    - cron: "30 6 * * *"
   workflow_dispatch:
     inputs:
       publish:
@@ -44,7 +46,8 @@ jobs:
       PANCHANG_DATE: ${{ inputs.panchang_date || '' }}
       PANCHANG_PUBLISH_AT: ${{ inputs.publish_at || '' }}
       PANCHANG_PUBLISH_OVERRIDE_SLOT: ${{ inputs.publish_slot || 'morning' }}
-      PANCHANG_PUBLISH_BUFFER_DAYS: ${{ vars.PANCHANG_PUBLISH_BUFFER_DAYS || '3' }}
+      PANCHANG_PUBLISH_BUFFER_DAYS: ${{ vars.PANCHANG_PUBLISH_BUFFER_DAYS || '1' }}
+      PANCHANG_DAILY_SLOTS: ${{ vars.PANCHANG_DAILY_SLOTS || 'morning,evening' }}
       PANCHANG_SCHEDULE_TIMEZONE: ${{ vars.PANCHANG_SCHEDULE_TIMEZONE || 'Asia/Kolkata' }}
       PANCHANG_LAT: ${{ vars.PANCHANG_LAT || '23.1765' }}
       PANCHANG_LON: ${{ vars.PANCHANG_LON || '75.7885' }}
