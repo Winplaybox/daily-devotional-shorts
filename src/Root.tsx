@@ -1,6 +1,7 @@
 import React from 'react';
 import { Composition } from 'remotion';
 import { PanchangVideo } from './PanchangVideo';
+import { WeeklyGuide, WeeklyGuideProps } from './WeeklyGuide';
 
 export const RemotionRoot: React.FC = () => {
   const samplePanchangData = {
@@ -129,6 +130,17 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
         defaultProps={{ ...samplePanchangData, narrationFile: 'narration60.wav' }}
+      />
+      <Composition
+        id="WeeklyGuide"
+        component={WeeklyGuide}
+        // Real length = narration length; the pipeline passes totalFrames.
+        durationInFrames={9000}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ scenes: [], narrationFile: 'weekly_narration.wav', totalFrames: 9000 } as WeeklyGuideProps}
+        calculateMetadata={({ props }) => ({ durationInFrames: Math.max(30, Number((props as WeeklyGuideProps).totalFrames) || 9000) })}
       />
       <Composition
         id="PanchangPoster"

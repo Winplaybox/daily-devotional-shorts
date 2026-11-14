@@ -13,7 +13,7 @@ import { spokenRange, spokenTime } from './editorial/spoken-time.js';
 
 import { fileURLToPath } from 'url';
 
-const OUT_DIR = path.resolve('./out');
+export const OUT_DIR = path.resolve('./out');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
 let cachedFfmpeg = null;
@@ -33,7 +33,7 @@ export function getBinaryPaths() {
   return { ffmpeg: cachedFfmpeg, ffprobe: cachedFfprobe };
 }
 
-function validateRenderedVideo(videoPath, expectedDurationSeconds) {
+export function validateRenderedVideo(videoPath, expectedDurationSeconds, { width = 1080, height = 1920 } = {}) {
   if (!fs.existsSync(videoPath)) throw new Error(`Rendered video is missing: ${videoPath}`);
   const fileSize = fs.statSync(videoPath).size;
   const { ffprobe } = getBinaryPaths();
@@ -42,6 +42,8 @@ function validateRenderedVideo(videoPath, expectedDurationSeconds) {
     fileSize,
     probe: JSON.parse(output),
     expectedDurationSeconds,
+    expectedWidth: width,
+    expectedHeight: height,
   });
   console.log(`[QC] Passed: ${videoPath} (${result.width}x${result.height}, ${result.durationSeconds.toFixed(2)}s, audio present, ${result.fileSize} bytes)`);
   return result;
@@ -264,6 +266,7 @@ export function isAcceptableNarrationDuration({ seconds, text, targetSec, maxTem
   const chars = String(text || '').replace(/\s+/g, '').length;
   const expected = chars / 7.0; // measured Hindi speech rate on this channel
   if (seconds < expected * 0.5 || seconds > expected * 1.8) return false;
+  if (targetSec == null) return true; // long-form scenes keep natural speed
   return seconds <= targetSec * maxTempo + 1;
 }
 
@@ -325,6 +328,36 @@ async function synthesizeEdge(text, rawPath, durationSeconds) {
 }
 
 const MAX_TEMPO = 1.12;
+
+/**
+ * Speech for one long-form scene using the same provider chain as the Shorts
+ * (Kokoro -> Gemini -> Edge). Output is a normalized 48 kHz stereo WAV with no
+ * tempo change, so scene lengths follow the natural speech duration.
+ */
+export async function synthesizeSceneAudio(text, id, outPath) {
+  const { ffmpeg } = getBinaryPaths();
+  const synthesizers = { kokoro: synthesizeKokoro, gemini: synthesizeGemini, edge: synthesizeEdge };
+  const providers = resolveTtsProviders(process.env.TTS_PROVIDERS);
+  const sourcePath = path.join(OUT_DIR, `scene_source_${id}.wav`);
+  for (const provider of providers) {
+    const rawPath = path.join(OUT_DIR, `scene_raw_${provider}_${id}.${provider === 'edge' ? 'mp3' : 'wav'}`);
+    try {
+      const label = await synthesizers[provider](text, rawPath, `scene_${id}`);
+      execSync(`${ffmpeg} -y -i "${rawPath}" -ar 24000 -ac 1 "${sourcePath}"`, { stdio: 'ignore' });
+      const seconds = getAudioDuration(sourcePath);
+      const isLast = provider === providers[providers.length - 1];
+      if (!isLast && !isAcceptableNarrationDuration({ seconds, text, targetSec: null, maxTempo: MAX_TEMPO })) {
+        console.warn(`[TTS] ${label} gave an implausible ${seconds.toFixed(1)}s for scene ${id}; trying next provider.`);
+        continue;
+      }
+      execSync(`${ffmpeg} -y -i "${sourcePath}" -af "loudnorm=I=-16:TP=-1.5:LRA=10" -ar 48000 -ac 2 "${outPath}"`, { stdio: 'ignore' });
+      return { label, seconds: getAudioDuration(outPath) };
+    } catch (error) {
+      console.warn(`[TTS] ${provider} failed for scene ${id}: ${error.message}`);
+    }
+  }
+  throw new Error(`All TTS providers failed for scene ${id}.`);
+}
 
 export async function generateHindiNarration(data, durationSeconds = 60) {
   const sourcePath = path.join(OUT_DIR, `narration_source_${durationSeconds}.wav`);
@@ -420,7 +453,7 @@ async function renderRemotionVideo(data, outVideoPath, durationSeconds = 60) {
 }
 
 // Step 3: YouTube API Upload
-async function getYouTubeClient() {
+export async function getYouTubeClient() {
   const credentials = JSON.parse(fs.readFileSync('./client_secret.json', 'utf8'));
   const conf = credentials.installed || credentials.web || credentials;
   const client_id = conf.client_id;
@@ -509,8 +542,8 @@ async function addVideoToPlaylist(yt, playlistId, videoId) {
   }
 }
 
-async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContext) {
-  console.log('[3/3] Uploading Short to YouTube (Scheduled Mode)...');
+export async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContext) {
+  console.log(`[3/3] Uploading ${publishContext?.slot === 'weekly' ? 'weekly long-form video' : 'Short'} to YouTube (Scheduled Mode)...`);
   try {
     const rawPublishAt = publishAt || metadata.publish_at || metadata.publishAt;
     
@@ -520,6 +553,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
     if (targetPublishAt.getTime() < Date.now() + 5 * 60 * 1000) throw new Error('Scheduled publish time must be at least 5 minutes in the future.');
     const publishAtIso = targetPublishAt.toISOString();
     const jobTag = buildPublishJobTag(publishContext.panchangDate, publishContext.slot);
+    const urlBase = publishContext.slot === 'weekly' ? 'https://youtube.com/watch?v=' : 'https://youtube.com/shorts/';
     const tags = [...new Set([...(Array.isArray(metadata.yt_tags) ? metadata.yt_tags : []), jobTag])];
 
     // Search the channel's uploads playlist before inserting. Retries must
@@ -540,8 +574,8 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
       } else if (existing.status?.privacyStatus !== "public" || targetPublishAt.getTime() > Date.now()) {
         throw new Error(`Existing video for ${jobTag} has unexpected privacy status; refusing duplicate upload.`);
       }
-      console.log(`[IDEMPOTENCY] Existing upload found for ${jobTag}; skipping duplicate. URL: https://youtube.com/shorts/${existing.id}`);
-      return { videoId: existing.id, url: `https://youtube.com/shorts/${existing.id}`, skipped: true };
+      console.log(`[IDEMPOTENCY] Existing upload found for ${jobTag}; skipping duplicate. URL: ${urlBase}${existing.id}`);
+      return { videoId: existing.id, url: `${urlBase}${existing.id}`, skipped: true };
     }
 
     console.log(`[SCHEDULE] Video will publish at: ${publishAtIso}`);
@@ -610,7 +644,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
 
     console.log(`\n==========================================================`);
     console.log(`[UPLOAD VERIFIED] ${jobTag}: YouTube upload and schedule verified!`);
-    console.log(`URL: https://youtube.com/shorts/${videoId}`);
+    console.log(`URL: ${urlBase}${videoId}`);
     console.log(`Title: ${uploaded.snippet.title}`);
     console.log(`Status: Private until ${uploaded.status.publishAt}`);
     console.log(`==========================================================\n`);
@@ -622,6 +656,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
         await addVideoToPlaylist(yt, playlistId, videoId);
       }
     }
+    return { videoId, url: `${urlBase}${videoId}`, skipped: false };
   } catch (uploadErr) {
     console.error('[ERROR] YouTube upload request failed:', uploadErr.message);
     if (uploadErr.response && uploadErr.response.data) {
@@ -631,7 +666,7 @@ async function uploadToYouTube(yt, videoPath, metadata, publishAt, publishContex
   }
 }
 
-function hasValidCredentials() {
+export function hasValidCredentials() {
   if (!fs.existsSync('./client_secret.json') || !fs.existsSync('./token.json')) return false;
   try {
     const rawSecret = fs.readFileSync('./client_secret.json', 'utf8').trim();

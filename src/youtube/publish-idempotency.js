@@ -2,7 +2,7 @@
  * YouTube-native idempotency for scheduled Panchang Shorts.
  * A deterministic video tag survives GitHub Actions retries without new secrets.
  */
-const VALID_SLOTS = new Set(["morning", "afternoon", "evening"]);
+const VALID_SLOTS = new Set(["morning", "afternoon", "evening", "weekly"]);
 
 export function buildPublishJobTag(panchangDate, slot) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(panchangDate))) {
