@@ -172,7 +172,7 @@ const Summary: React.FC<{display: Record<string, any>}> = ({display}) => {
   const items: Array<{weekday: string; date: string; label: string}> = display.items || [];
   return (
     <AbsoluteFill style={{fontFamily: bodyFont, padding: '150px 140px 100px'}}>
-      <div style={{fontFamily: headFont, color: GOLD, fontSize: 96}}>इस हफ्ते की खास तिथियां</div>
+      <div style={{fontFamily: headFont, color: GOLD, fontSize: 96}}>{display.title || 'इस हफ्ते की खास तिथियां'}</div>
       <div style={{marginTop: 40, display: 'flex', flexDirection: 'column', gap: 22}}>
         {items.length === 0 ? (
           <div style={{color: GOLD_SOFT, fontSize: 52}}>इस हफ्ते कोई बड़ा व्रत या त्योहार नहीं।</div>
@@ -181,15 +181,15 @@ const Summary: React.FC<{display: Record<string, any>}> = ({display}) => {
             const pop = spring({frame: frame - 8 - i * 9, fps, config: {damping: 18, stiffness: 120}});
             return (
               <div
-                key={`${item.date}-${item.label}`}
+                key={`${i}-${item.date}-${item.label}`}
                 style={{
                   background: MAROON, borderRadius: 22, padding: '18px 32px', display: 'flex', gap: 34,
                   alignItems: 'center', opacity: pop, transform: `translateX(${(1 - pop) * 60}px)`,
                 }}
               >
-                <span style={{color: GOLD, fontSize: 46, fontWeight: 800, minWidth: 250}}>{item.weekday}</span>
-                <span style={{color: GOLD_SOFT, fontSize: 38, minWidth: 260}}>{item.date}</span>
-                <span style={{color: '#fff', fontSize: 46, fontWeight: 700}}>{item.label}</span>
+                <span style={{color: GOLD, fontSize: 46, fontWeight: 800, minWidth: item.weekday ? 250 : 0}}>{item.weekday}</span>
+                <span style={{color: GOLD_SOFT, fontSize: 38, minWidth: item.date ? 260 : 0}}>{item.date}</span>
+                <span style={{color: '#fff', fontSize: item.date ? 46 : 42, fontWeight: 700}}>{item.label}</span>
               </div>
             );
           })

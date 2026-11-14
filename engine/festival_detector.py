@@ -575,6 +575,45 @@ def detect_todays_festivals(panchang_data, target_date):
             if m["title"] not in known and not str(m["title"]).startswith("दैनिक पंचांग")
         ]
         matches = sorted(matches + extra, key=lambda x: x["priority"], reverse=True)
+    matches = _add_moonrise_and_holi(panchang_data, target_date, matches)
+    return matches
+
+
+def _add_moonrise_and_holi(panchang_data, target_date, matches):
+    """Karwa Chauth (chaturthi at evening moonrise) and Holi/Dhulandi (day after Holika Dahan)."""
+    from datetime import datetime, timedelta
+    from engine.panchang_calculator import calculate_panchang_elements
+    tz = float(panchang_data.get("tz", panchang_data.get("timezone", 5.5)) or 5.5) if not isinstance(panchang_data.get("tz"), str) else 5.5
+    extra = []
+    amanta = str(panchang_data.get("month_amanta", ""))
+    if "आश्विन" in amanta and not panchang_data.get("is_adhika"):
+        ev = calculate_panchang_elements(datetime(target_date.year, target_date.month, target_date.day, 20, 0), tz, light=True)
+        if ev.get("tithi_number") == 19:  # Krishna Chaturthi at moonrise
+            extra.append({
+                "religion": "SANATANA DHARMA", "title": "करवा चौथ व्रत", "priority": 9,
+                "label1": "करवा चौथ पूजा मुहूर्त", "val1": panchang_data.get("pradosh_kaal") or "सायं",
+                "label2": "चंद्रोदय समय", "val2": panchang_data.get("moonrise"),
+                "label3": "राहुकाल समय", "val3": panchang_data.get("rahu_kaal"),
+                "footer": "🌕 अखंड सौभाग्य की कामना — करवा चौथ की शुभकामनाएँ",
+                "theme": "devi",
+                "yt_title": f"Karwa Chauth {target_date.year} Chandrodaya Time & Puja Muhurat #Shorts",
+            })
+    if "फाल्गुन" in str(panchang_data.get("month_amanta", "")) and panchang_data.get("tithi_in_paksha") == 15 \
+            and panchang_data.get("paksha") == "शुक्ल पक्ष":
+        prev = target_date - timedelta(days=1)
+        ev = calculate_panchang_elements(datetime(prev.year, prev.month, prev.day, 19, 0), tz, light=True)
+        if ev.get("tithi_number") == 15:  # Purnima already at pradosh yesterday => Holika Dahan was yesterday
+            extra.append({
+                "religion": "SANATANA DHARMA", "title": "होली (रंगवाली होली / धुलेंडी)", "priority": 10,
+                "label1": "होली खेलने का शुभ समय", "val1": f"प्रातः {panchang_data.get('sunrise')} के बाद",
+                "label2": "राहुकाल (त्याज्य)", "val2": panchang_data.get("rahu_kaal"),
+                "label3": "पूर्णिमा तिथि", "val3": "आज प्रातः से",
+                "footer": "🎨 बुरा न मानो होली है! रंगों का पर्व मुबारक",
+                "theme": "temple",
+                "yt_title": f"Holi {target_date.year} Date & Shubh Samay #Shorts",
+            })
+    if extra:
+        matches = sorted(matches + extra, key=lambda x: x["priority"], reverse=True)
     return matches
 
 
