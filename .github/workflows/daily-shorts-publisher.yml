@@ -5,6 +5,9 @@ on:
     # 06:00 IST production; schedule the target date one calendar day ahead.
     # 12:00 IST is an idempotent retry: already-uploaded slots are skipped.
     - cron: "30 0 * * *"
+    # Redundant off-peak triggers: GitHub delays/drops busy :00/:30 schedules. Uploads are idempotent.
+    - cron: "17 1 * * *"
+    - cron: "47 2 * * *"
     - cron: "30 6 * * *"
   workflow_dispatch:
     inputs:
