@@ -50,6 +50,14 @@ export function buildAnalyticsQueries(range) {
       sort: '-views',
       maxResults: 50,
     },
+    searchTerms: {
+      ...base,
+      metrics: 'views,estimatedMinutesWatched',
+      dimensions: 'insightTrafficSourceDetail',
+      filters: 'insightTrafficSourceType==YT_SEARCH',
+      sort: '-views',
+      maxResults: 25,
+    },
     revenue: {
       ...base,
       metrics: 'estimatedRevenue',
@@ -119,6 +127,38 @@ export async function queryWithFallback(analytics, reportName, candidates, { opt
     return { data: { columnHeaders: [], rows: [] } };
   }
   throw new Error('YouTube Analytics report "' + reportName + '" failed: ' + errors.join(' | '));
+}
+
+const SEARCH_THEMES = [
+  ['choghadiya', /choghadiya|chaughadiya|चौघड़िया|चौघडिया/i],
+  ['kal-ka-panchang', /\b(kal|cal)\b.*panchang|कल\s*का\s*पंचांग|tomorrow.*panchang/i],
+  ['tithi', /tithi|तिथि/i],
+  ['muhurat', /muhur|मुहूर्त/i],
+  ['rahu-kaal', /rahu|राहु/i],
+  ['dated-panchang', /\d{1,2}\s*(january|february|march|april|may|june|july|august|september|october|november|december|जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर).*(panchang|पंचांग)/i],
+  ['festival', /shivratri|diwali|holi|navratri|ekadashi|एकादशी|शिवरात्रि|दिवाली|होली|नवरात्रि/i],
+];
+
+/**
+ * Groups YouTube search terms into themes so the report shows what viewers look
+ * for (not just single noisy queries). Shares are of the terms returned, which is
+ * only the top slice of search traffic, so they are labelled accordingly.
+ */
+export function buildSearchTermInsights(rows = []) {
+  const terms = rows
+    .map((row) => ({ term: String(row.insightTrafficSourceDetail || '').trim(), views: numericOrNull(row.views) ?? 0 }))
+    .filter((row) => row.term && row.views > 0);
+  const totalViews = terms.reduce((sum, row) => sum + row.views, 0);
+  const themeViews = {};
+  for (const row of terms) {
+    for (const [name, pattern] of SEARCH_THEMES) {
+      if (pattern.test(row.term)) themeViews[name] = (themeViews[name] || 0) + row.views;
+    }
+  }
+  const themes = Object.entries(themeViews)
+    .map(([theme, views]) => ({ theme, views, shareOfReturnedTerms: totalViews ? Number((views / totalViews).toFixed(3)) : null }))
+    .sort((a, b) => b.views - a.views);
+  return { termsReturned: terms.length, totalViewsOfReturnedTerms: totalViews, themes, topTerms: terms.slice(0, 15) };
 }
 
 function loadOAuthClient() {
@@ -352,15 +392,17 @@ async function main() {
 
   const queries = buildAnalyticsQueries(range);
   const fallbacks = buildAnalyticsFallbackQueries(range);
-  const [dailyResponse, videosResponse, trafficResponse] = await Promise.all([
+  const [dailyResponse, videosResponse, trafficResponse, searchResponse] = await Promise.all([
     queryWithFallback(analytics, 'daily', [queries.daily, ...fallbacks.daily]),
     queryWithFallback(analytics, 'videos', [queries.videos, ...fallbacks.videos]),
     queryWithFallback(analytics, 'trafficSources', [queries.trafficSources, ...fallbacks.trafficSources], { optional: true }),
+    queryWithFallback(analytics, 'searchTerms', [queries.searchTerms], { optional: true }),
   ]);
 
   const daily = rowsToObjects(dailyResponse.data);
   const videoRows = rowsToObjects(videosResponse.data);
   const trafficSources = rowsToObjects(trafficResponse.data);
+  const searchTerms = buildSearchTermInsights(rowsToObjects(searchResponse.data));
   const dailyCoverage = assessDailyCoverage(daily, range);
   const dailyMetricCoverage = assessMetricCoverage(daily, [
     'views',
@@ -469,6 +511,7 @@ async function main() {
     },
     daily,
     trafficSources,
+    searchTerms,
     topVideos,
     shorts,
     shortsClassificationMethod: classified.method,

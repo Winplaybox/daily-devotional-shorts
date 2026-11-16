@@ -345,3 +345,23 @@ test('optional traffic-source analytics degrade to unavailable rows after query 
   );
   assert.deepEqual(response, { data: { columnHeaders: [], rows: [] } });
 });
+
+test('search-term insights group choghadiya, kal ka panchang and tithi queries', async () => {
+  const { buildSearchTermInsights, buildAnalyticsQueries } = await import('../src/youtube/analytics-report.js');
+  const insights = buildSearchTermInsights([
+    { insightTrafficSourceDetail: 'choghadiya', views: 23 },
+    { insightTrafficSourceDetail: 'चौघड़िया मुहूर्त', views: 3 },
+    { insightTrafficSourceDetail: 'cal ka panchang', views: 12 },
+    { insightTrafficSourceDetail: 'कल का पंचांग', views: 4 },
+    { insightTrafficSourceDetail: 'आज कौन सी तिथि है', views: 5 },
+    { insightTrafficSourceDetail: '', views: 9 },
+  ]);
+  const byTheme = Object.fromEntries(insights.themes.map((t) => [t.theme, t.views]));
+  assert.equal(byTheme.choghadiya, 26);
+  assert.equal(byTheme['kal-ka-panchang'], 16);
+  assert.equal(byTheme.tithi, 5);
+  assert.equal(insights.termsReturned, 5);
+  const q = buildAnalyticsQueries({ startDate: '2026-10-01', endDate: '2026-10-28' }).searchTerms;
+  assert.equal(q.filters, 'insightTrafficSourceType==YT_SEARCH');
+  assert.equal(q.dimensions, 'insightTrafficSourceDetail');
+});
