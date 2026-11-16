@@ -100,7 +100,13 @@ export function evaluateWorkflowHealth({ expectation, runs, now = new Date() }) 
     }
 
     const ageMinutes = Math.max(0, Math.floor((now.getTime() - createdAt) / 60_000));
-    const scheduleDelayMinutes = Math.floor((createdAt - expectedAt.getTime()) / 60_000);
+    // With redundant crons, judge lateness by the FIRST run at/after the expected cron,
+    // not the latest one (a healthy retry cron must not make the day look late).
+    const firstSince = scheduledRuns
+      .filter((run) => (timestamp(run.created_at) ?? -Infinity) >= expectedAt.getTime())
+      .sort((a, b) => timestamp(a.created_at) - timestamp(b.created_at))[0];
+    const firstAt = firstSince ? timestamp(firstSince.created_at) : createdAt;
+    const scheduleDelayMinutes = Math.floor((firstAt - expectedAt.getTime()) / 60_000);
     const base = {
       workflow: expectation.label,
       file: expectation.file,
