@@ -29,7 +29,7 @@ def generate_seo_metadata(event: dict, panchang: dict, slot: str = "morning") ->
     title_raw = event.get("yt_title")
 
     if slot == "afternoon":
-        title_raw = f"आज का शुभ चौघड़िया व अमृत मुहूर्त ⚡ {date_disp} | Shubh Choghadiya Today #Shorts"
+        title_raw = f"आज का चौघड़िया मुहूर्त ⚡ {date_disp} | Aaj Ka Choghadiya | Shubh Choghadiya #Shorts"
     elif slot == "evening":
         title_raw = f"कल का पंचांग 🕉️ {date_disp} | कल का शुभ मुहूर्त व राहुकाल | Kal Ka Panchang #Shorts"
     elif not title_raw:
@@ -90,6 +90,9 @@ def generate_seo_metadata(event: dict, panchang: dict, slot: str = "morning") ->
         "Dainik Panchang", "Choghadiya", "Rahukaal", "Tithi", "Kal Ka Panchang",
         "Aaj Ka Panchang Today", "Aaj Ka Shubh Muhurat", "Hindu Calendar",
         "Puja Samay", "Bhakti", "Devotional", "PavitraPanchang365",
+        # Terms real viewers searched (YouTube Studio search terms, 28 days)
+        "चौघड़िया मुहूर्त", "शुभ चौघड़िया", "Shubh Choghadiya", "Aaj Ka Choghadiya",
+        "कल का पंचांग", "Cal Ka Panchang", "आज कौन सी तिथि है", "Aaj Ka Muhurat",
         panchang["tithi_name"].split(" ")[0], panchang["nakshatra_name"].split(" ")[0]
     ]
 

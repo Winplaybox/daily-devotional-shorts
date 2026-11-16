@@ -14,7 +14,7 @@ for a new channel; the 90-day window above is the real clock.
 
 ## What the automation now does
 
-- `PANCHANG_PUBLISH_BUFFER_DAYS=1`, `PANCHANG_DAILY_SLOTS=morning,evening` (set `morning,afternoon,evening` to restore three).
+- `PANCHANG_PUBLISH_BUFFER_DAYS=1`, `PANCHANG_DAILY_SLOTS=morning,afternoon,evening` (afternoon = Choghadiya Short, added after Search-terms data showed `choghadiya` as the top query, ~10% of search views).
 - Daily 06:00 IST run + 12:00 IST idempotent retry (already-uploaded slots are skipped).
 - Skyfield (JPL DE421) is the Panchang source; the legacy analytic engine is an automatic fallback.
 - Festival dates use the correct observance kaal (Pradosh / Nishita), Purnimanta months and Adhika Maas.

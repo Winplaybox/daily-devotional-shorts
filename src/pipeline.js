@@ -691,7 +691,7 @@ const SLOT_DURATIONS = { morning: 40, afternoon: 40, evening: 60 };
 // (morning Panchang + evening "tomorrow" preview); the afternoon Muhurat slot is
 // opt-in via PANCHANG_DAILY_SLOTS so the channel never posts near-identical clips.
 export function resolveDailySlots(configured = process.env.PANCHANG_DAILY_SLOTS) {
-  const raw = String(configured || 'morning,evening');
+  const raw = String(configured || 'morning,afternoon,evening');
   const wanted = raw.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
   const unknown = wanted.filter((x) => !(x in SLOT_DURATIONS));
   if (unknown.length) throw new Error(`PANCHANG_DAILY_SLOTS has unknown slot(s): ${unknown.join(', ')}`);
