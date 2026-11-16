@@ -226,3 +226,14 @@ test('keeps Meta publishing hard-disabled and points its future verifier step at
   assert.doesNotMatch(workflow, /scripts\/verify-youtube-source-run\.js/);
   assert.match(verifier, /assertThreeVerifiedUploadOutcomes\(logText\)/);
 });
+
+test('a redundant later cron run does not make an on-time first run look late', () => {
+  const expectation = { file: 'x.yml', label: 'X', dailyScheduleUtc: { hour: 0, minute: 30 }, graceMinutes: 240 };
+  const mk = (id, created) => ({ id, event: 'schedule', head_branch: 'main', status: 'completed', conclusion: 'success', created_at: created });
+  const result = evaluateWorkflowHealth({
+    expectation,
+    runs: [mk(2, '2026-11-15T14:11:00Z'), mk(1, '2026-11-15T01:40:00Z')],
+    now: new Date('2026-11-15T15:00:00Z'),
+  });
+  assert.equal(result.state, 'healthy');
+});
